@@ -1,0 +1,14 @@
+[project]
+name = "digital-garden"
+version = "0.1.0"
+description = "个人学习笔记与读书翻译"
+requires-python = ">=3.11"
+dependencies = [
+    "pdfplumber>=0.11.9",
+    "pypdf>=6.8.0",
+]
+
+[dependency-groups]
+tools = [
+    "pymupdf>=1.24",
+]
