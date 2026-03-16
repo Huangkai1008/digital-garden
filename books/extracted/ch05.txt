@@ -1,0 +1,490 @@
+CHAPTER 5
+Playing Nice with Others
+The count of programming languages approaches infinity, and a huge chunk of them
+have a C interface. This short chapter offers some general notes about the process and
+demonstrates in detail the interface with one language, Python.
+Every language has its own customs for packaging and distribution, which means
+that after you write the bridge code in C and the host language, you get to face the
+task of getting the packaging system to compile and link everything. This gives me a
+chance to present more advanced features of Autotools, such as conditionally pro‐
+cessing a subdirectory and adding install hooks.
+Dynamic Loading
+Before jumping into other languages, it is worth taking a moment to appreciate the C
+functions that make it all possible: dlopen and dlsym. These functions open a
+dynamic library and extract a symbol, such as a static object or a function, from that
+library.
+The functions are part of the POSIX standard. Windows systems have a similar setup,
+but the functions are named LoadLibrary and GetProcAddress; for simplicity of
+exposition, I’ll stick to the POSIX names.
+The name “shared object file” is nicely descriptive: such a file includes a list of objects,
+including functions and statically defined structures, that are intended for use in
+other programs.
+Using such a file is much like retrieving an item from a text file holding a list of items.
+For the text file, you would first call fopen to get a handle for the file, and then call an
+appropriate function to search the file and return a pointer to the found item. For a
+shared object file, the file-opening function is dlopen, and the function to search for
+107
+
+the symbol you want is dlsym. The magic is in what you can do with the returned
+pointer. For the list of text items, you have a pointer to plain text and can do quoti‐
+dian text-handling things with it. If you used dlsym to retrieve a pointer to a function,
+you can call the function, and if you retrieved a pointer to a struct, you can immedi‐
+ately use the struct as the already-initialized object that it is.
+When your C program calls a function in a linked-to library, this is how the function
+is retrieved and used. A program with a plugin system is doing this to load functions
+written by different authors after the main program was shipped. A scripting lan‐
+guage that wants to call C code will do so by calling the same dlopen and dlsym func‐
+tions.
+To show off what dlopen/dlsym can do, Example 5-1 is the beginnings of a C inter‐
+preter, that:
+1. Asks the user to type in the code for a C function
+2. Compiles the function to a shared object file
+3. Loads the shared object file via dlopen
+4. Gets the function via dlsym
+5. Executes the function the user just typed in
+ 
+Here is a sample run:
+I am about to run a function. But first, you have to write it for me.
+Enter the function body. Conclude with a '}' alone on a line.
+>>double fn(double in){
+>> return sqrt(in)*pow(in, 2);
+>> }
+f(1) = 1
+f(2) = 5.65685
+f(10) = 316.228
+Example 5-1. A program to request a function from the user, compile it on the spot, and
+run the function. (dynamic.c)
+#include <dlfcn.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <readline/readline.h>
+void get_a_function(){
+    FILE *f = fopen("fn.c", "w");
+    fprintf(f, "#include <math.h>\n"                        
+               "double fn(double in){\n");
+108 | Chapter 5: Playing Nice with Others
+
+    char *a_line = NULL;
+    char *prompt = ">>double fn(double in){\n>> ";
+    do {
+        free(a_line);
+        a_line = readline(prompt);                          
+        fprintf(f, "%s\n", a_line);
+        prompt = ">> ";
+    } while (strcmp(a_line, "}"));
+    fclose(f);
+}
+void compile_and_run(){
+    if (system("c99 -fPIC -shared fn.c -o fn.so")!=0){      
+        printf("Compilation error.");
+        return;
+    }
+    void *handle = dlopen("fn.so", RTLD_LAZY);              
+    if (!handle) printf("Failed to load fn.so: %s\n", dlerror());
+    typedef double (*fn_type)(double);                      
+    fn_type f = dlsym(handle, "fn");
+    printf("f(1) = %g\n", f(1));
+    printf("f(2) = %g\n", f(2));
+    printf("f(10) = %g\n", f(10));
+}
+int main(){
+    printf("I am about to run a function. But first, you have to write it for me.\n"
+        "Enter the function body. Conclude with a '}' alone on a line. \n\n");
+    get_a_function();
+    compile_and_run();
+}
+This function writes the user’s input to a function, including the math library
+header (so pow, sin, et al. are available) and the correct function declaration.
+Here is most of the interface to the Readline library. Y ou give it a prompt to show
+the user, it furnishes facilities for the user to comfortably provide input based on
+your prompt, and it returns a string with the user’s input.
+Now that the user’s function is in a complete .c file, compile using a typical call to
+the C compiler. Y ou may have to modify this line for your compiler’s preferred
+flags.
+Open the shared object file for reading objects. Lazy binding indicates that func‐
+tion names are resolved only as needed.
+Dynamic Loading | 109
+
+
+The dlsym function will return a void *, so you need to specify the type informa‐
+tion for the function.
+This is the most system-specific example in the book. I use the GNU Readline library,
+which is installed by default on some systems, because it reduces the problem of get‐
+ting user input to a single line of code. I use the system command to call the com‐
+piler, but compiler flags are notoriously nonstandard, so the flags may need to be
+changed to work on your system.
+The Limits of Dynamic Loading
+Wouldn’t it be great to clean up this program, add the right #ifdefs to use LoadLi
+brary when running from Windows (though GLib already did this for us—see gmod
+ules in the GLib documentation), and build this into a full read-evaluate-print loop
+for C?
+Unfortunately, that is not possible using dlopen and dlsym. For example, if I wanted
+to pull a single line of executable code out of the object file, what would I tell dlsym to
+retrieve? Local variables are out, because the dlsym function can only pull static vari‐
+ables declared as file-global in the source or functions from a shared object library. So
+this half-baked example is already revealing limitations of dlopen and dlsym.
+Even if our only view of the C language is functions and global variables, there is still
+a broad range of possibilities. The functions can create new objects as desired, and the
+global variables could be structs holding a list of functions, or even just strings giving
+function names that the calling program can retrieve via dlsym.
+Of course, the calling system needs to know what symbols to retrieve and how to use
+them. In the example above, I dictated that the function have a prototype of double
+fn(double). For a plug-in system, the author of the calling system could write down
+a precise set of instructions about what symbols need to be present and how they will
+be used. For a scripting language loading arbitrary code, the author of the shared
+object file would need to write script code that correctly calls objects.
+The Process
+ This section goes over some of the considerations that go into writing code that is
+easily callable by a host system that relies on dlopen/dlsym:
+• On the C side, writing functions to be easy to call from other languages.
+• Writing the wrapper function that calls the C function in the host language.
+• Handling C-side data structures. Can they be passed back and forth?
+110 | Chapter 5: Playing Nice with Others
+
+
+• Linking to the C library. That is, once everything is compiled, we have to make
+sure that at runtime, the system knows where to find the library.
+Writing to Be Read by Nonnatives
+The limitations of dlopen/dlsym have some immediate implications for how callable
+C code should be written.
+• Macros are read by the preprocessor, so that the final shared library has no trace
+of them. In Chapter 10, I discuss all sorts of ways for you to use macros to make
+using functions more pleasant from within C, so that you don’t even need to rely
+on a scripting language for a friendlier interface. But when you do need to link to
+the library from outside of C, you won’t have those macros on hand, and your
+wrapper function will have to replicate whatever the function-calling macro does.
+• Y ou will need to tell the host language how to use each object retrieved via dlsym,
+such as providing the function header in a manner the host language can under‐
+stand. That means that every single visible object requires additional, redundant
+work on the host side, which means limiting the number of interface functions
+will be essential. Some C libraries (like libXML in “libxml and cURL ” on page 335 )
+have a set of functions for full control, and “easy” wrapper functions to do typical
+workflows with one call; if your library has dozens of functions, consider writing
+a few such easy interface functions. It’s better to have a host package that provides
+only the core functionality of the C-side library than to have a host package that
+is unmaintainable and eventually breaks.
+• Objects are great for this situation. The short version of Chapter 11, which dis‐
+cusses this in detail, is that one file defines a struct and several functions that
+interface with the struct, including struct_new, struct_copy, struct_free,
+struct_print, and so on. A well-designed object will have a small number of
+interface functions, or will at least have a minimal subset for use by the host lan‐
+guage. As discussed in the next section, having a central structure holding the
+data will also make things easier.
+The Wrapper Function
+For every C function you expect that users will call, you will also need a wrapper
+function on the host side. This function serves a number of purposes:
+Customer service
+Users of the host language who don’t know C don’t want to have to think about the
+C-calling system. They expect the help system to say something about your func‐
+tions, and the help system is probably directly tied to functions and objects in the
+host language. If users are used to functions being elements of objects, and you didn’t
+The Process | 111
+
+set them up as such on the C side, then you can set up the object as per custom on
+the host side.
+Translation in and out
+The host language’s representation of integers, strings, and floating-point numbers
+may be int, char*, and double, but in most cases, you’ll need some sort of transla‐
+tion between host and C data types. In fact, you’ll need the translation twice: once
+from host to C, then after you call your C function, once from C to host. See the
+example for Python that follows.
+Users will expect to interact with a host-side function, so it’s hard to avoid having a
+host function for every C-side function, but suddenly you’ve doubled the number of
+functions you have to maintain. There will be redundancy, as defaults you specify for
+inputs on the C side will typically have to be respecified on the host side, and argu‐
+ment lists sent by the host will typically have to be checked every time you modify
+them on the C side. There’s no point fighting it: you’re going to have redundancy and
+will have to remember to check the host-side code every time you change the C side
+interfaces. So it goes.
+Smuggling Data Structures Across the Border
+Forget about a non-C language for now; let’s consider two C files, struct.c and
+user.c, where a data structure is generated as a local variable with internal linkage in
+the first and needs to be used by the second.
+The easiest way to reference the data across files is a simple pointer: struct.c allo‐
+cates the pointer, user.c receives it, and all is well. The definition of the structure
+might be public, in which case the user file can look at the data pointed to by the
+pointer and make changes as desired. Because the procedures in the user are modify‐
+ing the pointed-to data, there’s no mismatch between what struct.c and user.c are
+seeing.
+Conversely, if struct.c sent a copy of the data, then once the user made any modifi‐
+cation, we’ d have a mismatch between data held internally by the two files. If we
+expect the received data to be used and immediately thrown away, or treated as read-
+only, or that struct.c will never care to look at the data again, then there’s no prob‐
+lem handing ownership over to the user.
+So for data structures that struct.c expects to operate on again, we should send a
+pointer; for throwaway results, we can send the data itself.
+What if the structure of the data structure isn’t public? It seems that the function in
+user.c would receive a pointer, and then wouldn’t be able to do anything with it. But
+it can do one thing: it can send the pointer back to struct.c. When you think about
+it, this is a common form. Y ou might have a linked-list object, allocated via a list allo‐
+cation function (though GLib doesn’t have one), then use g_list_append to add
+112 | Chapter 5: Playing Nice with Others
+
+1 Now and then one finds languages, such as Julia or Cython, whose authors went the extra mile past the
+dlopen/dlsym mechanism and developed methods for describing C structs on the host side, making the con‐
+tents of formerly opaque pointers easily visible on the host side. The people who do this are my personal
+heroes.
+elements, then use g_list_foreach to apply an operation to all list elements, and so
+on, simply passing the pointer to the list from one function to the next.
+When bridging between C and another language that doesn’t understand how to read
+a C struct, this is referred to as an opaque pointer or an external pointer. Because type‐
+defs are not objects in the shared object file that can be retrieved by dlsym, all structs
+in your C code will indeed be opaque to the calling language. 1 As in the case between
+two .c files, there’s no ambiguity about who owns the data, and with enough interface
+functions, we can still get a lot of work done. A good percentage of host languages
+have an explicit mechanism for passing an opaque pointer.
+If the host language doesn’t support opaque pointers, then return the pointer anyway.
+An address is an integer, and writing it down as such doesn’t produce any ambiguity
+(Example 5-2).
+Example 5-2. We can treat a pointer address as a plain integer. There’s little if any reason
+to do this in plain C, but it may be necessary for talking to a host language (intptr.c)
+#include <stdio.h>
+#include <stdint.h> //intptr_t
+int main(){
+    char *astring = "I am somwhere in memory.";
+    intptr_t location = (intptr_t)astring;  
+    printf("%s\n", (char*)location);        
+}
+The intptr_t type is guaranteed to have a range large enough to store a pointer
+address [C99 §7.18.1.4(1) & C11 §7.20.1.4(1)].
+Of course, casting a pointer to an integer loses all type information, so we have to
+explicitly respecify the type of the pointer. This is error-prone, which is why this
+technique is only useful in the context of dealing with systems that don’t under‐
+stand pointers.
+What can go wrong? If the range of the integer type in your host language is too
+small, then this will fail depending on where in memory your data lives, in which case
+you might do better to write the pointer to a string, then when you get the string
+back, parse it back via strtoll (string to long long int). There’s always a way.
+The Process | 113
+
+
+Also, we are assuming that the pointer is not moved or freed between when it first
+gets handed over to the host and when the host asks for it again. For example, if there
+is a call to realloc on the C side, the new opaque pointer will have to get handed to
+the host.
+Linking
+ As you have seen, dynamically linking to your shared object file is a problem solved
+by dlopen/dlsym and their Windows equivalents.
+But there’s often one more level to linking: what if your C code requires a library on
+the system and thus needs runtime linking (as per “Runtime Linking”  on page 14)?
+The easy answer in the C world is to use Autotools to search the library path for the
+library you need and set the right compilation flags. If your host language’s build sys‐
+tem supports Autotools, then you will have no problem linking to other libraries on
+the system. If you can rely on pkg-config, then that might also do what you need. If
+Autotools and pkg-config are both out, then I wish you the best of luck in working
+out how to robustly get the host’s installation system to correctly link your library.
+There seem to be a lot of authors of scripting languages who still think that linking
+one C library to another is an eccentric special case that needs to be handled man‐
+ually every time.
+Python Host
+The remainder of this chapter presents an example via Python, which goes through
+the preceding considerations for the ideal gas function that will be presented in
+Example 10-12 ; for now, take the function as given as we focus on packaging it.
+Python has extensive online documentation to show you how the details work, but
+Example 5-3 suffices to show you some of the abstract steps at work: registering the
+function, converting the host-format inputs to common C formats, and converting
+the common C outputs to the host format. Then we’ll get to linking.
+The ideal gas library only provides one function: to calculate the pressure of an ideal
+gas given a temperature input, so the final package will be only slightly more interest‐
+ing than one that prints “Hello, World” to the screen. Nonetheless, we’ll be able to
+start up Python and run:
+from pvnrt import *
+pressure_from_temp(100) 
+The first line loads all elements from the pvnrt package into the current Python
+namespace. The next line calls the pressure_from_temp Python command, which
+will load the C function (ideal_pressure) that does all the work.
+114 | Chapter 5: Playing Nice with Others
+
+The story starts with Example 5-3, which provides C code using the Python API to
+wrap the C function and register it as part of the Python package to be set up subse‐
+quently.
+Example 5-3. The wrapper for the ideal gas function (py/ideal.py.c)
+#include <Python.h>
+#include "../ideal.h"
+static PyObject *ideal_py(PyObject *self, PyObject *args){
+    double intemp;
+    if (!PyArg_ParseTuple(args, "d", &intemp)) return NULL;         
+    double out = ideal_pressure(.temp=intemp);
+    return Py_BuildValue("d", out);                                 
+}
+static PyMethodDef method_list[] = {                                
+    {"pressure_from_temp",  ideal_py, METH_VARARGS,
+     "Get the pressure from the temperature of one mole of gunk"},
+    { }
+};
+PyMODINIT_FUNC initpvnrt(void) {
+    Py_InitModule("pvnrt", method_list);
+}
+Python sends a single object listing all of the function arguments, akin to argv.
+This line reads them into a list of C variables, as specified by the format specifiers
+(akin to scanf). If we were parsing a double, a string, and an integer, it would
+look like: PyArg_ParseTuple(args, "dsi", &indbl, &instr, &inint).
+The output also takes in a list of types and C values, returning a single bundle for
+Python’s use.
+The rest of this file is registration. We have to build a { }-terminated list of the
+methods in the function (including Python name, C function, calling convention,
+one-line documentation), then write a function named initpkgname to read in
+the list.
+The example shows how Python handles the input- and output-translating lines
+without much fuss (on the C side, though some other systems do it on the host side).
+The file concludes with a registration section, which is also not all that bad.
+Now for the problem of compilation, which can require some real problem solving.
+Python Host | 115
+
+
+Compiling and Linking
+As you saw in “Packaging Y our Code with Autotools” on page 77, setting up Auto‐
+tools to generate the library requires a two-line Makefile.am and a slight modification
+of the boilerplate in the configure.ac file produced by Autoscan. On top of that,
+Python has its own build system, Distutils, so we need to set that up, then modify the
+Autotools files to make Distutils run automatically.
+The Conditional Subdirectory for Automake
+I decided to put all the Python-related files into a subdirectory of the main project
+folder. If Autoconf detects the right Python development tools, then I’ll ask it to go
+into that subdirectory and get to work; if the development tools aren’t found, then it
+can ignore the subdirectory.
+Example 5-4  shows a configure.ac file that checks for Python and its development
+headers, and compiles the py subdirectory if and only if the right components are
+found. The first several lines are as before, taken from what autoscan gave me, plus
+the usual additions from before. The next lines check for Python, which I cut and
+pasted from the Automake documentation. They will generate a PYTHON variable with
+the path to Python; for configure.ac, two variables by the name of HAVE_PYTHON_TRUE
+and HAVE_PYTHON_FALSE; and for the makefile, a variable named HAVE_PYTHON.
+If Python or its headers are missing, then the PYTHON variable is set to the impractica‐
+ble path of a single :, which we can check for later. If the requisite tools are present,
+then we use a simple shell if-then-fi block to ask Autoconf to configure the py subdir‐
+ectory as well as the current directory.
+Example 5-4. A configure.ac file for the Python building task (py/configure.ac)
+AC_PREREQ([2.68])
+AC_INIT([pvnrt], [1], [/dev/null])
+AC_CONFIG_SRCDIR([ideal.c])
+AC_CONFIG_HEADERS([config.h])
+AM_INIT_AUTOMAKE
+AC_PROG_CC_C99
+LT_INIT
+AM_PATH_PYTHON(,, [:])                                
+AM_CONDITIONAL([HAVE_PYTHON], [test "$PYTHON" != :])
+if test "$PYTHON" != : ; then                         
+AC_CONFIG_SUBDIRS([py])
+fi
+116 | Chapter 5: Playing Nice with Others
+
+AC_CONFIG_FILES([Makefile py/Makefile py/setup.py])               
+AC_OUTPUT
+These lines check for Python, setting a PYTHON variable to : if it is not found, then
+add a HAVE_PYTHON variable appropriately.
+If the PYTHON variable is set, then Autoconf will continue into the py subdirectory;
+else it will ignore this subdirectory.
+There’s a Makefile.am in the py subdirectory that needs to be turned into a make‐
+file. The setup.py.in that Autoconf will use to generate setup.py is listed below.
+Y ou’ll see a lot of new little bits of Autotools syntax in this chapter,
+such as the AM_PATH_PYTHON snippet from earlier, and Automake’s
+all-local and install-exec-hook targets later. The nature of
+Autotools is that it is a basic system (which I hope I communicated
+in Chapter 3 ) with a hook for every conceivable contingency or
+exception. There’s no point memorizing them, and for the most
+part, they can’t be derived from basic principles. The nature of
+working with Autotools, then, is that when odd contingencies
+come up, we can expect to search the manuals or the Internet at
+large for the right recipe.
+We also have to tell Automake about the subdirectory, which is also just another if-
+then block, as in Example 5-5.
+Example 5-5. A Makefile.am file for the root directory of a project with a Python
+subdirectory (py/Makefile.am)
+pyexec_LIBRARIES=libpvnrt.a
+libpvnrt_a_SOURCES=ideal.c
+SUBDIRS=.
+if HAVE_PYTHON    
+SUBDIRS += py
+endif
+Autoconf produced this HAVE_PYTHON variable, and here is where we use it. If it
+exists, Automake will add py to its list of directories to handle; or else it will only
+deal with the current directory.
+The first two lines specify that a library named libpvnrt is to be installed with
+Python executables based on source code in ideal.c. After that, I specify the first sub‐
+directory to handle, which is . (the current directory). The static library has to be
+Python Host | 117
+
+
+built before the Python wrapper for the library, and we guarantee that it is handled
+first by putting . at the head of the SUBDIRS list. Then, if HAVE_PYTHON checks out OK,
+we can use Automake’s += operator to add the py directory to the list.
+At this point, we have a setup that handles the py directory if and only if the Python
+development tools are in place. Now, let us descend into the py directory itself and
+look at how to get Distutils and Autotools to talk to each other.
+Distutils Backed with Autotools
+By now, you are probably used to the procedure for compiling programs and libra‐
+ries:
+• Specify the files involved (e.g., via your_program_SOURCES in Makefile.am, or go
+straight to the objects list in the sample makefile used throughout this book).
+• Specify the flags for the compiler (universally via a variable named CFLAGS).
+• Specify the flags and additional libraries for the linker (e.g., LDLIBS for GNU
+Make or LDADD for GNU Autotools).
+Those are the three steps, and although there are many ways to screw them up, the
+contract is clear enough. To this point in the book, I’ve shown you how to communi‐
+cate the three parts via a simple makefile, via Autotools, and even via shell aliases.
+Now we have to communicate them to Distutils. Example 5-6 provides a setup.py.in
+file, which Autoconf will use to produce a setup.py file to control the production of a
+Python package.
+Example 5-6. The template for a setup.py file to control the production of a Python
+package (py/setup.py.in)
+from distutils.core import setup, Extension
+py_modules= ['pvnrt' ]
+Emodule = Extension('pvnrt' ,
+       libraries=['pvnrt' ],           
+       library_dirs=['@srcdir@/..' ],  
+       sources = ['ideal.py.c' ])      
+setup (name = 'pvnrt' ,                
+       version = '1.0' ,
+       description = 'pressure * volume = n * R * Temperature' ,
+       ext_modules = [Emodule])
+The sources and the linker flags. The libraries line indicates that there will be a
+-lpvnrt sent to the linker.
+118 | Chapter 5: Playing Nice with Others
+
+
+This line indicates that a -L clause will be added to the linker’s flags to indicate
+that it should search for libraries at the given absolute path. We can have Auto‐
+conf fill in the absolute path to the source directory, as per “VPATH builds” on
+page 90.
+List the sources here, as you would in Automake.
+Here we provide the metadata about the package for use by Python and Distutils.
+The specification of the production process for Python’s Distutils is given in setup.py,
+as per Example 5-6, which has some typical boilerplate about a package: its name, its
+version, a one-line description, and so on. This is where we will communicate the
+three elements listed:
+• The C source files that represent the wrapper for the host language (as opposed
+to the library handled by Autotools itself) are listed in sources.
+• Python recognizes the CFLAGS environment variable. Makefile variables are not
+exported to programs called by make, so the Makefile.am for the py directory, in
+Example 5-7 , sets a shell variable named CFLAGS to Autoconf ’s @CFLAGS@ just
+before calling python setup.py build.
+• Python’s Distutils require that you segregate the libraries from the library paths.
+Because they don’t change very often, you can probably manually write the list of
+libraries, as in the example (don’t forget to include the static library generated by
+the main Autotools build). The directories, however, differ from machine to
+machine, and are why we had Autotools generate LDADD for us. So it goes.
+I chose to write a setup package where the user will call Autotools, and then Auto‐
+tools calls Distutils. So the next step is to get Autotools to know that it has to call Dis‐
+tutils.
+In fact, that is Automake’s only responsibility in the py directory, so the Makefile.am
+for that directory deals only with that problem. As in Example 5-7, we need one step
+to compile the package and one to install, each of which will be associated with one
+makefile target. For setup, that target is all-local, which will be called when users
+run make; for installation, the target is install-exec-hook, which will be called when
+users run make install.
+Example 5-7. Setting up Automake to drive Python’s Distutils (py/Makefile.py.am)
+all-local: pvnrt
+pvnrt:
+        CFLAGS='@ CFLAGS@'  python setup.py build
+Python Host | 119
+
+
+install-exec-hook:
+        python setup.py install
+At this point in the story, Automake has everything it needs in the main directory to
+generate the library, Distutils has all the information it needs in the py directory, and
+Automake knows to run Distutils at the right time. From here, the user can type the
+usual ./configure && make && sudo make install  sequence and build both the C
+library and its Python wrapper.
+120 | Chapter 5: Playing Nice with Others

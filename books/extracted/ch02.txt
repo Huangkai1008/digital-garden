@@ -1,0 +1,1262 @@
+CHAPTER 2
+Debug, Test, Document
+Crawling
+Over your window
+You think I’m confused,
+I’m waiting ...
+To complete my current ruse.
+—W ire, “I Am the Fly”
+This chapter will cover tools for debugging, testing, and documenting your writing—
+the essentials to take your writing from a potentially useful set of scripts to something
+you and others can rely on.
+Because C gives you the freedom to do idiotic things with memory, debugging means
+both the quotidian problem of checking logic (with GDB) and the more technical
+problem of checking for memory misallocations and leaks (with Valgrind). On the
+documentation side, this chapter covers one tool at the interface level (Doxygen) and
+another that helps you document and develop every step of the program (CWEB).
+The chapter also gives a quick introduction to the test harness, which will allow you to
+quickly write lots of tests for your code, and offers some considerations about error
+reporting and handling input or user errors.
+Using a Debugger
+The first tip about the debugger is simple and brief:
+Use a debugger, always.
+Some of you will find this to be not much of a tip, because who possibly wouldn’t use
+a debugger? Here in the second edition of the book, I can tell you that one of the most
+31
+
+common requests regarding the first edition was a more extensive introduction to the
+debugger, which was entirely new to many readers.
+Some people worry that bugs typically come from broad errors of understanding,
+while the debugger only gives information at the low level of variable states and back‐
+traces. Indeed, after you pinpoint a bug using the debugger, it is worth taking the time
+to consider what underlying problem and failure of understanding you have just dis‐
+covered, and whether it replicates itself elsewhere in your code. Some death certifi‐
+cates include an aggressive inquiry into the cause of death: Subject died as a result of
+______, as a result of ______, as a result of ______, as a result of ______, as a result of
+______. After the debugger has helped you make such an inquiry and understand
+your code better, you can encapsulate your understanding in more unit tests.
+About that always: there is virtually no cost to running a program under the debug‐
+ger. Nor is the debugger just something to pull out when something breaks. Linus
+Torvalds explains: “I use gdb all the time … as a disassembler on steroids that you can
+program. ” It’s great being able to pause anywhere, increase the verbosity level with a
+quick print verbose++, force out of a for (int i=0; i<10; i++)  loop via print
+i=100 and continue, or test a function by throwing a series of test inputs at it. The
+fans of interactive languages are right that interacting with your code improves the
+development process all the way along; they just never got to the debugging chapter
+in the C textbook, and so never realized that all of those interactive habits apply to C
+as well.
+Whatever your intent, you will need to have human-readable debugging information
+(i.e., names for variables and functions) compiled into the program for any debugger
+to be at all useful. To include debugging symbols, use the -g flag in the compiler
+switches (i.e., your CFLAGS variable). Reasons to not use the -g flag are rare indeed—it
+doesn’t slow down your program, and adding a kilobyte to your executable is irrele‐
+vant for most situations. Debugging may also be easier after turning off optimization
+via the -O0 (oh zero) compiler flag, because the optimizer may eliminate variables
+useful for debugging and shuffle the code in surprising ways.
+I’m mostly covering GDB, because on most POSIX systems, it’s the only game in
+town. (By the way, a C++ compiler engages in what is known as mangling of the code.
+In gdb it shows, and I’ve always found debugging C++ code from the gdb prompt to
+be painful. Because C code compiles without mangling, I find gdb to be much more
+usable for C, and having a GUI that unmangles the names is not necessary.) LLDB
+(companion to the LLVM/ clang) is gaining popularity, and I will cover it as well.
+Apple has ceased shipping GDB as part of its Xcode suite, but you can install it via a
+package manager, such as Macports, Fink, or Homebrew. On a Mac, you may need to
+run debug sessions via sudo(!), like sudo lldb stddev_bugged.
+32 | Chapter 2: Debug, Test, Document
+
+Y ou might be working from an IDE or other visual front end that runs your program
+under the debugger every time you click run. I’m going to show you commands from
+the command line, and you should have no trouble translating the basics here into
+mouse clicks on your screen. Depending on the frontend, you might be able to use
+the macros defined in .gdbinit.
+When working with the command line directly, you will probably need to have a text
+editor in another window or terminal displaying your code. The simple debugger/
+editor combination provides many of the conveniences of an IDE, and may be all you
+need.
+The Stack of Frames
+To start your program, you ask the system to execute a function called main. The
+computer generates a frame into which information about the function is placed, such
+as the inputs (which for main are customarily named argc and argv) and the variables
+that are created by the function. 
+Let us say that, in the course of its execution, main calls another function,
+get_agents. Then execution of main stops and a new frame is generated for
+get_agents, holding its various details and variables. Perhaps get_agents calls
+another function, agent_address, at which point we have a growing stack of frames.
+Eventually, agent_address will finish execution, at which point it pops off the stack
+and get_agents resumes.
+If your question is just “Where am I?” the easy answer is the line number in the code,
+and sometimes this is all you need. But more often, your question is “How did I get
+here?” and the answer, the backtrace or call stack, is a listing of the stack of frames. 
+Here’s a sample backtrace:
+#0  0x00413bbe in agent_address (agent_number=312) at addresses.c:100
+#1  0x004148b6 in get_agents () at addresses.c:163
+#2  0x00404f9b in main (argc=1, argv=0x7fffffffe278) at addresses.c:227
+The top of the stack is frame 0, down to main, which is currently frame 2 (but that will
+change as the stack grows and shrinks). The hexadecimal after the frame number
+gives the locations to which execution will return when the called function returns; as
+an application programmer, I always took it as visual noise to ignore. After that, we
+have the function name, its inputs (which in the case of argv is again a hex address),
+and the line in the source code where execution is happening.
+If you found that the house listed in agent_address is clearly wrong, then maybe the
+agent_number input is somehow wrong, in which case you have to jump to frame 1
+and ask what the state of get_agents was that set up the strange state of
+agent_address. Much of the skill of interrogating a program is in jumping around in
+the stack and tracing causes and effects from one function’s frame to the next.
+Using a Debugger | 33
+
+A Debugging Detective Story
+This section will go through an imaginary Q&A session with GDB or LLDB. In the
+set of code samples for this book, you will find stddev_bugged.c, a rewrite of
+Example 7-4 with a bug inserted. The change is small enough that you can refer to
+that listing of stddev.c to get a view of the program. Like any good detective story, the
+clues needed to identify the culprit are all available to you. The line of questions will
+help eliminate suspects until only one suspect remains and the bug becomes obvious.
+After compiling the program ( CFLAGS="-g" make stddev_bugged  should do it), we
+start the inquiry by starting the debugger:
+gdb stddev_bugged
+# or 
+lldb stddev_bugged
+We are now at the debugger command prompt, ready to ask questions.
+Q: What does this program do?
+A: The run command runs the program. Here, the GDB and LLDB command is the
+same; where they differ I will use the GDB command in the example and put the
+LLDB command in square brackets. Like all GDB and LLDB commands, it can be
+abbreviated:
+(gdb) r
+mean: 5687.496667 var: 194085710
+mean: 0.83 var: 4.1334
+[Inferior 1 (process 22734) exited normally]
+It looks like the program produces some means and variances. It makes it to the end
+of the program without segfaults or other failures, and returns zero, indicating nor‐
+mal execution.
+Q: Does the code in main verify what we got from the output?
+A: The easiest way to look at the code is to simply open the source code in a text edi‐
+tor. There are ways to keep a text editor side-by-side with the debugger even when
+logging in to a terminal-only remote machine; see “Try a Multiplexer” on page 72 . But
+GDB and LLDB will also display lines of code via the list command:
+(gdb) l main
+28          }
+29          return (meanvar){.mean = avg,
+30                          .var = avg2 - pow(avg, 2)}; //E[x^2] - E^2[x]
+31      }
+32
+33      int main(){
+34          double d[] = { 34124.75, 34124.48,
+34 | Chapter 2: Debug, Test, Document
+
+35                         34124.90, 34125.31,
+36                         34125.05, 34124.98, NAN};
+37
+ 
+We get 10 lines of code, centered at the requested point. Rerunning list with no
+arguments gives us the next 10 lines:
+(gdb) l
+38          meanvar mv = mean_and_var(d);
+39          printf("mean: %.10g var: %.10g\n", mv.mean, mv.var*6/5.);
+40
+41          double d2[] = { 4.75, 4.48,
+42                          4.90, 5.31,
+43                          5.05, 4.98, NAN};
+44
+45          mv = mean_and_var(d2);
+46          mv.var *= 6./5;
+47          printf("mean: %.10g var: %.10g\n", mv.mean, mv.var);
+ 
+We see the call to the function mean_and_var on line 38, which is sent the list d. But
+there’s a problem: the numbers in d are all around 34,125, but the mean output by the
+program was about 5,687 (not to mention the runaway variance). Similarly, the sec‐
+ond call to mean_and_var sent in a list of numbers around 5, but the second mean
+was 0.83.
+The remainder of the session is really asking a single question: what is the first point
+in the code where something went wrong ? But to answer that central question, we will
+need more details.
+Q: How can we see what is happening in mean_and_var?
+A: We want the program to pause at mean_and_var, so we set a breakpoint there:
+(gdb) b mean_and_var
+Breakpoint 1 at 0x400820: file stddev_bugged.c, line 16. 
+ 
+With the breakpoint set, rerunning the program stops at that point:
+(gdb) r
+Breakpoint 1, mean_and_var (data=data@entry=0x7fffffffe130) at stddev_bugged.c:16
+16      meanvar mean_and_var(const double *data){
+(gdb)
+We are now sitting at line 16, the head of the function, ready to ask further details
+about what is going on here.
+Q: Is data what we think it is?
+Using a Debugger | 35
+
+A: We can look at data within this frame via print, which abbreviates to p:
+(gdb) p *data
+$2 = 34124.75
+ 
+That was disappointing: we only got the first element. But GDB has a specialized @-
+syntax for printing a sequence of elements in an array. Asking for 10 elements [LLDB:
+mem read -tdouble -c10 data]:
+(gdb) p *data@10
+$3 =   {34124.75,
+  34124.480000000003,
+  34124.900000000001,
+  34125.309999999998,
+  34125.050000000003,
+  34124.980000000003,
+  nan(0x8000000000000),
+  7.7074240751234461e-322,
+  4.9406564584124654e-324,
+  2.0734299798669383e-317}
+Note the star at the head of the expression; without it, we’ d get a sequence of 10 hexa‐
+decimal addresses.
+I asked for 10 elements because I couldn’t be bothered to count how many elements
+are in the data set, but the first 7 of these 10 elements look correct: a series of num‐
+bers, followed by a NaN marker. After that, we see whatever noise is in uninitialized
+space after the array.
+Q: Does this match what got sent by main?
+A: We can get a backtrace via bt:
+(gdb) bt
+#0  mean_and_var (data=data@entry=0x7fffffffe130) at stddev_bugged.c:16
+#1  0x0000000000400680 in main () at stddev_bugged.c:38
+ 
+The stack of frames is two frames deep, including the current frame, and its caller,
+main. Let us see what the data looks like in frame 1. First, we switch to it:
+(gdb) f 1
+#1  0x0000000000400680 in main () at stddev_bugged.c:38
+38          meanvar mv = mean_and_var(d);
+ 
+The debugger is now in the main frame, on line 38. Line 38 is where we expected it to
+be, so the sequence of execution is OK (and wasn’t shuffled by the optimizer). In this
+frame, the data array is named d:
+36 | Chapter 2: Debug, Test, Document
+
+(gdb) p *d@7
+$5 =   {34124.75,
+  34124.480000000003,
+  34124.900000000001,
+  34125.309999999998,
+  34125.050000000003,
+  34124.980000000003,
+  nan(0x8000000000000)}
+This looks like it matches the data in the mean_and_var frame, so it seems nothing
+strange happened with the data set.
+We don’t have to explicitly return to frame zero to continue stepping through the pro‐
+gram, but we could do so either via f 0 or by movement in the stack relative to the
+current frame:
+(gdb) down
+Note that up and down refer to the numeric order. Given that the list produced by bt
+(in both GDB and LLDB) puts the numerically lowest frame at the physical top of the
+list, up goes down the backtrace list and down goes up the backtrace list.
+Q: Is this a problem with parallel threads?
+ A: We can get the list of threads via info threads [LLDB: thread list]:
+(gdb) info threads
+  Id   Target Id         Frame
+  * 1    Thread 0x7ffff7fcb7c0 (LWP 28903) "stddev_bugged" mean_and_var 
+                     (data=data@entry=0x7fffffffe180) at stddev_bugged.c:16
+In this case, there is only one active thread, so this can’t be a multithreading problem.
+The * shows us which thread the debugger is in right now. If there were a thread two,
+we could jump to it via GDB’s thread 2 or LLDB’s thread select 2.
+If your programs aren’t spawning lots of new threads, they will be
+after you read Chapter 12. GDB users, add this line to your .gdbi
+nit to turn off those annoying notices about every new thread:
+set print thread-events off
+Q: What is mean_and_var doing?
+A: We can repeatedly step through the next line of the program:
+(gdb) n
+18                avg2 = 0;
+(gdb) n
+16      meanvar mean_and_var(const double *data){
+Using a Debugger | 37
+
+Hitting the Enter key with no input repeats the previous command, so we don’t even
+have to type the n:
+(gdb)
+18                avg2 = 0;
+(gdb)
+20          size_t count= 0;
+(gdb)
+16      meanvar mean_and_var(const double *data){
+(gdb)
+21          for(size_t i=0;  !isnan(data[i]); i++){
+(gdb)
+21          for(size_t i=0;  !isnan(data[i]); i++){
+(gdb)
+22              ratio = count/(count+1);
+(gdb)
+26              avg   += data[i]/(count +0.0);
+The line numbers indicate that the program is jumping around. This is because in
+each step, the debugger is executing machine-level instructions which are not neces‐
+sarily ordered to match the C code that generated them. Even with optimization set to
+level zero, this is normal. The jumping around can also affect variables, as their value
+may be unreliable until after the second or third time a line gets hit in the out-of-
+order sequence.
+There are other options for stepping through, typically one of snuc; see the table
+below. But stepping through like this will take all day. We see that there is a for loop
+stepping through data, so let us set another breakpoint in the middle of the loop:
+(gdb) b 25
+Breakpoint 2 at 0x400875: file stddev_bugged.c, line 25.
+Now we have two breakpoints, which we can see via a GDB info break command or
+LLDB’s break list:
+(gdb) info break
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x0000000000400820 in mean_and_var
+                                                   at stddev_bugged.c:16
+        breakpoint already hit 1 time
+2       breakpoint     keep y   0x0000000000400875 in mean_and_var
+                                                   at stddev_bugged.c:25
+We don’t really need the breakpoint at the head of mean_and_var anymore, so we can
+disable it [LLDB: break dis 1]:
+(gdb) dis 1
+After this, the Enb column from the output of info break will be n for breakpoint 1.
+Y ou can later reenable the breakpoint via GDB’s enable 1 or LLDB’s break enable 1
+38 | Chapter 2: Debug, Test, Document
+
+if need be. Or if you know you will never need it again, delete the breakpoint via
+GDB’s del 1 or LLDB’s break del 1.
+Q: What do the variables look like in the middle of the loop?
+A: We can start over entirely via r, or we can continue from where we are via c:
+(gdb) c
+Breakpoint 2, mean_and_var (data=data@entry=0x7fffffffe130) at stddev_bugged.c:25
+25              avg2  *= ratio;
+We are now stopped at line 25, and can see all local variables [LLDB: frame vari
+able]:
+(gdb) info local
+i = 0
+avg = 0
+avg2 = 0
+ratio = 0
+count = 1
+We can also check the input arguments via GDB’s info args, though we have already
+looked at data directly. LLDB’s frame variable  includes both local variables and
+input arguments.
+Q: We know the output mean is wrong, so how does avg change at each run?
+A: We could type p avg  every time the we stop at this breakpoint, but the display
+command automates this:
+(gdb) disp avg
+1: avg = 0
+Now, when we continue, the debugger will continue through the loop, and at each
+stop we see the current value of avg:
+(gdb) c
+Breakpoint 2, mean_and_var (data=data@entry=0x7fffffffe130) at stddev_bugged.c:25
+25              avg2  *= ratio;
+1: avg = 0
+(gdb)
+Breakpoint 2, mean_and_var (data=data@entry=0x7fffffffe130) at stddev_bugged.c:25
+25              avg2  *= ratio;
+1: avg = 0
+This is a bad sign: the code has lines like
+avg *= ratio;
+...
+avg += data[i]/(count +0.0);
+Using a Debugger | 39
+
+so avg should be changing at each iteration of the loop, but is stuck at zero. Having
+established that it is broken, we are done looking at avg (which is labeled as display
+#1), so we can turn off autoprinting via undisp 1.
+Q: How do the inputs to avg look?
+A: We verified that data looks good; how are ratio and count?
+(gdb) disp ratio
+2: ratio = 0
+(gdb) disp count
+3: count = 3
+Continuing through the loop a few times, we see that count is incrementing the way a
+variable named “count” should, but ratio is not moving:
+(gdb) c
+Breakpoint 2, mean_and_var (data=data@entry=0x7fffffffe130) at stddev_bugged.c:25
+25              avg2  *= ratio;
+3: count = 4
+2: ratio = 0
+Q: Where did ratio get set?
+A: Inspecting the code, in the text editor or via l, we see that ratio is only set on line
+22:
+ratio = count/(count+1);
+We already verified that count is incrementing as it should, but there must be some‐
+thing wrong on this line. At this point, the error may be obvious to you: if count is an
+integer, then count/(count+1) is integer-arithmetic division, which returns an inte‐
+ger (3/4==0), not the floating-point division we all learned in elementary school
+(3/4==0.75). The correct thing to do (see “Cast Less” on page 145) is to ensure that
+either the numerator or denominator is floating-point, which we can do by changing
+the integer constant 1 to the floating-point constant 1.0:
+ratio = count/(count+1.0);
+The debugger didn’t remind us about this common error, but it helped us find the
+first point in the code where something went wrong, and it is certainly easier to find
+an error on one line than to find an error in a 50-line code block. Along the way, we
+got to check and verify all sorts of details about the code, and get a better understand‐
+ing of the flow of the program and the stack of frames.
+Table 2-1 provides a list of the more common debugger commands. Both GDB and
+LLDB have dozens more, but these are the 10% that you will likely use 90% of the
+time. Most of the variable names are taken from the New York T imes headline down‐
+loader from “libxml and cURL ” on page 335 .
+40 | Chapter 2: Debug, Test, Document
+
+Table 2-1. Common debugger commands
+Group Command Meaning
+Go run Run the program from the start.
+ run args Run the program from the start, with the given command-line
+arguments.
+Stop b get_rss Pause your program at a certain function.
+ b nyt_feeds.c:105 Pause just before a certain line of code.
+ break 105 Same as b nyt_feeds.c:105 if you are already stopped in
+nyt_feeds.c.
+ info break [GDB] List breakpoints.
+ break list [LLDB]  
+ watch curl [GDB] Break if the value of the given variable changes.
+ watch set var  curl [LLDB]  
+ dis 3 / ena 3 / del 3 [GDB] Disable/reenable/delete breakpoint 3. If you have a lot of breakpoints
+set, disable by itself turns them all off, and then you can enable the
+one or two that you need at the moment; likewise for enable/
+delete.
+ break dis 3 / break ena
+3 / break del 3 [LLDB]
+ 
+Inspect
+variables
+p url Print the value of url. You may specify any expression, including
+function calls.
+ p *an_array@10 [GDB] Print the first 10 elements of an_array. The next 10 are p
+*(an_array+10)@10.
+ mem read -tdouble -c10 
+an_array
+Read a count of 10 items of type double from an_array. The next
+10 are mem read -tdouble -c10 an_array+10.
+ info args / info vars
+[GDB]
+Get the values of all arguments to the function or all local variables.
+ frame var [LLDB] Get the values of all arguments to the function and all local variables.
+ disp url Display the value of url every time the program stops.
+Using a Debugger | 41
+
+Group Command Meaning
+ undisp 3 Stop the display the of display item 3. GDB: with no number, turn them
+all off.
+Threads info thread [GDB] List the active threads.
+ thread list [LLDB]  
+ thread 2 [GDB] Switch focus to thread 2
+ thread select 2 [LLDB]  
+Frames bt List the stack of frames.
+ f 3 Look at frame 3.
+ up / down Go numerically one up or down in the stack of frames.
+Step s Step one line, even if that means entering another function.
+ n Next line, but do not enter subfunctions, and possibly back up to the
+head of a loop.
+ u Until the next line forward from the current line (so let an already-
+visited loop run through until forward progress).
+ c Continue until the next breakpoint or the end of the program.
+ ret or ret 3 [GDB] Return from the current function immediately with the given return
+value (if any).
+ j 105 [GDB] Jump to whatever line you please (within reason).
+Look at code l list prints the 10 lines around the line you are currently on.
+Repeat Enter Just hitting Enter will repeat the last command, which makes stepping
+easier, or after l, Enter will list the next 10 lines after those you just
+saw.
+Compile make [GDB] Run make without exiting GDB. You can also specify a target, like
+make myprog.
+Get help help Explore everything else the debugger offers.
+42 | Chapter 2: Debug, Test, Document
+
+GDB Variables
+This segment covers some useful debugger features that will help you look at your
+data with as little cognitive effort as possible. All of the commands to follow go on the
+debugger command line; IDE debuggers based on GDB often provide a means of
+hooking in to these facilities as well.
+Here’s a sample program that does nothing, but that you can type in for the sake of
+having a variable to interrogate. Because it is such a do-nothing program, be sure to
+set the compiler’s optimization flag to -O0, or else x will disappear entirely.
+int main(){
+    int x[20] = {};
+    x[0] = 3;
+}
+The first tip will only be new to those of you who didn’t read the GDB manual ( Stall‐
+man, 2002), which is probably all of you. Y ou can generate convenience variables, to
+save typing. For example, if you want to inspect an element deep within a hierarchy of
+structures, you can do something like:
+(gdb) set $vd = my_model->dataset->vector->data
+p *$vd@10
+(lldb) p double *$vd = my_model->dataset->vector->data
+mem read -tdouble -c10 $vd
+That first line generated the convenience variable to substitute for the lengthy path.
+Following the lead of the shell, a dollar sign indicates a variable. Unlike the shell,
+GDB uses set and a dollar sign on the variable’s first use, and LLDB uses clang’s
+parser to evaluate expressions, so the LLDB declaration is a typical C declaration. The
+second line in both versions demonstrates a simple use. We don’t save much typing
+here, but if you suspect a variable of guilty behavior, giving it a short name makes it
+easier to give it a thorough interrogation.
+These aren’t just names; they’re real variables that you can modify. After breaking at
+line 3 or line 4 of the do-nothing program, try:
+(gdb) set $ptr=&x[3]
+p *$ptr = 8
+p *($ptr++)  #print the pointee, and step forward one
+(lldb) p int *$ptr = &x[3]
+p *$ptr = 8
+p *($ptr++)
+The second line changes the value in the given location. Adding one to a pointer steps
+forward to the next item in the list (as per “ All the Pointer Arithmetic Y ou Need to
+Know” on page 136 ), so after the third line, $ptr is now pointing to x[4].
+Using a Debugger | 43
+
+That last form is especially useful because hitting the Enter key without any input
+repeats the last command. Because the pointer stepped forward, you’ll get a new next
+value every time you hit Enter, until you get the gist of the array. This is also useful
+should you find yourself dealing with a linked list. Pretend we have a function named
+show_structure that displays an element of the linked list and sets $list equal to the
+given element, and we have the head of the list at list_head. Then:
+p $list=list_head
+show_structure $list->next
+and leaning on the Enter key will step through the list. Later, we’ll make that imagi‐
+nary function to display a data structure a reality.
+But first, here’s one more trick about these $ variables. Let me cut and paste a few
+lines of interaction with a debugger in the other screen:
+(gdb|lldb) p x+3
+$17 = (int *) 0xbffff9a4
+Y ou probably don’t even look at it anymore, but notice how the output to the print
+statement starts with $17. Indeed, every output is assigned a variable name, which we
+can use like any other:
+(gdb|lldb) p *$17
+$18 = 8
+(gdb|lldb) p *$17+20
+$19 = 28
+To be even more brief, GDB uses a lone $ as a shorthand variable assigned to the last
+output. So if you get a hex address when you thought you would get the value at that
+address, just put p *$  on the next line to get the value. With this, the above steps
+could have been:
+(gdb) p x+3
+$20 = (int *) 0xbffff9a4
+(gdb) p *$
+$21 = 8
+(gdb) p $+20
+$22 = 28
+Print Your Structures
+ Y ou can define simple macros, which are especially useful for displaying nontrivial
+data structures—which is most of the work one does in a debugger. Even a simple 2D
+array hurts your eyes when it’s displayed as a long line of numbers. In a perfect world,
+every major structure you deal with will have a debugger command associated to
+quickly view that structure in the manner(s) most useful to you.
+44 | Chapter 2: Debug, Test, Document
+
+The facility is rather primitive, but you probably already wrote a C-side function that
+prints any complex structures you might have to deal with, so the macro can simply
+call that function with a few keystrokes.
+Y ou can’t use any of your C preprocessor macros at the debugger prompt, because
+they were substituted out long before the debugger saw any of your code. So if you
+have a valuable macro in your code, you may have to reimplement it in the debugger
+as well.
+Here is a GDB function you can try by putting a breakpoint about halfway through
+the parse function in “libxml and cURL ” on page 335 , at which point you’ll have a doc
+structure representing an XML tree. Put these macros in your .gdbinit.
+define pxml
+    p xmlElemDump(stdout, $arg0, xmlDocGetRootElement($arg0))
+end
+document pxml
+Print the tree of an already opened XML document (i.e., an xmlDocPtr) to the
+screen. This will probably be several pages long.
+E.g., given: xmlDocPtr doc = xmlParseFile(infile);
+use: pxml doc
+end
+Notice how the documentation follows right after the function itself; view it via help
+pxml or help user-defined. The macro itself just saves some typing, but because the
+primary activity in the debugger is looking at data, those little things add up.
+I’ll discuss the LLDB versions of these macros below.
+GLib has a linked-list structure, so we should have a linked-list viewer. Example 2-1
+implements it via two user-visible macros ( phead to view the head of the list, then
+pnext to step forward) and one macro the user should never have to call ( plistdata,
+to remove redundancy between phead and pnext).
+Example 2-1. A set of macros to easily display a linked list in GDB—about the most
+elaborate debugging macro you’ll ever need (gdb_showlist)
+define phead
+    set $ptr = $arg1
+    plistdata $arg0
+end
+document phead
+Print the first element of a list. E.g., given the declaration
+    Glist *datalist;
+    g_list_add(datalist, "Hello");
+view the list with something like
+gdb> phead char datalist
+gdb> pnext char
+gdb> pnext char
+This macro defines $ptr as the current pointed-to list struct,
+Using a Debugger | 45
+
+and $pdata as the data in that list element.
+end
+define pnext
+    set $ptr = $ptr->next
+    plistdata $arg0
+end
+document pnext
+You need to call phead first; that will set $ptr.
+This macro will step forward in the list, then show the value at
+that next element. Give the type of the list data as the only argument.
+This macro defines $ptr as the current pointed-to list struct, and
+$pdata as the data in that list element.
+end
+define plistdata
+    if $ptr
+        set $pdata = $ptr->data
+    else
+        set $pdata= 0
+    end
+    if $pdata
+        p ($arg0*)$pdata
+    else
+        p "NULL"
+    end
+end
+document plistdata
+This is intended to be used by phead and pnext, q.v. It sets $pdata and prints its value.
+end
+Example 2-2 offers some simple code that uses the GList to store char*s. Y ou can
+break around line 8 or 9 and call the previous macros.
+Example 2-2. Some sample code for trying debugging, or a lightning-quick intro to GLib
+linked lists (glist.c)
+#include <stdio.h>
+#include <glib.h>
+GList *list;
+int main(){
+    list = g_list_append(list, "a");
+    list = g_list_append(list, "b");
+    list = g_list_append(list, "c");
+    for ( ; list!= NULL; list=list->next)
+        printf("%s\n", (char*)list->data);
+}
+46 | Chapter 2: Debug, Test, Document
+
+Y ou can define functions to run before or after every use of a given
+command. To give an example in GDB:
+define hook-print
+echo <----\n
+end
+define hookpost-print
+echo ---->\n
+end
+will print cute brackets before and after anything you print. The
+most exciting hook is hook-stop. The display command will print
+the value of any expression every time the program stops, but if
+you want to make use of a macro or other GDB command at every
+stop, redefine hook-stop:
+define hook-stop
+pxml suspect_tree
+end
+When you are done with your suspect, redefine hook-stop to be
+nothing:
+define hook-stop
+end
+LLDB users: see target stop-hook add.
+Y our Turn: GDB macros can also include a while that looks much like the ifs in
+Example 2-2 (start with a line like while $ptr and conclude with end). Use this to
+write a macro to print an entire list at once.
+LLDB does things a little differently.
+First, you may have noticed that LLDB commands are often verbose, because the
+authors expect you to write your own aliases for the commands you use more often.
+For example, you could write an alias for the commands to print double or int
+arrays via:
+(lldb) command alias dp memory read -tdouble -c%1
+command alias ip memory read -tint -c%1
+# Usage:
+dp 10 data
+ip 10 idata
+ 
+The aliasing mechanism is intended for abbreviating existing commands. There is no
+way to assign a help string to the aliased command, because LLDB recycles the help
+Using a Debugger | 47
+
+string associated with the full command. To write macros like the GDB macros
+above, LLDB uses regular expressions.
+Here is the LLDB version to put in .lldbinit:
+command regex pxml 
+          's/(.+)/p xmlElemDump(stdout, %1, xmlDocGetRootElement(%1))/' 
+          -h "Dump the contents of an XML tree."
+A full discussion of regexes is beyond the scope of this book (and there are hundreds
+of regex tutorials online), but the contents of a set of parens between the first and sec‐
+ond slash will be inserted into the %1 marker between the second and third slashes.
+Profiling
+It doesn’t matter how fast your program is: you will still want it faster. In most lan‐
+guages, the first piece of advice is to rewrite everything in C, but you’re already writ‐
+ing in C. The next step is to find the functions that are taking up the most time and
+therefore would provide the most payoff to more optimization efforts.
+First, add the -pg flag to gcc’s or icc’s CFLAGS (yes, this is compiler-specific; gcc will
+prep the program for gprof; Intel’s compiler will prep the program for prof, and has
+a similar workflow to the gcc-specific details I give here). With this flag, your pro‐
+gram will stop every few microseconds and note in which function it is currently
+working. The annotations get written in binary format to gmon.out.
+Only the executable is profiled, not libraries that are linked to it. Therefore, if you
+need to profile a library as it runs a test program, you’ll have to copy all of the library
+and program code into one place and recompile everything as one big executable.
+After running your program, call gprof your_program > profile (or prof … ), then
+open profile in your text editor to view a human-readable listing of functions, their
+calls, and what percentage of the program’s time was spent in each function. Y ou
+might be surprised by where the bottlenecks turn out to be.
+Using Valgrind to Check for Errors
+Most of our time spent debugging is spent finding the first point in the program
+where something looks wrong. Good code and a good system will find that point for
+you. That is, a good system fails fast.
+C gets mixed scores on this. In some languages, a typo like conut=15 would generate
+a new variable that has nothing to do with the count you meant to set; with C, it fails
+at the compilation step. On the other hand, C will let you assign to the 10th element
+of a 9-element array and then trundle along for a long time before you find out that
+there’s garbage in what you thought was element 10.
+48 | Chapter 2: Debug, Test, Document
+
+Those memory mismanagement issues are a hassle, and so there are tools to confront
+them. Within these, Valgrind is a big winner. It is ported to most POSIX systems
+(including OS X), where you can get a copy via your package manager. Windows
+users might want to try Dr. Memory.
+Valgrind runs a virtual machine that keeps better tabs on memory than the real
+machine does, so it knows when you hit the 10th element in an array of 9 items.
+Once you have a program compiled (with debugging symbols included via gcc’s or
+clang’s -g flag, of course), run:
+valgrind your_program
+If you have an error, Valgrind will give you two backtraces that look a lot like the
+backtraces your debugger gives you. The first is where the misuse was first detected,
+and the second is Valgrind’s best guess as to what line the misuse clashed with, such
+as where a double-freed block was first freed, or where the closest malloced block
+was allocated. The errors are often subtle, but having the exact line to focus on goes a
+long way toward finding the bug. Valgrind is under active development—program‐
+mers like nothing better than writing programming tools—so I’m amused to watch
+how much more informative the reports have gotten over time and only expect better
+in the future.
+To give you an example of a Valgrind backtrace, I inserted an error in the code of
+Example 9-1 by doubling line 14, free(cmd), thus causing the cmd pointer to be freed
+once on line 14 and again on line 15. Here’s the backtrace I got:
+Invalid free() / delete / delete[] / realloc()
+   at 0x4A079AE: free (vg_replace_malloc.c:427)
+   by 0x40084B: get_strings (sadstrings.c:15)
+   by 0x40086B: main (sadstrings.c:19)
+ Address 0x4c3b090 is 0 bytes inside a block of size 19 free'd
+   at 0x4A079AE: free (vg_replace_malloc.c:427)
+   by 0x40083F: get_strings (sadstrings.c:14)
+   by 0x40086B: main (sadstrings.c:19)
+The top frame in both backtraces is in the standard library code for freeing pointers,
+but we can be confident that the standard library is well debugged. Focusing on the
+part of the stack referring to code that I wrote, the backtrace points me to lines 14 and
+15 of sadstrings.c, which are indeed the two calls to free(cmd) in my modified code.
+Valgrind is very good at finding conditional jumps that depend on
+uninitialized values. Y ou can use this to trace back exactly when a
+variable is or is not initialized by inserting lines like
+if(suspect_var) printf(" "); 
+into your code and seeing if Valgrind complains about the variable
+at that point.
+Using Valgrind to Check for Errors | 49
+
+Y ou can also start the debugger at the first error, by running:
+valgrind --db-attach=yes your_program
+With this sort of startup, you’ll be asked if you want to run the debugger on every
+detected error, and then you can check the value of the implicated variables as usual.
+At this point, we’re back to having a program that fails on the first line where a prob‐
+lem is detected.
+Valgrind also does memory leaks:
+valgrind --leak-check=full your_program
+This is typically slower, so you might not want to run it every time. When it finishes,
+you’ll have a backtrace for where every leaked pointer was allocated.
+For some code bases, chasing leaks can be very time-consuming. A leak in a library
+function that could conceivably run a million times in the center of a user program’s
+loop, or in a program that should have 100% runtime for months, will eventually
+cause potentially major problems for users. But it is easy to find programs broadly
+deemed to be reliable (on my machine, doxygen, git, TeX, vi, others) that Valgrind
+reports as definitely losing kilobytes. For such cases, we can adapt a certain cliché
+about trees falling in the woods: if a bug does not cause incorrect results or user-
+perceivable slowdowns, is it really a high-priority bug?
+Unit Testing
+Of course you’re writing tests for your code. Y ou’re writing unit tests for the smaller
+components and integration tests to make sure that the components get along amica‐
+bly. Y ou may even be the sort of person who writes the unit tests first and then builds
+the program to pass the tests.
+Now you’ve got the problem of keeping all those tests organized, which is where a test
+harness comes in. A test harness is a system that sets up a small environment for
+every test, runs the test, and reports whether the result is as expected. Like the debug‐
+ger, I expect that some of you are wondering who it is that doesn’t use a test harness,
+and to others, it’s something you never really considered.
+There are abundant choices. It’s easy to write a macro or two to call each test function
+and compare its return value to the expected result, and more than enough authors
+have let that simple basis turn into yet another implementation of a full test harness.
+From How We Test Software at Microsoft: “Microsoft’s internal repository for shared
+tools includes more than 40 entries under test harness.” For consistency with the rest
+of the book, I’ll show you GLib’s test harness, and because they are all so similar, and
+because I’m not going to go into so much detail that I’m effectively reading the GLib
+manual to you, what I cover here should carry over to other test harnesses as well.
+50 | Chapter 2: Debug, Test, Document
+
+A test harness has a few features that beat the typical homemade test macro:
+• Y ou need to test the failures. If a function is supposed to abort or exit with an
+error message, you need a facility to test that the program actually exited when
+you expected it to.
+• Each test is kept separate, so you don’t have to worry that test 3 affected the out‐
+come of test 4. If you want to make sure the two procedures don’t interact badly,
+run them in sequence as an integration test after running them separately.
+• Y ou probably need to build some data structures before you can run your tests.
+Setting up the scene for a test sometimes takes a good amount of work, so it
+would be nice to run several tests given the same setup.
+Example 2-3 shows a few basic unit tests of the dictionary object from “Implementing
+a Dictionary” on page 249, implementing these three test harness features. It demon‐
+strates how that last item largely dictates the flow of test harness use: a new struct
+type is defined at the beginning of the program, then there are functions for setting
+up and tearing down an instance of that struct type, and once we have all that in place
+it is easy to write several tests using the built environment.
+The dictionary is a simple set of key/value pairs, so most of the testing consists of
+retrieving a value for a given key and making sure that it worked OK. Notice that a
+key of NULL is not acceptable, so we check that the program will halt if such a key gets
+sent in.
+Example 2-3. A test of the dictionary from “Implementing a Dictionary” on page 249
+(dict_test.c)
+#include <glib.h>
+#include "dict.h"
+typedef struct {                                         
+    dictionary *dd;
+} dfixture;
+void dict_setup(dfixture *df, gconstpointer test_data){  
+    df->dd = dictionary_new();
+    dictionary_add(df->dd, "key1", "val1");
+    dictionary_add(df->dd, "key2", NULL);
+}
+void dict_teardown(dfixture *df, gconstpointer test_data){
+    dictionary_free(df->dd);
+}
+void check_keys(dictionary const *d){                    
+    char *got_it = dictionary_find(d, "xx");
+    g_assert(got_it == dictionary_not_found);
+Unit Testing | 51
+
+    got_it = dictionary_find(d, "key1");
+    g_assert_cmpstr(got_it, ==, "val1");
+    got_it = dictionary_find(d, "key2");
+    g_assert_cmpstr(got_it, ==, NULL);
+}
+void test_new(dfixture *df, gconstpointer ignored){
+    check_keys(df->dd);
+}
+void test_copy(dfixture *df, gconstpointer ignored){
+    dictionary *cp = dictionary_copy(df->dd);
+    check_keys(cp);
+    dictionary_free(cp);
+}
+void test_failure(){                                     
+    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDOUT | 
+    G_TEST_TRAP_SILENCE_STDERR)){
+        dictionary *dd = dictionary_new();
+        dictionary_add(dd, NULL, "blank");
+    }
+    g_test_trap_assert_failed();
+    g_test_trap_assert_stderr("NULL is not a valid key.\n");
+}
+int main(int argc, char **argv){
+    g_test_init(&argc, &argv, NULL);
+    g_test_add ("/set1/new test", dfixture, NULL,        
+                                  dict_setup, test_new, dict_teardown);
+    g_test_add ("/set1/copy test", dfixture, NULL,
+                                  dict_setup, test_copy, dict_teardown);
+    g_test_add_func ("/set2/fail test", test_failure);   
+    return g_test_run();
+}
+The elements used in a set of tests is called a fixture. GLib requires that each fix‐
+ture be a struct, so we create a throwaway struct to be passed from the setup to
+the test to the teardown.
+Here are the setup and teardown scripts that create the data structure to be used
+for a number of tests.
+Now that the setup and teardown functions are defined, the tests themselves are
+just a sequence of simple operations on the structures in the fixture and asser‐
+tions that the operations went according to plan. The GLib test harness provides
+some extra assertion macros, like the string comparison macro,
+g_assert_compstr, used here.
+52 | Chapter 2: Debug, Test, Document
+
+
+GLib tests for failure via the POSIX fork system call (which means that this won’t
+run on Windows without a POSIX subsystem). The fork call generates a new
+program that runs the contents of the if statement, which should fail and call
+abort. This program watches for the forked version and checks that it failed and
+that the right message was written to stderr.
+Tests are organized into sets via path-like strings. The NULL argument could be a
+pointer to a data set to be used by the test, but not built/torn down by the system.
+Notice how both the new and copy tests use the same setup and teardown.
+If you don’t have setup/teardown to do before/after the call, use this simpler form
+to run the test.
+Using a Program as a Library
+The only difference between a function library and a program is that a program
+includes a main function that indicates where execution should start.
+Now and then I have a file that does one thing that’s not quite big enough to merit
+being set up as a standalone shared library. It still needs tests, and I can put them in
+the same file as everything else, via a preprocessor condition. In the following snip‐
+pet, if Test_operations is defined (via the various methods discussed later), then the
+snippet is a program that runs the tests; if Test_operations is not defined (the usual
+case), then the snippet is compiled without main and so is a library to be used by
+other programs.
+int operation_one(){
+    ...
+}
+int operation_two(){
+    ...
+}
+#ifdef Test_operations
+    void optest(){
+        ...
+    }
+    int main(int argc, char **argv){
+        g_test_init(&argc, &argv, NULL);
+        g_test_add_func ("/set/a test", test_failure);
+    }
+#endif
+Unit Testing | 53
+
+
+There are a few ways to define the Test_operations variable. In with the usual flags,
+probably in your makefile, add:
+CFLAGS=-DTest_operations
+The -D flag is the POSIX-standard compiler flag that is equivalent to putting #define
+Test_operations at the top of every .c file.
+When you see Automake in Chapter 3, you’ll see that it provides a += operator, so
+given the usual flags in AM_CFLAGS, you could add the -D flag to the checks via:
+check_CFLAGS  = $(AM_CFLAGS)
+check_CFLAGS += -DTest_operations
+The conditional inclusion of main can also come in handy in the other direction. For
+example, I often have an analysis to do based on some quirky data set. Before writing
+the final analysis, I first have to write a function to read in and clean the data, and
+then a few functions producing summary statistics that sanity-check the data and my
+progress. This will all be in modelone.c. Next week, I may have an idea for a new
+descriptive model, which will naturally make heavy use of the existing functions to
+clean data and display basic statistics. By conditionally including main in modelone.c,
+I can quickly turn the original program into a library. Here is a skeleton for
+modelone.c:
+void read_data(){
+    [database work here]
+}
+#ifndef MODELONE_LIB
+int main(){
+    read_data();
+    ...
+}
+#endif
+I use #ifndef rather than #ifdef, because the norm is to use modelone.c as a pro‐
+gram, but this otherwise functions the same way as the conditional inclusion of main
+for testing purposes did.
+Coverage
+What’s your test coverage? Are there lines of code that you wrote that aren’t touched
+by your tests? gcc has the companion gcov, which will count how many times each
+line of code was touched by a program. The procedure:
+• Add -fprofile-arcs -ftest-coverage to your CFLAGS for gcc. Y ou might want
+to set the -O0 flag, so that no lines of code are optimized out.
+54 | Chapter 2: Debug, Test, Document
+
+• When the program runs, each source file yourcode.c will produce one or two
+data files, yourcode.gcda and yourcode.gcno.
+• Running gcov yourcode.gcda will write to stdout the percentage of runnable
+lines of code that your program hit (declarations, #include lines, and so on don’t
+count) and will produce yourcode.c.cov.
+• The first column of yourcode.c.cov will show how often each runnable line was
+hit by your tests, and will mark the lines not hit with a big fat #####. Those are
+the parts for which you should consider writing another test.
+Example 2-4 shows a shell script that adds up all the steps. I use a here document to
+generate the makefile, so I could put all the steps in one script, and after compiling,
+running, and gcov-ing the program, I grep for the ##### markers. The -C3 flag to
+GNU grep requests three lines of context around matches. It isn’t POSIX-standard,
+but then, neither are pkg-config or the test coverage flags.
+Example 2-4. A script to compile for coverage testing, run the tests, and check for lines of
+code not yet tested (gcov.sh)
+cat > makefile << '------'
+P=dict_test
+objects= keyval.o dict.o
+CFLAGS = `pkg-config --cflags glib-2.0` -g -Wall -std=gnu99 \
+           -O0 -fprofile-arcs -ftest-coverage
+LDLIBS = `pkg-config --libs glib-2.0`
+CC=gcc
+$(P):$(objects)
+------
+make
+./dict_test
+for i in *gcda; do gcov $i; done;
+grep -C3 '#####' *.c.gcov
+Error Checking
+A complete programming textbook must include at least one lecture to the reader
+about how important it is to handle errors sent by functions you have called.
+OK, consider yourself lectured. Now let’s consider the side of how and when you will
+return errors from the functions you write. There are a lot of different types of errors
+in a lot of different contexts, so we have to break down the inquiry into several
+subcases:
+• What is the user going to do with the error message?
+• Is the receiver a human or another function?
+Error Checking | 55
+
+• How can the error be communicated to the user?
+I will leave the third question for later ( “Return Multiple Items from a Function” on
+page 220), but the first two questions already give us a lot of cases to consider.
+What is the User’s Involvement in the Error?
+Thoughtless error-handling, wherein authors pepper their code with error-checks
+because you can’t have too many, is not necessarily the right approach. Y ou need to
+maintain lines of error-handling code like any other, and every user of your function
+has internalized endless lectures about how every possible error code needs to be
+handled, so if you throw error codes that have no reasonable resolution, the function
+user will be left feeling guilty and unsure. There is such a thing as too much informa‐
+tion (TMI).
+To approach the question of how an error will be used, consider the complementary
+question of how the user was involved in the error to begin with.
+Sometimes the user can’t know if an input is valid before calling the function.
+The classic example of this is looking up a key in a key/value list and finding out
+that the key is not in the list. In this case, you could think of the function as a
+lookup function that throws errors if the key is missing from the list, or you
+could think of it as a dual-purpose function that either looks up keys or informs
+the caller whether the key is present or not.
+Or to give an example from high-school algebra, the quadratic formula requires
+calculating sqrt(b*b - 4*a*c), and if the term in parens is negative, the square
+root is not a real number. It’s awkward to expect the function user to calculate b*b
+- 4*a*c to establish feasibility, so it is reasonable to think of the quadratic for‐
+mula function as either returning the roots of the quadratic equation or reporting
+whether the roots will be real or not.
+In these examples of nontrivial input-checking, bad inputs aren’t even an error,
+but are a routine and natural use of the function. If an error-handling function
+aborts or otherwise destructively halts on errors (as does the error-handler that
+follows), then it shouldn’t be called in situations like these.
+Users passed in blatantly wrong input, such as a NULL pointer or other sort of malformed
+data.
+Y our function has to check for these things, to prevent it from segfaulting or
+otherwise failing, but it is hard to imagine what the caller will do with the infor‐
+mation. The documentation for yourfn told users that the pointer can’t be NULL,
+so when they ignore it and call int* indata=NULL;  yourfn(indata), and you
+return an error like Error: NULL pointer input , it’s hard to imagine what the
+caller will do differently.
+56 | Chapter 2: Debug, Test, Document
+
+A function usually has several lines like if (input1==NULL) return -1; ... if
+(input20==NULL) return -1;  at the head, and I find in the contexts where I
+work that reporting exactly which of the basic requirements enumerated in the
+documentation the caller missed is TMI.
+The error is entirely an error of internal processing.
+This includes “shouldn’t happen” errors, wherein an internal calculation some‐
+how got an impossible answer—what Hair: The American Tribal Love Rock Musi‐
+cal called a failure of the flesh, such as unresponsive hardware or a dropped net‐
+work or database connection.
+The flesh failures can typically be handled by the recipient (e.g., by wiggling the
+network cable). Or, if the user requests that a gigabyte of data be stored in mem‐
+ory and that gigabyte is not available, it makes sense to report an out-of-memory
+error. However, when allocation for a 20-character string fails, the machine is
+either overburdened and about to become unstable or it is on fire, and it’s typi‐
+cally hard for a calling system to use that information to recover gracefully.
+Depending on the context in which you are working, your computer is on fire -
+type errors might be counterproductive and TMI.
+Errors of internal processing (i.e., errors unrelated to external conditions and not
+directly tied to a somehow-invalid input value) cannot be handled by the caller.
+In this case, detailing to the user what went wrong is probably TMI. The caller
+needs to know that the output is unreliable, but enumerating lots of different
+error conditions just leaves the caller (duty-bound to handle all errors) with
+more work.
+The Context in Which the User is Working
+As above, we often use a function to check on the validity of a set of inputs; such
+usage is not an error per se, and the function is most useful if it returns a meaningful
+value for these cases rather than calling an error handler. The rest of this section con‐
+siders the bona fide errors.
+• If the user of the program has access to a debugger and is in a context where
+using one is feasible, then the fastest way to fail is to call abort and cause the pro‐
+gram to stop. Then the user has the local variables and backtrace right at the
+scene of the crime. The abort function has been C-standard since forever (you’ll
+need to #include <stdlib.h>).
+• If the user of the program is actually a Java program, or has no idea what a
+debugger is, then abort is an abomination, and the correct response is to return
+some sort of error code indicating a failure.
+Error Checking | 57
+
+Both of these cases are very plausible, so it is sensible to have an if-else branch that
+lets the user select the correct mode of operation for the context.
+It’s been a long time since I’ve seen a nontrivial library that didn’t implement its own
+error-handling macro. It’s at just that level where the C standard doesn’t provide one,
+but it’s easy to implement with what C does offer, so everybody writes a new one.
+The standard assert macro (hint: #include <assert.h> ) will check a claim you
+make, and then stop if and only if your claim turns out to be false. Every implementa‐
+tion will be a little bit different, but the gist is:
+#define assert(test) (test) ? 0 : abort();
+By itself, assert is useful to test whether intermediate steps in your function are
+doing what they should be doing. I also like to use assert as documentation: it’s a test
+for the computer to run, but when I see assert(matrix_a->size1 == matrix_b-
+>size2), then I as a human reader am reminded that the dimensions of the two
+matrices will match in this manner. However, assert provides only the first kind of
+response (aborting), so assertions have to be wrapped.
+Example 2-5 presents a macro that satisfies both conditions; I’ll discuss it further in
+“Variadic Macros” on page 208. Note also that some users deal well with stderr, and
+some have no means to work with it.
+Example 2-5. A macro for dealing with errors: report or record them, and let the user
+decide whether to stop on errors or move on (stopif.h)
+#include <stdio.h>
+#include <stdlib.h> //abort
+/** Set this to \c 's' to stop the program on an error.
+    Otherwise, functions return a value on failure.*/
+char error_mode;
+/** To where should I write errors? If this is \c NULL, write to \c stderr. */
+FILE *error_log;
+#define Stopif(assertion, error_action, ...) {                    \
+        if (assertion){                                           \
+            fprintf(error_log ? error_log : stderr, __VA_ARGS__); \
+            fprintf(error_log ? error_log : stderr, "\n");        \
+            if (error_mode=='s') abort();                         \
+            else                 {error_action;}                  \
+        } }
+Here are some imaginary sample uses:
+Stopif(!inval, return -1, "inval must not be NULL");
+Stopif(isnan(calced_val), goto nanval, "Calced_val was NaN. Cleaning
+up, leaving.");
+58 | Chapter 2: Debug, Test, Document
+
+...
+nanval:
+    free(scratch_space);
+    return NAN;
+The most common means of dealing with an error is to simply return a value, so if
+you use the macro as is, expect to be typing return often. This can be a good thing,
+however. Authors often complain that sophisticated try-catch setups are effectively an
+updated version of the morass of gotos that we all consider to be harmful. For exam‐
+ple, Google’s internal coding style guide advises against using try-catch constructs,
+using exactly the morass-of- gotos rationale. This advises that it is worth reminding
+readers that the flow of the program will be redirected on error (and to where), and
+that we should keep our error-handling simple.
+How Should the Error Indication Be Returned?
+I’ll get to this question in greater detail in the chapter on struct handling (notably,
+“Return Multiple Items from a Function” on page 220), because if your function is
+above a certain level of complexity, returning a struct makes a lot of sense, and then
+adding an error-reporting variable to that struct is an easy and sensible solution. For
+example, given a function that returns a struct named out that includes a char* ele‐
+ment named error:
+Stopif(!inval, out.error="inval must not be NULL"; return out
+             , "inval must not be NULL");
+GLib has an error-handling system with its own type, the GError, that must be passed
+in (via pointer) as an argument to any given function. It provides several additional
+features above the macro listed in Example 2-5, including error domains and easier
+passing of errors from subfunctions to parent functions, at the cost of added
+complexity.
+Interweaving Documentation
+Y ou need documentation. Y ou know this, and you know that you need to keep it cur‐
+rent when the code changes. Y et, somehow, documentation is often the first thing to
+fall by the wayside. It is so very easy to say it runs; I’ll document it later.
+So you need to make writing the documentation as easy as physically possible. The
+immediate implication is that you have the documentation for the code in the same
+file as the code, as close as possible to the code being documented, and that implies
+that you’re going to need a means of extracting the documentation from the code file.
+Having the documentation right by the code also means you’re more likely to read the
+documentation. It’s a good habit to reread the documentation for a function before
+modifying it, both so that you have a better idea of what’s going on, and so that you
+Interweaving Documentation | 59
+
+will be more likely to notice when your changes to the code will also require a change
+in the documentation.
+I’ll present two means of weaving documentation into the code: Doxygen and CWEB.
+Y our package manager should be happy to install either of them.
+Doxygen
+Doxygen is a simple system with simple goals. It works best for attaching a descrip‐
+tion to each function, struct, or other such block. This is the case of documenting an
+interface for users who will never care to look at the code itself. The description will
+be in a comment block right on top of the function, struct, or whatever, so it is easy to
+write the documentation comment first, then write the function to live up to the
+promises you just made.
+The syntax for Doxygen is simple enough, and a few bullet points will have you well
+on your way to using it:
+• If a comment block starts with two stars, /** like so */ , then Doxygen will
+parse the comment. One-star comments, /* like so */, are ignored.
+• If you want Doxygen to parse a file, you will need a /** \file */  comment at
+the head of the file; see the example. If you forget this, Doxygen won’t produce
+output for the file and won’t give you much of a hint as to what went wrong.
+• Put the comment right before the function, struct, et cetera.
+• Y our function descriptions can (and should) include \param segments describing
+the input parameters and a \return line listing the expected return value. Again,
+see the example.
+• Use \ref for cross-references to other documented elements (including functions
+or pages).
+• Y ou can use an @ anywhere I used a backslash above: @file, @mainpage, et cetera.
+This is in emulation of JavaDoc, which seems to be emulating WEB. As a LaTeX
+user, I am more used to the backslash.
+To run Doxygen, you will need a configuration file, and there are a lot of options to
+configure. Doxygen has a clever trick for handling this; run:
+doxygen -g
+and it will write a configuration file for you. Y ou can then open it and edit as needed;
+it is of course very well documented. After that, run doxygen by itself to generate the
+outputs, including HTML, PDF , XML, or manual pages, as per your specification.
+If you have Graphviz installed (ask your package manager for it), then Doxygen can
+generate call graphs: box-and-arrow diagrams showing which functions call and are
+60 | Chapter 2: Debug, Test, Document
+
+called by which other functions. If somebody hands you an elaborate program and
+expects you to get to know it quickly, this can be a nice way to get a quick feel for the
+flow.
+I documented “libxml and cURL ” on page 335  using Doxygen; have a look and see how
+it reads to you as code, or run it through Doxygen and check out the HTML docu‐
+mentation it produces.
+Every snippet throughout the book beginning with /** is also in Doxygen format.
+The narrative
+Y our documentation should contain at least two parts: the technical documentation
+describing the function-by-function details, and a narrative explaining to users what
+the package is about and how to get their bearings.
+Start the narrative in a comment block with the header \mainpage. If you are produc‐
+ing HTML output, this will be the index.html of your website—the first page readers
+should see. From there, add as many pages as you’ d like. Subsequent pages have a
+header of the form:
+/** \page onewordtag The title of your page
+*/
+Back on the main page (or any other, including function documentation), add \ref
+onewordtag to produce a link to the page you wrote. Y ou can tag and name the main
+page as well, if need be.
+The narrative pages can be anywhere in your code: you could put them close to the
+code itself, or the narrative might make sense as a separate file consisting entirely of
+Doxygen comment blocks, maybe named documentation.h.
+Literate Code with CWEB
+TeX, a document formatting system, is often held up as a paragon of a complicated
+system done very right. It is about 35 years old as of this writing, and (in this author’s
+opinion) still produces the most attractive math of any typesetting system available.
+Many more recent systems don’t even try to compete, and use TeX as a backend for
+typesetting. Its author, Donald Knuth, used to offer a bounty for bugs, but eventually
+dropped the bounty after it went unclaimed for many years.
+Dr. Knuth explains the high quality of TeX by discussing how it was written: literate
+programming, in which every procedural chunk is preceded by a plain-English
+explanation of that chunk’s purpose and functioning. The final product looks like a
+free-form description of code with some actual code interspersed here and there to
+formalize the description for the computer (in contrast to typical documented code,
+which is much more code than exposition). Knuth wrote TeX using WEB, a system
+Interweaving Documentation | 61
+
+that intersperses English expository text with PASCAL code. Here in the present day,
+the code will be in C, and now that TeX works to produce beautiful documentation,
+we might as well use it as the markup language for the expository side. Thus, CWEB.
+As for the output, it’s easy to find textbooks that use CWEB to organize and even
+present the content (e.g., Hanson, 1996). If somebody else is going to study your code
+(for some of you this might be a coworker or a review team), then CWEB might make
+a lot of sense.
+I wrote “Example: An Agent-Based Model of Group Formation”  on page 279 using
+CWEB; here’s a rundown of what you need to know to compile it and follow its
+CWEB-specific features:
+• It’s customary to save CWEB files with a .w extension.
+• Run cweave groups.w to produce a .tex file; then run pdftex groups.tex to pro‐
+duce a PDF .
+• Run ctangle groups.w to produce a .c file. GNU make knows about this in its cat‐
+alog of built-in rules, so make groups will run ctangle for you.
+The tangle step removes comments, which means that CWEB and Doxygen are
+incompatible. Perhaps you could produce a header file with a header for each public
+function and struct for doxygenization, and use CWEB for your main code set.
+Here is the CWEB manual reduced to seven bullet points:
+• Every special code for CWEB has an @ followed by a single character. Be careful
+to write @<titles@> and not @<incorrect titles>@.
+• Every segment has a comment, then code. It’s OK to have a blank comment, but
+that comment-code rhythm has to be there, or else all sorts of errors turn up.
+• Start a text section with an @ following by a space. Then expound, using TeX
+formatting.
+• Start an unnamed chunk of code with @c.
+• Start a named block of code with a title followed by an equals sign (because this is
+a definition): @<an operation@>=.
+• That block will get inserted verbatim wherever you use the title. That is, each
+chunk name is effectively a macro that expands to the chunk of code you speci‐
+fied, but without all the extra rules of C preprocessor macros.
+• Sections (like the sections in the example about group membership, setting up,
+plotting with Gnuplot, and so on) start with @* and have a title ending in a
+period.
+62 | Chapter 2: Debug, Test, Document
+
+That should be enough for you to get started writing your own stuff in CWEB. Have a
+look at “Example: An Agent-Based Model of Group Formation” on page 279 and see
+how it reads to you.
+Becoming a Better Typist
+I selected many of the topics in this book based on my experience helping colleagues
+work out C code, and in the process learning the things that give them trouble. For
+some, setting up the environment was a real roadblock; many had trouble getting
+comfortable with pointers; and a surprisingly large number of people are just uncom‐
+fortable with the keyboard. It might not be what we think about when discussing pro‐
+gramming, but people who are not confident at the keyboard are disinclined to use a
+language where symbol-heavy text like for (i=0; i<10; i++) is standard fare.
+Here’s the advice I give when issues with typing come up: get a light t-shirt and drape
+it over the keyboard. Stick your hands under the shirt, and start typing.
+The intent is to prevent that sneaking glance that we all do to check where the keys
+are. It turns out that the keys aren’t very mobile and are always exactly where you left
+them. But those micropauses to check on things are how we keep our confidence and
+facility with the keyboard at a certain safe speed.
+If not being able to see is frustrating at first, persist through the initial awkwardness,
+and get to know those occasional keys that you never quite learned. When you are
+more confident with the keyboard, you’ll have more brain power to dedicate to
+writing.
+Interweaving Documentation | 63

@@ -1,0 +1,3641 @@
+2.8. PROPERTIES OF LOGARITHMS
+
+53
+
+• Base b = 10: Less common today is the base-10 or common logarithm, usu-
+ally denoted as log x. This base was employed in slide rules and logarithm
+books in the days before pocket calculators.
+
+We have already seen one important property of logarithms, namely that
+
+loga(xy) = loga(x) + loga(y)
+
+The other important fact to remember is that it is easy to convert a logarithm
+from one base to another. This is a consequence of the following formula:
+
+loga b =
+
+logc b
+logc a
+
+Thus, changing the base of log b from base-a to base-c simply involves multi-
+plying by logc a. It is easy to convert a common log function to a natural log
+function, and vice versa.
+
+Two implications of these properties of logarithms are important to appre-
+
+ciate from an algorithmic perspective:
+
+• The base of the logarithm has no real impact on the growth rate: Compare
+the following three values: log2(1, 000, 000) = 19.9316, log3(1, 000, 000) =
+12.5754, and log100(1, 000, 000) = 3. A big change in the base of the
+logarithm produces little diﬀerence in the value of the log. Changing the
+base of the log from a to c involves multiplying by logc a. This conversion
+factor is absorbed in the Big Oh notation whenever a and c are constants.
+Thus, we are usually justiﬁed in ignoring the base of the logarithm when
+analyzing algorithms.
+
+• Logarithms cut any function down to size: The growth rate of the loga-
+
+rithm of any polynomial function is O(lg n). This follows because
+
+loga nb = b · loga n
+
+The eﬀectiveness of binary search on a wide range of problems is a con-
+sequence of this observation. Note that performing a binary search on a
+sorted array of n2 things requires only twice as many comparisons as a
+binary search on n things.
+
+Logarithms eﬃciently cut any function down to size.
+arithmetic on factorials except after taking logarithms, since
+
+It is hard to do
+
+n
+
+n! =
+
+i → log n! =
+
+i=1
+(cid:4)
+
+n
+
+i=1
+(cid:7)
+
+log i = Θ(n log n)
+
+provides another way logarithms pop up in algorithm analysis.
+
+54
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+Stop and Think: Importance of an Even Split
+
+Problem:
+Manhattan phone book if each split were 1/3-to-2/3 instead of 1/2-to-1/2?
+
+How many queries does binary search take on the million-name
+
+Solution: When performing binary searches in a telephone book, how important
+is it that each query split the book exactly in half? Not very much. For the
+Manhattan telephone book, we now use log3/2(1, 000, 000) ≈ 35 queries in the
+worst case, not a signiﬁcant change from log2(1, 000, 000) ≈ 20. Changing the
+base of the log does not aﬀect the asymptotic complexity. The eﬀectiveness of
+binary search comes from its logarithmic running time, not the base of the log.
+
+2.9 War Story: Mystery of the Pyramids
+
+That look in his eyes should have warned me oﬀ even before he started talking.
+“We want to use a parallel supercomputer for a numerical calculation up to
+
+1,000,000,000, but we need a faster algorithm to do it.”
+
+I’d seen that distant look before. Eyes dulled from too much exposure to the
+raw horsepower of supercomputers—machines so fast that brute force seemed
+to eliminate the need for clever algorithms; at least until the problems got hard
+enough.
+
+“I am working with a Nobel prize winner to use a computer on a famous
+
+problem in number theory. Are you familiar with Waring’s problem?”
+
+I knew some number theory. “Sure. Waring’s problem asks whether every
+integer can be expressed at least one way as the sum of at most four integer
+squares. For example, 78 = 82 + 32 + 22 + 12 = 72 + 52 + 22. I remember proving
+that four squares suﬃce to represent any integer in my undergraduate number
+theory class. Yes, it’s a famous problem but one that got solved 200 years ago.”
+“No, we are interested in a diﬀerent version of Waring’s problem. A pyra-
+midal number is a number of the form (m3 − m)/6, for m ≥ 2. Thus, the ﬁrst
+several pyramidal numbers are 1, 4, 10, 20, 35, 56, 84, 120, and 165. The con-
+jecture since 1928 is that every integer can be represented by the sum of at most
+ﬁve such pyramidal numbers. We want to use a supercomputer to prove this
+conjecture on all numbers from 1 to 1,000,000,000.”
+
+“Doing a billion of anything will take a substantial amount of time,” I
+warned. “The time you spend to compute the minimum representation of each
+number will be critical, since you are going to do it one billion times. Have you
+thought about what kind of an algorithm you are going to use?”
+
+“We have already written our program and run it on a parallel supercom-
+puter. It works very fast on smaller numbers. Still, it takes much too much
+time as soon as we get to 100,000 or so.”
+
+“Terriﬁc,” I thought. Our supercomputer junkie had discovered asymptotic
+growth. No doubt his algorithm ran in something like quadratic time, and went
+
+2.9. WAR STORY: MYSTERY OF THE PYRAMIDS
+
+55
+
+into vapor lock as soon as n got large.
+
+“We need a faster program in order to get to a billion. Can you help us? Of
+
+course, we can run it on our parallel supercomputer when you are ready.”
+
+I am a sucker for this kind of challenge, ﬁnding fast algorithms to speed up
+
+programs. I agreed to think about it and got down to work.
+
+I started by looking at the program that the other guy had written. He had
+built an array of all the Θ(n1/3) pyramidal numbers from 1 to n inclusive.4 To
+test each number k in this range, he did a brute force test to establish whether
+it was the sum of two pyramidal numbers. If not, the program tested whether
+it was the sum of three of them, then four, and ﬁnally ﬁve, until it ﬁrst got an
+answer. About 45% of the integers are expressible as the sum of three pyramidal
+numbers. Most of the remaining 55% require the sum of four, and usually each
+of these can be represented in many diﬀerent ways. Only 241 integers are known
+to require the sum of ﬁve pyramidal numbers, the largest being 343,867. For
+about half of the n numbers, this algorithm presumably went through all of the
+three-tests and at least some of the four-tests before terminating. Thus, the
+total time for this algorithm would be at least O(n × (n1/3)
+) = O(n2) time,
+where n = 1,000,000,000. No wonder his program cried “Uncle.”
+
+3
+
+Anything that was going to do signiﬁcantly better on a problem this large
+had to avoid explicitly testing all triples. For each value of k, we were seeking
+the smallest set of pyramidal numbers that add up to exactly to k. This problem
+is called the knapsack problem, and is discussed in Section 16.10 (page 497). In
+our case, the weights are the pyramidal numbers no greater than n, with an
+additional constraint that the knapsack holds exactly k items.
+
+A standard approach to solving knapsack precomputes the sum of smaller
+subsets of the items for use in computing larger subsets. If we have a table of
+all sums of two numbers and want to know whether k is expressible as the sum
+of three numbers, we can ask whether k is expressible as the sum of a single
+number plus a number in this two-table.
+
+Therefore, I needed a table of all integers less than n that can be ex-
+pressed as the sum of two of the 1,816 non-trivial pyramidal numbers less than
+1,000,000,000. There can be at most 1, 8162 = 3,297,856 of them. Actually,
+there are only about half this many, after we eliminate duplicates and any sum
+bigger than our target. Building a sorted array storing these numbers would be
+no big deal. Let’s call this sorted data structure of all pair-sums the two-table.
+To ﬁnd the minimum decomposition for a given k, I would ﬁrst check whether
+it was one of the 1,816 pyramidal numbers. If not, I would then check whether
+k was in the sorted table of the sums of two pyramidal numbers. To see whether
+k was expressible as the sum of three such numbers, all I had to do was check
+whether k − p[i] was in the two-table for 1 ≤ i ≤ 1, 816. This could be done
+quickly using binary search. To see whether k was expressible as the sum of
+four pyramidal numbers, I had to check whether k − two[i] was in the two-table
+
+4Why n1/3? Recall that pyramidal numbers are of the form (m3 − m)/6. The largest
+6n, so there are Θ(n1/3) such
+
+√
+m such that the resulting number is at most n is roughly 3
+numbers.
+
+56
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+for any 1 ≤ i ≤ |two|. However, since almost every k was expressible in many
+ways as the sum of four pyramidal numbers, this test would terminate quickly,
+and the total time taken would be dominated by the cost of the threes. Testing
+whether k was the sum of three pyramidal numbers would take O(n1/3 lg n).
+Running this on each of the n integers gives an O(n4/3 lg n) algorithm for the
+complete job. Comparing this to his O(n2) algorithm for n = 1,000,000,000
+suggested that my algorithm was a cool 30,000 times faster than his original!
+
+My ﬁrst attempt to code this solved up to n = 1, 000, 000 on my ancient
+Sparc ELC in about 20 minutes. From here, I experimented with diﬀerent
+data structures to represent the sets of numbers and diﬀerent algorithms to
+search these tables. I tried using hash tables and bit vectors instead of sorted
+arrays, and experimented with variants of binary search such as interpolation
+search (see Section 17.2 (page 510)). My reward for this work was solving up
+to n = 1, 000, 000 in under three minutes, a factor of six improvement over my
+original program.
+
+With the real thinking done, I worked to tweak a little more performance
+out of the program. I avoided doing a sum-of-four computation on any k when
+k − 1 was the sum-of-three, since 1 is a pyramidal number, saving about 10% of
+the total run time using this trick alone. Finally, I got out my proﬁler and tried
+some low-level tricks to squeeze a little more performance out of the code. For
+example, I saved another 10% by replacing a single procedure call with inline
+code.
+
+At this point, I turned the code over to the supercomputer guy. What he
+
+did with it is a depressing tale, which is reported in Section 5.8 (page 161).
+
+In writing up this story, I went back to rerun this program, which is now
+older than my current graduate students. Even though single-threaded, it ran
+in 1.113 seconds. Turning on the compiler optimizer reduced this to a mere
+0.334 seconds: this is why you need to remember to turn your optimizer on
+when you are trying to make your program run fast. This code has gotten hun-
+dreds of times faster by doing nothing, except waiting for 25 years of hardware
+improvements. Indeed a server in our lab can now run up to a billion in under
+three hours (174 minutes and 28.4 seconds) using only a single thread. Even
+more amazingly, I can run this code to completion in 9 hours, 37 minutes, and
+34.8 seconds on the same crummy Apple MacBook laptop that I am writing this
+book on, despite its keys falling oﬀ as I type.
+
+The primary lesson of this war story is to show the enormous potential
+for algorithmic speedups, as opposed to the fairly limited speedup obtainable
+via more expensive hardware. I sped his program up by about 30,000 times.
+His million-dollar computer (at that time) had 16 processors, each reportedly
+ﬁve times faster on integer computations than the $3,000 machine on my desk.
+That gave him a maximum potential speedup of less than 100 times. Clearly,
+the algorithmic improvement was the big winner here, as it is certain to be in
+any suﬃciently large computation.
+
+2.10. ADVANCED ANALYSIS (*)
+
+57
+
+2.10 Advanced Analysis (*)
+
+Ideally, each of us would be ﬂuent in working with the mathematical techniques
+of asymptotic analysis. And ideally, each of us would be rich and good looking
+as well.
+
+In this section I will survey the major techniques and functions employed
+in advanced algorithm analysis. I consider this optional material—it will not
+be used elsewhere in the textbook section of this book. That said, it will make
+some of the complexity functions reported in the Hitchhiker’s Guide a little less
+mysterious.
+
+2.10.1 Esoteric Functions
+
+The bread-and-butter classes of complexity functions were presented in Section
+2.3.1 (page 38). More esoteric functions also make appearances in advanced
+algorithm analysis. Although we will not see them much in this book, it is still
+good business to know what they mean and where they come from.
+
+• Inverse Ackermann’s function f (n) = α(n): This function arises in the
+detailed analysis of several algorithms, most notably the Union-Find data
+structure discussed in Section 8.1.3 (page 250). It is suﬃcient to think of
+this as geek talk for the slowest growing complexity function. Unlike the
+constant function f (n) = 1, α(n) eventually gets to inﬁnity as n → ∞,
+but it certainly takes its time about it. The value of α(n) is smaller than
+5 for any value of n that can be written in this physical universe.
+
+• f (n) = log log n: The “log log” function is just that—the logarithm of
+the logarithm of n. One natural example of how it might arise is doing a
+binary search on a sorted array of only lg n items.
+
+• f (n) = log n/ log log n: This function grows a little slower than log n,
+because it is divided by an even slower growing function. To see where
+this arises, consider an n-leaf rooted tree of degree d. For binary trees,
+that is, when d = 2, the height h is given
+
+n = 2h → h = lg n
+
+by taking the logarithm of both sides of the equation. Now consider the
+height of such a tree when the degree d = log n. Then
+
+n = (log n)h → h = log n/ log log n
+
+• f (n) = log2 n: This is the product of two log functions, (log n)×(log n). It
+might arise if we wanted to count the bits looked at when doing a binary
+search on n items, each of which was an integer from 1 to (say) n2. Each
+such integer requires a lg(n2) = 2 lg n bit representation, and we look at
+lg n of them, for a total of 2 lg2 n bits.
+
+58
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+The “log squared” function typically arises in the design of intricate nested
+data structures, where each node in (say) a binary tree represents another
+data structure, perhaps ordered on a diﬀerent key.
+
+√
+
+• f (n) =
+
+n: The square root is not very esoteric, but represents the class of
+n = n1/2. Such functions arise in building
+“sublinear polynomials” since
+√
+n square has area n,
+d-dimensional grids that contain n points. A
+and an n1/3 × n1/3 × n1/3 cube has volume n. In general, a d-dimensional
+hypercube of length n1/d on each side has volume n.
+
+n ×
+
+√
+
+√
+
+• f (n) = n(1+(cid:2)): Epsilon ((cid:2)) is the mathematical symbol to denote a con-
+
+stant that can be made arbitrarily small but never quite goes away.
+
+It arises in the following way. Suppose I design an algorithm that runs in
+2c · n(1+1/c) time, and I get to pick whichever c I want. For c = 2, this
+is 4n3/2 or O(n3/2). For c = 3, this is 8n4/3 or O(n4/3), which is better.
+Indeed, the exponent keeps getting better the larger I make c.
+The problem is that I cannot make c arbitrarily large before the 2c term be-
+gins to dominate. Instead, we report this algorithm as running in O(n1+(cid:2)),
+and leave the best value of (cid:2) to the beholder.
+
+2.10.2 Limits and Dominance Relations
+
+The dominance relation between functions is a consequence of the theory of
+limits, which you may recall from taking calculus. We say that f (n) dominates
+g(n) if limn→∞ g(n)/f (n) = 0.
+
+Let’s see this deﬁnition in action. Suppose f (n) = 2n2 and g(n) = n2.
+
+Clearly f (n) > g(n) for all n, but it does not dominate since
+
+lim
+n→∞
+
+g(n)
+f (n)
+
+= lim
+n→∞
+
+n2
+2n2 = lim
+
+n→∞
+
+1
+2
+
+(cid:6)= 0
+
+This is to be expected because both functions are in the class Θ(n2). What
+about f (n) = n3 and g(n) = n2? Since
+
+lim
+n→∞
+
+g(n)
+f (n)
+
+= lim
+n→∞
+
+n2
+n3 = lim
+n→∞
+
+1
+n
+
+= 0
+
+the higher-degree polynomial dominates. This is true for any two polynomials,
+that is, na dominates nb if a > b since
+
+lim
+n→∞
+
+nb
+na = lim
+n→∞
+
+nb−a → 0
+
+Thus, n1.2 dominates n1.1999999.
+
+Now consider two exponential functions, say f (n) = 3n and g(n) = 2n. Since
+
+lim
+n→∞
+
+g(n)
+f (n)
+
+=
+
+2n
+3n = lim
+
+n→∞
+
+(
+
+2
+3
+
+)n = 0
+
+2.11. EXERCISES
+
+59
+
+the exponential with the higher base dominates.
+
+Our ability to prove dominance relations from scratch depends upon our
+ability to prove limits. Let’s look at one important pair of functions. Any
+polynomial (say f (n) = n(cid:2)) dominates logarithmic functions (say g(n) = lg n).
+Since n = 2lg n,
+
+f (n) = (2lg n)(cid:2) = 2(cid:2) lg n
+
+Now consider
+
+lim
+n→∞
+
+g(n)
+f (n)
+
+= lg n/2(cid:2) lg n
+
+In fact, this does go to 0 as n → ∞.
+
+Take-Home Lesson: By interleaving the functions here with those of Section
+2.3.1 (page 38), we see where everything ﬁts into the dominance pecking order:
+
+n! (cid:12) cn (cid:12) n3 (cid:12) n2 (cid:12) n1+(cid:2) (cid:12) n log n (cid:12) n (cid:12)
+
+n (cid:12)
+log2 n (cid:12) log n (cid:12) log n/ log log n (cid:12) log log n (cid:12) α(n) (cid:12) 1
+
+√
+
+Chapter Notes
+
+Most other algorithm texts devote considerably more eﬀorts to the formal anal-
+ysis of algorithms than I have here, and so I refer the theoretically inclined
+reader elsewhere for more depth. Algorithm texts more heavily stressing anal-
+ysis include Cormen et al. [CLRS09] and Kleinberg and Tardos [KT06].
+
+The book Concrete Mathematics by Graham, Knuth, and Patashnik [GKP89]
+oﬀers an interesting and thorough presentation of mathematics for the analysis
+of algorithms. Niven and Zuckerman [NZM91] is my favorite introduction to
+number theory, including Waring’s problem, discussed in the war story.
+
+The notion of dominance also gives rise to the “Little Oh” notation. We say
+that f (n) = o(g(n)) iﬀ g(n) dominates f (n). Among other things, the Little
+Oh proves useful for asking questions. Asking for an o(n2) algorithm means you
+want one that is better than quadratic in the worst case—and means you would
+be willing to settle for O(n1.999 log2 n).
+
+2.11 Exercises
+
+Program Analysis
+
+2-1. [3] What value is returned by the following function? Express your answer as
+
+a function of n. Give the worst-case running time using the Big Oh notation.
+
+Mystery(n)
+
+r = 0
+for i = 1 to n − 1 do
+
+for j = i + 1 to n do
+for k = 1 to j do
+
+60
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+r = r + 1
+
+return(r)
+
+2-2. [3] What value is returned by the following function? Express your answer as
+a function of n. Give the worst-case running time using Big Oh notation.
+
+Pesky(n)
+r = 0
+for i = 1 to n do
+
+for j = 1 to i do
+
+for k = j to i + j do
+
+r = r + 1
+
+return(r)
+
+2-3. [5] What value is returned by the following function? Express your answer as
+a function of n. Give the worst-case running time using Big Oh notation.
+
+Pestiferous(n)
+r = 0
+for i = 1 to n do
+
+for j = 1 to i do
+
+for k = j to i + j do
+
+for l = 1 to i + j − k do
+
+r = r + 1
+
+return(r)
+
+2-4. [8] What value is returned by the following function? Express your answer as
+a function of n. Give the worst-case running time using Big Oh notation.
+
+Conundrum(n)
+
+r = 0
+for i = 1 ton do
+
+for j = i + 1 to n do
+
+for k = i + j − 1 to n do
+
+r = r + 1
+
+return(r)
+
+2-5. [5] Consider the following algorithm: (the print operation prints a single aster-
+
+isk; the operation x = 2x doubles the value of the variable x).
+
+for k = 1 to n:
+x = k
+while (x < n):
+
+print ’*’
+x = 2x
+
+Let f (n) be the time complexity of this algorithm (or equivalently the number
+of times * is printed). Provide correct bounds for O(f (n)) and Ω(f (n)), ideally
+converging on Θ(f (n)).
+
+2-6. [5] Suppose the following algorithm is used to evaluate the polynomial
+
+p(x) =a nxn + an−1xn−1 + . . . + a1x + a0
+
+2.11. EXERCISES
+
+61
+
+p = a0;
+xpower = 1;
+for i = 1 to n do
+
+xpower = x · xpower;
+p = p + ai ∗ xpower
+
+(a) How many multiplications are done in the worst case? How many addi-
+
+tions?
+
+(b) How many multiplications are done on the average?
+
+(c) Can you improve this algorithm?
+
+2-7. [3] Prove that the following algorithm for computing the maximum value in an
+
+array A[1..n] is correct.
+
+max(A)
+
+m = A[1]
+for i = 2 to n do
+
+if A[i] > m then m = A[i]
+
+return (m)
+
+Big Oh
+2-8. [3] (a) Is 2n+1 = O(2n)?
+(b) Is 22n = O(2n)?
+
+2-9. [3] For each of the following pairs of functions, f (n) is in O(g(n)), Ω(g(n)), or
+Θ(g(n)). Determine which relationships are correct and brieﬂy explain why.
+
+(a) f (n) = log n2; g(n) = log n + 5
+
+(b) f (n) =
+
+n; g(n) = log n2
+
+√
+
+(c) f (n) = log2 n; g(n) = log n
+
+(d) f (n) = n; g(n) = log2 n
+
+(e) f (n) = n log n + n; g(n) = log n
+
+(f) f (n) = 10; g(n) = log 10
+(g) f (n) = 2n; g(n) = 10n2
+(h) f (n) = 2n; g(n) = 3n
+
+2-10. [3] For each of the following pairs of functions f (n) and g(n), determine whether
+
+f (n) = O(g(n)), g(n) = O(f (n)), or both.
+
+(a) f (n) = (n2 − n)/2, g(n) = 6n
+√
+
+(b) f (n) = n + 2
+
+n, g(n) =n 2
+√
+
+(c) f (n) = n log n, g(n) = n
+
+n/2
+√
+
+(d) f (n) = n + log n, g(n) =
+
+n
+
+(e) f (n) = 2(log n)2, g(n) = log n + 1
+(f) f (n) = 4n log n + n, g(n) = (n2 − n)/2
+
+62
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+2-11. [5] For each of the following functions, which of the following asymptotic bounds
+
+hold for f (n): O(g(n)), Ω(g(n)), or Θ(g(n))?
+
+(a) f (n) = 3n2, g(n) = n2
+(b) f (n) = 2n4 − 3n2 + 7, g(n) = n5
+(c) f (n) = log n, g(n) = log n + 1
+n
+(d) f (n) = 2k log n, g(n) = nk
+(e) f (n) = 2n, g(n) = 22n
+
+2-12. [3] Prove that n3 − 3n2 − n + 1 = Θ(n3).
+2-13. [3] Prove that n2 = O(2n).
+2-14. [3] Prove or disprove: Θ(n2) = Θ(n2 + 1).
+
+2-15. [3] Suppose you have algorithms with the ﬁve running times listed below. (As-
+sume these are the exact running times.) How much slower do each of these
+algorithms get when you (a) double the input size, or (b) increase the input size
+by one?
+(a) n2 (b) n3 (c) 100n2 (d) n log n (e) 2n
+
+2-16. [3] Suppose you have algorithms with the six running times listed below. (As-
+sume these are the exact number of operations performed as a function of the
+input size n.) Suppose you have a computer that can perform 1010 operations
+per second. For each algorithm, what is the largest input size n that you can
+complete within an hour? (a) n2 (b) n3 (c) 100n2 (d) n log n (e) 2n (f) 22n
+
+2-17. [3] For each of the following pairs of functions f (n) and g(n), give an appropriate
+
+positive constant c such that f (n) ≤ c · g(n) for all n >1.
+
+(a) f (n) = n2 + n + 1, g(n) = 2n3
+
+(b) f (n) = n
+(c) f (n) = n2 − n + 1, g(n) =n 2/2
+
+n + n2, g(n) = n2
+
+√
+
+2-18. [3] Prove that if f1(n) =O (g1(n)) and f2(n) = O(g2(n)), then f1(n) +f 2(n) =
+
+O(g1(n) + g2(n)).
+
+2-19. [3] Prove that if f1(n) = Ω(g1(n)) and f2(n) = Ω(g2(n)), then f1(n) + f2(n) =
+
+Ω(g1(n) + g2(n)).
+
+2-20. [3] Prove that if f1(n) = O(g1(n)) and f2(n) = O(g2(n)), then f1(n) · f2(n) =
+
+O(g1(n) · g2(n)).
+
+2-21. [5] Prove that for all k ≥ 0 and all sets of real constants {ak, ak−1, . . . , a1, a0},
+
+aknk + ak−1nk−1 + .... + a1n + a0 = O(nk)
+
+2-22. [5] Show that for any real constants a and b, b >0
+
+(n + a)b = Θ(nb)
+
+2-23. [5] List the functions below from the lowest to the highest order. If any two or
+
+more are of the same order, indicate which.
+
+2.11. EXERCISES
+
+63
+
+n
+n − n3 + 7n5
+n2 + lg n
+n3
+
+2n
+lg n
+n2
+(lg n)2
+
+n lg n
+√
+n
+2n−1
+n!
+
+ln n
+en
+lg lg n
+n1+ε where 0 < ε < 1
+
+2-24. [8] List the functions below from the lowest to the highest order. If any two or
+
+more are of the same order, indicate which.
+
+nπ
+(cid:5)
+(cid:4)
+n
+n−4
+
+πn
+2log4 n
+
+(cid:5)
+
+(cid:4)
+n
+5
+n5(log n)2
+
+√
+
+√
+2
+(cid:4)
+n4
+
+n
+
+(cid:5)
+n
+n−4
+
+2-25. [8] List the functions below from the lowest to the highest order. If any two or
+
+more are of the same order, indicate which.
+(cid:2)n
+
+i=1 ii
+
+n!
+
+nn
+2log4 n
+
+(log n)log n
+n(log n)2
+
+2(log n2)
+(cid:5)
+(cid:4)
+n
+n−4
+
+2-26. [5] List the functions below from the lowest to the highest order. If any two or
+
+more are of the same order, indicate which.
+√
+
+n
+n log n
+n2
+n
+ln n
+(1/3)n
+
+1
+3 + log n
+
+n
+n − n3 + 7n5
+n3
+(log n)2
+
+n
+log n
+(3/2)n
+
+2n
+n2 + log n
+log n
+n!
+log log n
+6
+
+2-27. [5] Find two functions f (n) and g(n) that satisfy the following relationship. If
+
+no such f and g exist, write “None.”
+
+(a) f (n) = o(g(n)) and f (n) (cid:7)= Θ(g(n))
+
+(b) f (n) = Θ(g(n)) and f (n) = o(g(n))
+(c) f (n) = Θ(g(n)) and f (n) (cid:7)= O(g(n))
+(d) f (n) = Ω(g(n)) and f (n) (cid:7)= O(g(n))
+
+2-28. [5] True or False?
+
+(a) 2n2 + 1 = O(n2)
+
+√
+
+(b)
+
+n = O(log n)
+
+√
+
+n)
+
+√
+
+(c) log n = O(
+(d) n2(1 +
+(e) 3n2 +
+√
+
+√
+
+n log n = O(n)
+(f)
+(g) log n = O(n−1/2)
+
+n) = O(n2 log n)
+n = O(n2)
+
+2-29. [5] For each of the following pairs of functions f (n) and g(n), state whether
+f (n) = O(g(n)), f (n) = Ω(g(n)), f (n) = Θ(g(n)), or none of the above.
+
+(a) f (n) = n2 + 3n + 4, g(n) = 6n + 7
+
+(b) f (n) = n
+
+n, g(n) =n 2 − n
+
+√
+
+64
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+(c) f (n) = 2n − n2, g(n) = n4 + n2
+
+2-30. [3] For each of these questions, answer yes or no and brieﬂy explain your answer.
+(a) If an algorithm takes O(n2) worst-case time, is it possible that it takes O(n)
+on some inputs?
+(b) If an algorithm takes O(n2) worst-case time, is it possible that it takes O(n)
+on all inputs?
+(c) If an algorithm takes Θ(n2) worst-case time, is it possible that it takes O(n)
+on some inputs?
+(d) If an algorithm takes Θ(n2) worst-case time, is it possible that it takes O(n)
+on all inputs?
+(e) Is the function f (n) = Θ(n2), where f (n) = 100n2 for even n and f (n) =
+20n2 − n log2 n for odd n?
+
+2-31. [3] For each of the following, answer yes, no, or can’t tell. Explain your reasoning.
+
+(a) Is 3n = O(2n)?
+(b) Is log 3n = O(log 2n)?
+(c) Is 3n = Ω(2n)?
+(d) Is log 3n = Ω(log 2n)?
+
+2-32. [5] For each of the following expressions f (n) ﬁnd a simple g(n) such that
+
+(a) f (n) =
+
+f (n) = Θ(g(n)).
+(cid:2)n
+(cid:2)n
+(cid:2)n
+
+(b) f (n) =
+
+(c) f (n) =
+
+i=1
+
+1
+i .
+(cid:11) 1
+i=1
+i
+i=1 log i.
+
+(cid:12).
+
+(d) f (n) = log(n!).
+
+2-33. [5] Place the following functions into increasing order: f1(n) = n2 log2 n,
+
+f2(n) = n(log2 n)2, f3(n) =
+
+i=0 2i and, f4(n) = log2(
+
+i=0 2i).
+
+(cid:2)n
+
+(cid:2)n
+
+2-34. [5] Which of the following are true?
+
+(cid:2)n
+(cid:2)n
+(cid:2)n
+
+i=1 3i = Θ(3n−1).
+i=1 3i = Θ(3n).
+i=1 3i = Θ(3n+1).
+
+(a)
+
+(b)
+
+(c)
+
+2-35. [5] For each of the following functions f ﬁnd a simple function g such that
+
+f (n) = Θ(g(n)).
+
+(a) f1(n) = (1000)2n + 4n.
+√
+
+(b) f2(n) = n + n log n +
+(c) f3(n) = log(n20) + (log n)10.
+(d) f4(n) = (0.99)n + n100.
+
+n.
+
+2-36. [5] For each pair of expressions (A, B) below, indicate whether A is O, o, Ω, ω,
+or Θ of B. Note that zero, one, or more of these relations may hold for a given
+pair; list all correct ones.
+
+2.11. EXERCISES
+
+65
+
+A
+n100
+(lg n)12
+√
+n
+10n
+nlg n
+lg (n!)
+
+B
+2n
+√
+n
+ncos(πn/8)
+100n
+(lg n)n
+n lg n
+
+(a)
+(b)
+(c)
+(d)
+(e)
+(f )
+
+Summations
+2-37. [5] Find an expression for the sum of the ith row of the following triangle, and
+prove its correctness. Each entry is the sum of the three entries directly above
+it. All non-existing entries are considered 0.
+
+1
+2
+6
+16
+
+1
+3
+10
+
+1
+1
+3
+7
+19
+
+1
+2
+6
+16
+
+1
+4
+
+1
+
+1
+3
+10
+
+1
+4
+
+1
+
+2-38. [3] Assume that Christmas has n days. Exactly how many presents did my “true
+
+love” send to me? (Do some research if you do not understand this question.)
+
+2-39. [5] An unsorted array of size n contains distinct integers between 1 and n + 1,
+with one element missing. Give an O(n) algorithm to ﬁnd the missing integer,
+without using any extra space.
+
+2-40. [5] Consider the following code fragment:
+
+for i=1 to n do
+
+for j=i to 2*i do
+
+output ‘‘foobar’’
+
+Let T (n) denote the number of times ‘foobar’ is printed as a function of n.
+
+a. Express T (n) as a summation (actually two nested summations).
+
+b. Simplify the summation. Show your work.
+
+2-41. [5] Consider the following code fragment:
+
+for i=1 to n/2 do
+
+for j=i to n-i do
+
+for k=1 to j do
+
+output ‘‘foobar’’
+
+Assume n is even. Let T (n) denote the number of times “foobar” is printed as
+a function of n.
+
+(a) Express T (n) as three nested summations.
+
+(b) Simplify the summation. Show your work.
+
+2-42. [6] When you ﬁrst learned to multiply numbers, you were told that x × y means
+adding x a total of y times, so 5 × 4 = 5 + 5 + 5 + 5 = 20. What is the time
+complexity of multiplying two n-digit numbers in base b (people work in base 10,
+of course, while computers work in base 2) using the repeated addition method,
+as a function of n and b. Assume that single-digit by single-digit addition or
+multiplication takes O(1) time. (Hint: how big can y be as a function of n and
+b?)
+
+66
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+2-43. [6] In grade school, you learned to multiply long numbers on a digit-by-digit
+basis, so that 127 × 211 = 127 × 1 + 127 × 10 + 127 × 200 = 26, 797. Analyze
+the time complexity of multiplying two n-digit numbers with this method as a
+function of n (assume constant base size). Assume that single-digit by single-
+digit addition or multiplication takes O(1) time.
+
+Logarithms
+
+2-44. [5] Prove the following identities on logarithms:
+
+(a) loga(xy) = loga x + loga y
+(b) loga xy = y loga x
+x
+(c) loga x = logb
+a
+logb
+y = ylogb
+
+(d) xlogb
+
+x
+
+2-45. [3] Show that (cid:11)lg(n + 1)(cid:12) = (cid:5)lg n(cid:6) + 1
+2-46. [3] Prove that that the binary representation of n ≥ 1 has (cid:5)lg2 n(cid:6) + 1 bits.
+2-47. [5]
+
+In one of my research papers I give a comparison-based sorting algorithm
+n)). Given the existence of an Ω(n log n) lower bound for
+
+√
+
+that runs in O(n log(
+sorting, how can this be possible?
+
+Interview Problems
+2-48. [5] You are given a set S of n numbers. You must pick a subset S(cid:4) of k numbers
+from S such that the probability of each element of S occurring in S(cid:4) is equal
+(i.e., each is selected with probability k/n). You may make only one pass over
+the numbers. What if n is unknown?
+
+2-49. [5] We have 1,000 data items to store on 1,000 nodes. Each node can store copies
+of exactly three diﬀerent items. Propose a replication scheme to minimize data
+loss as nodes fail. What is the expected number of data entries that get lost
+when three random nodes fail?
+
+2-50. [5] Consider the following algorithm to ﬁnd the minimum element in an array
+of numbers A[0, . . . , n]. One extra variable tmp is allocated to hold the current
+minimum value. Start from A[0]; tmp is compared against A[1], A[2], . . . , A[N ]
+in order. When A[i] < tmp, tmp = A[i]. What is the expected number of times
+that the assignment operation tmp = A[i] is performed?
+
+2-51. [5] You are given ten bags of gold coins. Nine bags contain coins that each weigh
+10 grams. One bag contains all false coins that weigh 1 gram less. You must
+identify this bag in just one weighing. You have a digital balance that reports
+the weight of what is placed on it.
+
+2-52. [5] You have eight balls all of the same size. Seven of them weigh the same, and
+one of them weighs slightly more. How can you ﬁnd the ball that is heavier by
+using a balance and only two weighings?
+
+2-53. [5] Suppose we start with n companies that eventually merge into one big com-
+
+pany. How many diﬀerent ways are there for them to merge?
+
+2-54. [7] Six pirates must divide $300 among themselves. The division is to proceed
+as follows. The senior pirate proposes a way to divide the money. Then the
+pirates vote. If the senior pirate gets at least half the votes he wins, and that
+
+2.11. EXERCISES
+
+67
+
+division remains. If he doesn’t, he is killed and then the next senior-most pirate
+gets a chance to propose the division. Now tell what will happen and why (i.e.
+how many pirates survive and how the division is done)? All the pirates are
+intelligent and the ﬁrst priority is to stay alive and the next priority is to get as
+much money as possible.
+
+2-55. [7] Reconsider the pirate problem above, where we start with only one indivisible
+
+dollar. Who gets the dollar, and how many are killed?
+
+LeetCode
+
+2-1. https://leetcode.com/problems/remove-k-digits/
+
+2-2. https://leetcode.com/problems/counting-bits/
+
+2-3. https://leetcode.com/problems/4sum/
+
+HackerRank
+
+2-1. https://www.hackerrank.com/challenges/pangrams/
+
+2-2. https://www.hackerrank.com/challenges/the-power-sum/
+
+2-3. https://www.hackerrank.com/challenges/magic-square-forming/
+
+Programming Challenges
+
+These programming challenge problems with robot judging are available at
+https://onlinejudge.org:
+
+2-1. “Primary Arithmetic”—Chapter 5, problem 10035.
+
+2-2. “A Multiplication Game”—Chapter 5, problem 847.
+
+2-3. “Light, More Light”—Chapter 7, problem 10110.
+
+Chapter 3
+
+Data Structures
+
+Putting the right data structure into a slow program can work the same wonders
+as transplanting fresh parts into a sick patient. Important classes of abstract
+data types such as containers, dictionaries, and priority queues have many func-
+tionally equivalent data structures that implement them. Changing the data
+structure does not aﬀect the correctness of the program, since we presumably
+replace a correct implementation with a diﬀerent correct implementation. How-
+ever, the new implementation may realize diﬀerent trade-oﬀs in the time to
+execute various operations, so the total performance can improve dramatically.
+Like a patient in need of a transplant, only one part might need to be replaced
+in order to ﬁx the problem.
+
+But it is better to be born with a good heart than have to wait for a replace-
+ment. The maximum beneﬁt from proper data structures results from designing
+your program around them in the ﬁrst place. We assume that the reader has
+had some previous exposure to elementary data structures and pointer manip-
+ulation. Still, data structure courses (CS II) focus more on data abstraction
+and object orientation than the nitty-gritty of how structures should be repre-
+sented in memory. This material will be reviewed here to make sure you have
+it down.
+
+As with most subjects, in data structures it is more important to really un-
+derstand the basic material than to have exposure to more advanced concepts.
+This chapter will focus on each of the three fundamental abstract data types
+(containers, dictionaries, and priority queues) and show how they can be im-
+plemented with arrays and lists. Detailed discussion of the trade-oﬀs between
+more sophisticated implementations is deferred to the relevant catalog entry for
+each of these data types.
+
+3.1 Contiguous vs. Linked Data Structures
+
+Data structures can be neatly classiﬁed as either contiguous or linked, depend-
+ing upon whether they are based on arrays or pointers. Contiguously allocated
+
+© The Editor(s) (if applicable) and The Author(s), under exclusive license to
+Springer Nature Switzerland AG 2020
+S. S. Skiena, The Algorithm Design Manual, Texts in Computer Science,
+https://doi.org/10.1007/978-3-030-54256-6_3
+
+69
+
+70
+
+CHAPTER 3. DATA STRUCTURES
+
+structures are composed of single slabs of memory, and include arrays, matrices,
+heaps, and hash tables. Linked data structures are composed of distinct chunks
+of memory bound together by pointers, and include lists, trees, and graph ad-
+jacency lists.
+
+In this section, I review the relative advantages of contiguous and linked data
+structures. These trade-oﬀs are more subtle than they appear at ﬁrst glance,
+so I encourage readers to stick with me here even if you may be familiar with
+both types of structures.
+
+3.1.1 Arrays
+
+The array is the fundamental contiguously allocated data structure. Arrays are
+structures of ﬁxed-size data records such that each element can be eﬃciently
+located by its index or (equivalently) address.
+
+A good analogy likens an array to a street full of houses, where each array
+element is equivalent to a house, and the index is equivalent to the house number.
+Assuming all the houses are of equal size and numbered sequentially from 1 to n,
+we can compute the exact position of each house immediately from its address.1
+
+Advantages of contiguously allocated arrays include:
+
+• Constant-time access given the index – Because the index of each element
+maps directly to a particular memory address, we can access arbitrary
+data items instantly provided we know the index.
+
+• Space eﬃciency – Arrays consist purely of data, so no space is wasted with
+links or other formatting information. Further, end-of-record information
+is not needed because arrays are built from ﬁxed-size records.
+
+• Memory locality – Many programming tasks require iterating through all
+the elements of a data structure. Arrays are good for this because they
+exhibit excellent memory locality. Physical continuity between succes-
+sive data accesses helps exploit the high-speed cache memory on modern
+computer architectures.
+
+The downside of arrays is that we cannot adjust their size in the middle
+of a program’s execution. Our program will fail as soon as we try to add the
+(n + 1)st customer, if we only allocated room for n records. We can compensate
+by allocating extremely large arrays, but this can waste space, again restricting
+what our programs can do.
+
+Actually, we can eﬃciently enlarge arrays as we need them, through the
+miracle of dynamic arrays. Suppose we start with an array of size 1, and double
+its size from m to 2m whenever we run out of space. This doubling process
+allocates a new contiguous array of size 2m, copies the contents of the old array
+
+1Houses in Japanese cities are traditionally numbered in the order they were built, not by
+their physical location. This makes it extremely diﬃcult to locate a Japanese address without
+a detailed map.
+
+3.1. CONTIGUOUS VS. LINKED DATA STRUCTURES
+
+71
+
+to the lower half of the new one, and then returns the space used by the old
+array to the storage allocation system.
+
+The apparent waste in this procedure involves recopying the old contents on
+each expansion. How much work do we really do? It will take log2 n (also known
+as lg n) doublings until the array gets to have n positions, plus one ﬁnal doubling
+on the last insertion when n = 2j for some j. There are recopying operations
+after the ﬁrst, second, fourth, eighth, . . . , nth insertions. The number of copy
+operations at the ith doubling will be 2i−1, so the total number of movements
+M will be:
+
+M = n +
+
+lg n
+
+i=1
+(cid:7)
+
+2i−1 = 1 + 2 + 4 + . . . +
+
+n
+2
+
++ n =
+
+n
+2i
+
+lg n
+
+i=i
+(cid:7)
+
+≤ n
+
+∞
+
+i=0
+(cid:7)
+
+1
+2i = 2n
+
+Thus, each of the n elements move only two times on average, and the total
+work of managing the dynamic array is the same O(n) as it would have been if
+a single array of suﬃcient size had been allocated in advance!
+
+The primary thing lost in using dynamic arrays is the guarantee that each
+insertion takes constant time in the worst case. Note that all accesses and most
+insertions will be fast, except for those relatively few insertions that trigger
+array doubling. What we get instead is a promise that the nth element insertion
+will be completed quickly enough that the total eﬀort expended so far will still
+be O(n). Such amortized guarantees arise frequently in the analysis of data
+structures.
+
+3.1.2 Pointers and Linked Structures
+
+Pointers are the connections that hold the pieces of linked structures together.
+Pointers represent the address of a location in memory. A variable storing a
+pointer to a given data item can provide more freedom than storing a copy of
+the item itself. A cell-phone number can be thought of as a pointer to its owner
+as they move about the planet.
+
+Pointer syntax and power diﬀer signiﬁcantly across programming languages,
+so we begin with a quick review of pointers in C language. A pointer p is
+assumed to give the address in memory where a particular chunk of data is
+located.2 Pointers in C have types declared at compile time, denoting the data
+type of the items they can point to. We use *p to denote the item that is pointed
+to by pointer p, and &x to denote the address of (i.e.pointer to) a particular
+variable x. A special NULL pointer value is used to denote structure-terminating
+or unassigned pointers.
+
+All linked data structures share certain properties, as revealed by the fol-
+
+lowing type declaration for linked lists:
+
+2C permits direct manipulation of memory addresses in ways that may horrify Java pro-
+
+grammers, but I will avoid doing any such tricks.
+
+72
+
+CHAPTER 3. DATA STRUCTURES
+
+Turing
+
+Knuth
+
+Karp
+
+NIL
+
+Figure 3.1: Linked list example showing data and pointer ﬁelds.
+
+typedef struct list {
+
+item_type item;
+struct list *next;
+
+/* data item */
+/* point to successor */
+
+} list;
+
+In particular:
+
+• Each node in our data structure (here list) contains one or more data
+
+ﬁelds (here item) that retain the data that we need to store.
+
+• Each node contains a pointer ﬁeld to at least one other node (here next).
+This means that much of the space used in linked data structures is de-
+voted to pointers, not data.
+
+• Finally, we need a pointer to the head of the structure, so we know where
+
+to access it.
+
+The list here is the simplest linked structure. The three basic operations sup-
+ported by lists are searching, insertion, and deletion. In doubly linked lists, each
+node points both to its predecessor and its successor element. This simpliﬁes
+certain operations at a cost of an extra pointer ﬁeld per node.
+
+Searching a List
+
+Searching for item x in a linked list can be done iteratively or recursively. I
+opt for recursively in the implementation below. If x is in the list, it is either
+the ﬁrst element or located in the rest of the list. Eventually, the problem is
+reduced to searching in an empty list, which clearly cannot contain x.
+
+list *search_list(list *l, item_type x) {
+
+if (l == NULL) {
+
+return(NULL);
+
+}
+
+if (l->item == x) {
+return(l);
+
+} else {
+
+return(search_list(l->next, x));
+
+}
+
+}
+
+3.1. CONTIGUOUS VS. LINKED DATA STRUCTURES
+
+73
+
+Insertion into a List
+
+Insertion into a singly linked list is a nice exercise in pointer manipulation, as
+shown below. Since we have no need to maintain the list in any particular order,
+we might as well insert each new item in the most convenient place. Insertion
+at the beginning of the list avoids any need to traverse the list, but does require
+us to update the pointer (denoted l) to the head of the data structure.
+
+void insert_list(list **l, item_type x) {
+
+list *p;
+
+/* temporary pointer */
+
+p = malloc(sizeof(list));
+p->item = x;
+p->next = *l;
+*l = p;
+
+}
+
+Two C-isms to note. First, the malloc function allocates a chunk of memory
+of suﬃcient size for a new node to contain x. Second, the funny double star
+in **l denotes that l is a pointer to a pointer to a list node. Thus, the last
+line, *l=p; copies p to the place pointed to by l, which is the external variable
+maintaining access to the head of the list.
+
+Deletion From a List
+
+Deletion from a linked list is somewhat more complicated. First, we must ﬁnd
+a pointer to the predecessor of the item to be deleted. We do this recursively:
+
+list *item_ahead(list *l, list *x) {
+
+if ((l == NULL) || (l->next == NULL)) {
+
+return(NULL);
+
+}
+
+if ((l->next) == x) {
+
+return(l);
+
+} else {
+
+return(item_ahead(l->next, x));
+
+}
+
+}
+
+The predecessor is needed because it points to the doomed node, so its next
+pointer must be changed. The actual deletion operation is simple, once ruling
+out the case that the to-be-deleted element does not exist. Special care must
+be taken to reset the pointer to the head of the list (l) when the ﬁrst element
+is deleted:
+
+74
+
+CHAPTER 3. DATA STRUCTURES
+
+void delete_list(list **l, list **x) {
+
+list *p;
+list *pred;
+
+/* item pointer */
+/* predecessor pointer */
+
+p = *l;
+pred = item_ahead(*l, *x);
+
+if (pred == NULL) {/* splice out of list */
+
+*l = p->next;
+
+} else {
+
+pred->next = (*x)->next;
+
+}
+free(*x);
+
+}
+
+/* free memory used by node */
+
+C language requires explicit deallocation of memory, so we must free the
+deleted node after we are ﬁnished with it in order to return the memory to the
+system. This leaves the incoming pointer as a dangling reference to a location
+that no longer exists, so care must be taken not to use this pointer again.
+Such problems can generally be avoided in Java because of its stronger memory
+management model.
+
+3.1.3 Comparison
+
+The advantages of linked structures over static arrays include:
+
+• Overﬂow on linked structures never occurs unless the memory is actually
+
+full.
+
+• Insertion and deletion are simpler than for static arrays.
+
+• With large records, moving pointers is easier and faster than moving the
+
+items themselves.
+
+Conversely, the relative advantages of arrays include:
+
+• Space eﬃciency: linked structures require extra memory for storing pointer
+
+ﬁelds.
+
+• Eﬃcient random access to items in arrays.
+
+• Better memory locality and cache performance than random pointer jump-
+
+ing.
+
+Take-Home Lesson: Dynamic memory allocation provides us with ﬂexibility
+on how and where we use our limited storage resources.
+
+One ﬁnal thought about these fundamental data structures is that both
+
+arrays and linked lists can be thought of as recursive objects:
+
+3.2. CONTAINERS: STACKS AND QUEUES
+
+75
+
+• Lists – Chopping the ﬁrst element oﬀ a linked list leaves a smaller linked
+list. This same argument works for strings, since removing characters from
+a string leaves a string. Lists are recursive objects.
+
+• Arrays – Splitting the ﬁrst k elements oﬀ of an n element array gives
+two smaller arrays, of size k and n − k, respectively. Arrays are recursive
+objects.
+
+This insight leads to simpler list processing, and eﬃcient divide-and-conquer
+
+algorithms such as quicksort and binary search.
+
+3.2 Containers: Stacks and Queues
+
+I use the term container to denote an abstract data type that permits storage
+and retrieval of data items independent of content. By contrast, dictionaries are
+abstract data types that retrieve based on key values or content, and will be
+discussed in Section 3.3 (page 76).
+
+Containers are distinguished by the particular retrieval order they support.
+In the two most important types of containers, this retrieval order depends on
+the insertion order:
+
+• Stacks support retrieval by last-in, ﬁrst-out (LIFO) order. Stacks are
+simple to implement and very eﬃcient. For this reason, stacks are probably
+the right container to use when retrieval order doesn’t matter at all, such
+as when processing batch jobs. The put and get operations for stacks are
+usually called push and pop:
+
+– Push(x,s):
+– Pop(s): Return (and remove) the top item of stack s.
+
+Insert item x at the top of stack s.
+
+LIFO order arises in many real-world contexts. People crammed into a
+subway car exit in LIFO order. Food inserted into my refrigerator usu-
+ally exits the same way, despite the incentive of expiration dates. Algo-
+rithmically, LIFO tends to happen in the course of executing recursive
+algorithms.
+
+• Queues support retrieval in ﬁrst-in, ﬁrst-out (FIFO) order. This is surely
+the fairest way to control waiting times for services. Jobs processed in
+FIFO order minimize the maximum time spent waiting. Note that the
+average waiting time will be the same regardless of whether FIFO or LIFO
+is used. Many computing applications involve data items with inﬁnite
+patience, which renders the question of maximum waiting time moot.
+
+Queues are somewhat trickier to implement than stacks and thus are most
+appropriate for applications (like certain simulations) where the order is
+important. The put and get operations for queues are usually called en-
+queue and dequeue.
+
+76
+
+CHAPTER 3. DATA STRUCTURES
+
+– Enqueue(x,q):
+
+Insert item x at the back of queue q.
+
+– Dequeue(q): Return (and remove) the front item from queue q.
+
+We will see queues later as the fundamental data structure controlling
+breadth-ﬁrst search (BFS) in graphs.
+
+Stacks and queues can be eﬀectively implemented using either arrays or
+linked lists. The key issue is whether an upper bound on the size of the container
+is known in advance, thus permitting the use of a statically allocated array.
+
+3.3 Dictionaries
+
+The dictionary data type permits access to data items by content. You stick
+an item into a dictionary so you can ﬁnd it when you need it. The primary
+operations dictionaries support are:
+
+• Search(D,k) – Given a search key k, return a pointer to the element in
+
+dictionary D whose key value is k, if one exists.
+
+• Insert(D,x) – Given a data item x, add it to the dictionary D.
+
+• Delete(D,x) – Given a pointer x to a given data item in the dictionary D,
+
+remove it from D.
+
+Certain dictionary data structures also eﬃciently support other useful oper-
+
+ations:
+
+• Max(D) or Min(D) – Retrieve the item with the largest (or smallest) key
+from D. This enables the dictionary to serve as a priority queue, as will
+be discussed in Section 3.5 (page 87).
+
+• Predecessor(D,x) or Successor(D,x) – Retrieve the item from D whose key
+is immediately before (or after) item x in sorted order. These enable us
+to iterate through the elements of the data structure in sorted order.
+
+Many common data processing tasks can be handled using these dictionary
+operations. For example, suppose we want to remove all duplicate names from a
+mailing list, and print the results in sorted order. Initialize an empty dictionary
+D, whose search key will be the record name. Now read through the mailing list,
+and for each record search to see if the name is already in D. If not, insert it into
+D. After reading through the mailing list, we print the names in the dictionary.
+By starting from the ﬁrst item Min(D) and repeatedly calling Successor until
+we obtain Max(D), we traverse all elements in sorted order.
+
+By deﬁning such problems in terms of abstract dictionary operations, we can
+ignore the details of the data structure’s representation and focus on the task
+at hand.
+
+3.3. DICTIONARIES
+
+77
+
+In the rest of this section, we will carefully investigate simple dictionary
+implementations based on arrays and linked lists. More powerful dictionary
+implementations such as binary search trees (see Section 3.4 (page 81)) and
+hash tables (see Section 3.7 (page 93)) are also attractive options in practice.
+A complete discussion of diﬀerent dictionary data structures is presented in the
+catalog in Section 15.1 (page 440). I encourage the reader to browse through
+the data structures section of the catalog to better learn what your options are.
+
+Stop and Think: Comparing Dictionary Implementations (I)
+
+Problem: What are the asymptotic worst-case running times for all seven fun-
+damental dictionary operations (search, insert, delete, successor, predecessor,
+minimum, and maximum) when the data structure is implemented as:
+
+• An unsorted array.
+
+• A sorted array.
+
+Solution: This problem (and the one following it) reveals some of the inherent
+trade-oﬀs of data structure design. A given data representation may permit
+eﬃcient implementation of certain operations at the cost that other operations
+are expensive.
+
+In addition to the array in question, we will assume access to a few extra
+variables such as n, the number of elements currently in the array. Note that
+we must maintain the value of these variables in the operations where they
+change (e.g., insert and delete), and charge these operations the cost of this
+maintenance.
+
+The basic dictionary operations can be implemented with the following costs
+
+on unsorted and sorted arrays. The starred element indicates cleverness.
+
+Dictionary operation
+Search(A, k)
+Insert(A, x)
+Delete(A, x)
+Successor(A, x)
+Predecessor(A, x)
+Minimum(A)
+Maximum(A)
+
+Unsorted
+array
+O(n)
+O(1)
+O(1)∗
+O(n)
+O(n)
+O(n)
+O(n)
+
+Sorted
+array
+O(log n)
+O(n)
+O(n)
+O(1)
+O(1)
+O(1)
+O(1)
+
+We must understand the implementation of each operation to see why. First,
+
+let’s discuss the operations when maintaining an unsorted array A.
+
+• Search is implemented by testing the search key k against (potentially)
+each element of an unsorted array. Thus, search takes linear time in the
+worst case, which is when key k is not found in A.
+
+78
+
+CHAPTER 3. DATA STRUCTURES
+
+• Insertion is implemented by incrementing n and then copying item x to
+the nth cell in the array, A[n]. The bulk of the array is untouched, so this
+operation takes constant time.
+
+• Deletion is somewhat trickier, hence the asterisk in the table above. The
+deﬁnition states that we are given a pointer x to the element to delete,
+so we need not spend any time searching for the element. But removing
+the xth element from the array A leaves a hole that must be ﬁlled. We
+could ﬁll the hole by moving each of the elements from A[x + 1] to A[n]
+down one position, but this requires Θ(n) time when the ﬁrst element is
+deleted. The following idea is better: just overwrite A[x] with A[n], and
+decrement n. This only takes constant time.
+
+• The deﬁnitions of the traversal operations, Predecessor and Successor,
+refer to the item appearing before/after x in sorted order. Thus, the
+answer is not simply A[x − 1] (or A[x + 1]), because in an unsorted array
+an element’s physical predecessor (successor) is not necessarily its logical
+Instead, the predecessor of A[x] is the biggest
+predecessor (successor).
+element smaller than A[x]. Similarly, the successor of A[x] is the smallest
+element larger than A[x]. Both require a sweep through all n elements of
+A to determine the winner.
+
+• Minimum and Maximum are similarly deﬁned with respect to sorted order,
+and so require linear-cost sweeps to identify in an unsorted array. It is
+tempting to set aside extra variables containing the current minimum
+and maximum values, so we can report them in O(1) time. But this is
+incompatible with constant-time deletion, as deleting the minimum valued
+item mandates a linear-time search to ﬁnd the new minimum.
+
+Implementing a dictionary using a sorted array completely reverses our no-
+tions of what is easy and what is hard. Searches can now be done in O(log n)
+time, using binary search, because we know the median element sits in A[n/2].
+Since the upper and lower portions of the array are also sorted, the search can
+continue recursively on the appropriate portion. The number of halvings of n
+until we get to a single element is (cid:13)lg n(cid:14).
+
+The sorted order also beneﬁts us with respect to the other dictionary retrieval
+operations. The minimum and maximum elements sit in A[1] and A[n], while
+the predecessor and successor to A[x] are A[x − 1] and A[x + 1], respectively.
+
+Insertion and deletion become more expensive, however, because making
+room for a new item or ﬁlling a hole may require moving many items arbitrarily.
+Thus, both become linear-time operations.
+
+Take-Home Lesson: Data structure design must balance all the diﬀerent op-
+erations it supports. The fastest data structure to support both operations A
+and B may well not be the fastest structure to support just operation A or B.
+
+3.3. DICTIONARIES
+
+79
+
+Stop and Think: Comparing Dictionary Implementations (II)
+
+Problem: What are the asymptotic worst-case running times for each of
+the seven fundamental dictionary operations when the data structure is im-
+plemented as
+
+• A singly linked unsorted list.
+
+• A doubly linked unsorted list.
+
+• A singly linked sorted list.
+
+• A doubly linked sorted list.
+
+Solution: Two diﬀerent issues must be considered in evaluating these implemen-
+tations: singly vs. doubly linked lists and sorted vs. unsorted order. Operations
+with subtle implementations are denoted with an asterisk:
+
+Dictionary operation
+Search(L, k)
+Insert(L, x)
+Delete(L, x)
+Successor(L, x)
+Predecessor(L, x)
+Minimum(L)
+Maximum(L)
+
+Singly linked
+
+Doubly linked
+
+unsorted
+O(n)
+O(1)
+O(n)∗
+O(n)
+O(n)
+O(1)∗
+O(1)∗
+
+unsorted
+sorted
+O(n)
+O(n)
+O(n)
+O(1)
+O(n)∗ O(1)
+O(n)
+O(1)
+O(n)∗ O(n)
+O(1)
+O(n)
+O(1)∗ O(n)
+
+sorted
+O(n)
+O(n)
+O(1)
+O(1)
+O(1)
+O(1)
+O(1)
+
+As with unsorted arrays, search operations are destined to be slow while
+
+maintenance operations are fast.
+
+• Insertion/Deletion – The complication here is deletion from a singly linked
+list. The deﬁnition of the Delete operation states we are given a pointer
+x to the item to be deleted. But what we really need is a pointer to the
+element pointing to x in the list, because that is the node that needs to
+be changed. We can do nothing without this list predecessor, and so must
+spend linear time searching for it on a singly linked list. Doubly linked lists
+avoid this problem, since we can immediately retrieve the list predecessor
+of x.3
+
+3Actually, there is a way to delete an element from a singly linked list in constant time, as
+shown in Figure 3.2. Overwrite the node that x points to with the contents of what x.next
+points to, then deallocate the node that x.next originally pointed to. Special care must be
+taken if x is the ﬁrst node in the list, or the last node (by employing a permanent sentinel
+element that is always the last node in the list). But this would prevent us from having
+constant-time minimum/maximum operations, because we no longer have time to ﬁnd new
+extreme elements after deletion.
+
+80
+
+CHAPTER 3. DATA STRUCTURES
+
+x
+
+x
+
+x
+
+y
+
+x
+
+y
+
+y
+
+z
+
+z
+
+Figure 3.2: By overwriting the contents of a node-to-delete, and deleting its
+original successor, we can delete a node without access to its list predecessor.
+
+Deletion is faster for sorted doubly linked lists than sorted arrays, because
+splicing out the deleted element from the list is more eﬃcient than ﬁlling
+the hole by moving array elements. The predecessor pointer problem again
+complicates deletion from singly linked sorted lists.
+
+• Search – Sorting provides less beneﬁt for linked lists than it did for arrays.
+Binary search is no longer possible, because we can’t access the median
+element without traversing all the elements before it. What sorted lists
+do provide is quick termination of unsuccessful searches, for if we have not
+found Abbott by the time we hit Costello we can deduce that he doesn’t
+exist in the list. Still, searching takes linear time in the worst case.
+
+• Traversal operations – The predecessor pointer problem again complicates
+implementing Predecessor with singly linked lists. The logical successor is
+equivalent to the node successor for both types of sorted lists, and hence
+can be implemented in constant time.
+
+• Minimum/Maximum – The minimum element sits at the head of a sorted
+list, and so is easily retrieved. The maximum element is at the tail of the
+list, which normally requires Θ(n) time to reach in either singly or doubly
+linked lists.
+
+However, we can maintain a separate pointer to the list tail, provided we
+pay the maintenance costs for this pointer on every insertion and deletion.
+The tail pointer can be updated in constant time on doubly linked lists: on
+insertion check whether last->next still equals NULL, and on deletion set
+last to point to the list predecessor of last if the last element is deleted.
+
+We have no eﬃcient way to ﬁnd this predecessor for singly linked lists. So
+why can we implement Maximum in O(1)? The trick is to charge the cost
+to each deletion, which already took linear time. Adding an extra linear
+sweep to update the pointer does not harm the asymptotic complexity of
+Delete, while gaining us Maximum (and similarly Minimum) in constant
+time as a reward for clear thinking.
+
+3.4. BINARY SEARCH TREES
+
+81
+
+3
+
+3
+
+2
+
+1
+
+1
+
+2
+
+1
+
+1
+
+2
+
+1
+
+3
+
+3
+
+2
+
+2
+
+3
+
+Figure 3.3: The ﬁve distinct binary search trees on three nodes. All nodes in
+the left (resp. right) subtree of node x have keys < x (resp. > x).
+
+3.4 Binary Search Trees
+
+We have seen data structures that allow fast search or ﬂexible update, but not
+fast search and ﬂexible update. Unsorted, doubly linked lists supported insertion
+and deletion in O(1) time but search took linear time in the worst case. Sorted
+arrays support binary search and logarithmic query times, but at the cost of
+linear-time update.
+
+Binary search requires that we have fast access to two elements—speciﬁcally
+the median elements above and below the given node. To combine these ideas,
+we need a “linked list” with two pointers per node. This is the basic idea behind
+binary search trees.
+
+A rooted binary tree is recursively deﬁned as either being (1) empty, or
+(2) consisting of a node called the root, together with two rooted binary trees
+called the left and right subtrees, respectively. The order among “sibling” nodes
+matters in rooted trees, that is, left is diﬀerent from right. Figure 3.3 gives the
+shapes of the ﬁve distinct binary trees that can be formed on three nodes.
+
+A binary search tree labels each node in a binary tree with a single key
+such that for any node labeled x, all nodes in the left subtree of x have keys
+< x while all nodes in the right subtree of x have keys > x.4 This search tree
+labeling scheme is very special. For any binary tree on n nodes, and any set of n
+keys, there is exactly one labeling that makes it a binary search tree. Allowable
+labelings for three-node binary search trees are given in Figure 3.3.
+
+3.4.1
+
+Implementing Binary Search Trees
+
+Binary tree nodes have left and right pointer ﬁelds, an (optional) parent pointer,
+and a data ﬁeld. These relationships are shown in Figure 3.4; a type declaration
+for the tree structure is given below:
+
+4Allowing duplicate keys in a binary search tree (or any other dictionary structure) is bad
+karma, often leading to very subtle errors. To better support repeated items, we can add a
+third pointer to each node, explicitly maintaining a list of all items with the given key.
+
+82
+
+CHAPTER 3. DATA STRUCTURES
+
+parent
+
+left
+
+right
+
+min
+
+max
+
+x
+
+Figure 3.4: Relationships in a binary search tree. Parent and sibling pointers
+(left). Finding the minimum and maximum elements in a binary search tree
+(center). Inserting a new node in the correct position (right).
+
+typedef struct tree {
+
+item_type item;
+struct tree *parent;
+struct tree *left;
+struct tree *right;
+
+/* data item */
+/* pointer to parent */
+/* pointer to left child */
+/* pointer to right child */
+
+} tree;
+
+The basic operations supported by binary trees are searching, traversal, in-
+
+sertion, and deletion.
+
+Searching in a Tree
+
+The binary search tree labeling uniquely identiﬁes where each key is located.
+Start at the root. Unless it contains the query key x, proceed either left or right
+depending upon whether x occurs before or after the root key. This algorithm
+works because both the left and right subtrees of a binary search tree are them-
+selves binary search trees. This recursive structure yields the recursive search
+algorithm below:
+
+tree *search_tree(tree *l, item_type x) {
+
+if (l == NULL) {
+
+return(NULL);
+
+}
+
+if (l->item == x) {
+return(l);
+
+}
+
+if (x < l->item) {
+
+return(search_tree(l->left, x));
+
+} else {
+
+return(search_tree(l->right, x));
+
+}
+
+}
+
+3.4. BINARY SEARCH TREES
+
+83
+
+This search algorithm runs in O(h) time, where h denotes the height of the
+
+tree.
+
+Finding Minimum and Maximum Elements in a Tree
+
+By deﬁnition, the smallest key must reside in the left subtree of the root, since
+all keys in the left subtree have values less than that of the root. Therefore,
+as shown in Figure 3.4 (center), the minimum element must be the left-most
+descendant of the root. Similarly, the maximum element must be the right-most
+descendant of the root.
+
+tree *find_minimum(tree *t) {
+
+tree *min;
+
+/* pointer to minimum */
+
+if (t == NULL) {
+
+return(NULL);
+
+}
+
+min = t;
+while (min->left != NULL) {
+
+min = min->left;
+
+}
+return(min);
+
+}
+
+Traversal in a Tree
+
+Visiting all the nodes in a rooted binary tree proves to be an important com-
+ponent of many algorithms. It is a special case of traversing all the nodes and
+edges in a graph, which will be the foundation of Chapter 7.
+
+A prime application of tree traversal is listing the labels of the tree nodes.
+Binary search trees make it easy to report the labels in sorted order. By deﬁni-
+tion, all the keys smaller than the root must lie in the left subtree of the root,
+and all keys bigger than the root in the right subtree. Thus, visiting the nodes
+recursively, in accord with such a policy, produces an in-order traversal of the
+search tree:
+
+void traverse_tree(tree *l) {
+
+if (l != NULL) {
+
+traverse_tree(l->left);
+process_item(l->item);
+traverse_tree(l->right);
+
+}
+
+}
+
+84
+
+CHAPTER 3. DATA STRUCTURES
+
+Each item is processed only once during the course of traversal, so it runs in
+
+O(n) time, where n denotes the number of nodes in the tree.
+
+Diﬀerent traversal orders come from changing the position of process item
+relative to the traversals of the left and right subtrees. Processing the item ﬁrst
+yields a pre-order traversal, while processing it last gives a post-order traversal.
+These make relatively little sense with search trees, but prove useful when the
+rooted tree represents arithmetic or logical expressions.
+
+Insertion in a Tree
+
+There is exactly one place to insert an item x into a binary search tree T so we
+can be certain where to ﬁnd it again. We must replace the NULL pointer found
+in T after an unsuccessful query for the key of x.
+
+This implementation uses recursion to combine the search and node insertion
+stages of key insertion. The three arguments to insert tree are (1) a pointer
+l to the pointer linking the search subtree to the rest of the tree, (2) the key x
+to be inserted, and (3) a parent pointer to the parent node containing l. The
+node is allocated and linked in after hitting the NULL pointer. Note that we pass
+the pointer to the appropriate left/right pointer in the node during the search,
+so the assignment *l = p; links the new node into the tree:
+
+void insert_tree(tree **l, item_type x, tree *parent) {
+/* temporary pointer */
+
+tree *p;
+
+if (*l == NULL) {
+
+p = malloc(sizeof(tree));
+p->item = x;
+p->left = p->right = NULL;
+p->parent = parent;
+*l = p;
+return;
+
+}
+
+if (x < (*l)->item) {
+
+insert_tree(&((*l)->left), x, *l);
+
+} else {
+
+insert_tree(&((*l)->right), x, *l);
+
+}
+
+}
+
+Allocating the node and linking it into the tree is a constant-time operation,
+after the search has been performed in O(h) time. Here h denotes the height of
+the search tree.
+
+3.4. BINARY SEARCH TREES
+
+85
+
+1
+
+3
+
+2
+
+4
+
+5
+
+7
+
+6
+
+8
+
+1
+
+2
+
+4
+
+5
+
+2
+
+4
+
+1
+
+3
+
+7
+
+5
+
+8
+
+2
+
+5
+
+1
+
+3
+
+7
+
+6
+
+8
+
+7
+
+6
+
+8
+
+initial tree
+
+delete leaf node (3)
+
+delete node with 1 child (6)
+
+delete node with 2 children (4)
+
+Figure 3.5: Deleting tree nodes with 0, 1, and 2 children. Colors show the nodes
+aﬀected as a result of the deletion.
+
+Deletion from a Tree
+
+Deletion is somewhat trickier than insertion, because removing a node means
+appropriately linking its two descendant subtrees back into the tree somewhere
+else. There are three cases, illustrated in Figure 3.5. Study this ﬁgure. Leaf
+nodes have no children, and so may be deleted simply by clearing the pointer
+to the given node.
+
+The case of a doomed node having one child is also straightforward. We
+can link this child to the deleted node’s parent without violating the in-order
+labeling property of the tree.
+
+But what of a node with two children? Our solution is to relabel this node
+with the key of its immediate successor in sorted order. This successor must
+be the smallest value in the right subtree, speciﬁcally the left-most descendant
+in the right subtree p. Moving this descendant to the point of deletion results
+in a properly labeled binary search tree, and reduces our deletion problem to
+physically removing a node with at most one child—a case that has been resolved
+above. The full implementation has been omitted here because it looks a little
+ghastly, but the code follows logically from the description above.
+
+The worst-case complexity analysis is as follows. Every deletion requires the
+cost of at most two search operations, each taking O(h) time where h is the
+height of the tree, plus a constant amount of pointer manipulation.
+
+3.4.2 How Good are Binary Search Trees?
+
+When implemented using binary search trees, all three dictionary operations
+take O(h) time, where h is the height of the tree. The smallest height we can
+hope for occurs when the tree is perfectly balanced, meaning that h = (cid:13)log n(cid:14).
+This is very good, but the tree must be perfectly balanced.
+
+Our insertion algorithm puts each new item at a leaf node where it should
+have been found. This makes the shape (and more importantly height) of the
+tree determined by the order in which we insert the keys.
+
+86
+
+CHAPTER 3. DATA STRUCTURES
+
+Unfortunately, bad things can happen when building trees through insertion.
+The data structure has no control over the order of insertion. Consider what
+happens if the user inserts the keys in sorted order. The operations insert(a),
+followed by insert(b), insert(c), insert(d), . . . will produce a skinny, linear-
+height tree where only right pointers are used.
+
+Thus, binary trees can have heights ranging from lg n to n. But how tall are
+they on average? The average case analysis of algorithms can be tricky because
+we must carefully specify what we mean by average. The question is well deﬁned
+if we assume each of the n! possible insertion orderings to be equally likely, and
+average over those. If this assumption is valid then we are in luck, because with
+high probability the resulting tree will have Θ(log n) height. This will be shown
+in Section 4.6 (page 130).
+
+This argument is an important example of the power of randomization. We
+can often develop simple algorithms that oﬀer good performance with high prob-
+ability. We will see that a similar idea underlies the fastest known sorting algo-
+rithm, quicksort.
+
+3.4.3 Balanced Search Trees
+
+Random search trees are usually good. But if we get unlucky with our order of
+insertion, we can end up with a linear-height tree in the worst case. This worst
+case is outside of our direct control, since we must build the tree in response to
+the requests given by our potentially nasty user.
+
+What would be better is an insertion/deletion procedure that adjusts the
+tree a little after each insertion, keeping it close enough to be balanced that the
+maximum height is logarithmic. Sophisticated balanced binary search tree data
+structures have been developed that guarantee the height of the tree always to
+be O(log n). Therefore, all dictionary operations (insert, delete, query) take
+O(log n) time each. Implementations of balanced tree data structures such as
+red–black trees and splay trees are discussed in Section 15.1 (page 440).
+
+From an algorithm design viewpoint, it is important to know that these trees
+exist and that they can be used as black boxes to provide an eﬃcient dictionary
+implementation. When ﬁguring the costs of dictionary operations for algorithm
+analysis, we can assume the worst-case complexities of balanced binary trees to
+be a fair measure.
+
+Take-Home Lesson:
+Picking the wrong data structure for the job can be
+disastrous in terms of performance. Identifying the very best data structure is
+usually not as critical, because there can be several choices that perform in a
+similar manner.
+
+Stop and Think: Exploiting Balanced Search Trees
+
+Problem: You are given the task of reading n numbers and then printing
+them out in sorted order. Suppose you have access to a balanced dictionary
+data structure, which supports the operations search, insert, delete, minimum,
+
+3.5. PRIORITY QUEUES
+
+87
+
+maximum, successor, and predecessor each in O(log n) time. How can you sort
+in O(n log n) time using only:
+
+1. insert and in-order traversal?
+
+2. minimum, successor, and insert?
+
+3. minimum, insert, and delete?
+
+Solution: Every algorithm for sorting items using a binary search tree has to
+start by building the actual tree. This involves initializing the tree (basically
+setting the pointer t to NULL), and then reading/inserting each of the n items
+into t. This costs O(n log n), since each insertion takes at most O(log n) time.
+Curiously, just building the data structure is a rate-limiting step for each of our
+sorting algorithms!
+
+The ﬁrst problem allows us to do insertion and in-order traversal. We can
+build a search tree by inserting all n elements, then do a traversal to access the
+items in sorted order.
+
+The second problem allows us to use the minimum and successor operations
+after constructing the tree. We can start from the minimum element, and then
+repeatedly ﬁnd the successor to traverse the elements in sorted order.
+
+The third problem does not give us successor, but does allow us delete. We
+can repeatedly ﬁnd and delete the minimum element to once again traverse all
+the elements in sorted order.
+
+In summary, the solutions to the three problems are:
+
+Sort1()
+
+Sort2()
+
+Sort3()
+
+initialize-tree(t)
+While (not EOF)
+read(x);
+insert(x,t)
+
+Traverse(t)
+
+initialize-tree(t)
+While (not EOF)
+read(x);
+insert(x,t);
+
+y = Minimum(t)
+While (y (cid:7)= NULL) do
+print(y→item)
+y = Successor(y,t)
+
+initialize-tree(t)
+While (not EOF)
+read(x);
+insert(x,t);
+
+y = Minimum(t)
+While (y (cid:7)= NULL) do
+print(y→item)
+Delete(y,t)
+y = Minimum(t)
+
+Each of these algorithms does a linear number of logarithmic-time opera-
+tions, and hence runs in O(n log n) time. The key to exploiting balanced binary
+search trees is using them as black boxes.
+
+3.5 Priority Queues
+
+Many algorithms need to process items in a speciﬁc order. For example, suppose
+you must schedule jobs according to their importance relative to other jobs. Such
+
+88
+
+CHAPTER 3. DATA STRUCTURES
+
+scheduling requires sorting the jobs by importance, and then processing them
+in this sorted order.
+
+The priority queue is an abstract data type that provides more ﬂexibility
+than simple sorting, because it allows new elements to enter a system at arbi-
+trary intervals. It can be much more cost-eﬀective to insert a new job into a
+priority queue than to re-sort everything on each such arrival.
+
+The basic priority queue supports three primary operations:
+
+• Insert(Q,x)– Given item x, insert it into the priority queue Q.
+
+• Find-Minimum(Q) or Find-Maximum(Q)– Return a pointer to the item
+whose key value is smallest (or largest) among all keys in priority queue
+Q.
+
+• Delete-Minimum(Q) or Delete-Maximum(Q)– Remove the item whose key
+
+value is minimum (or maximum) from priority queue Q.
+
+Naturally occurring processes are often informally modeled by priority queues.
+Single people maintain a priority queue of potential dating candidates, mentally
+if not explicitly. One’s impression on meeting a new person maps directly to
+an attractiveness or desirability score, which serves as the key ﬁeld for insert-
+ing this new entry into the “little black book” priority queue data structure.
+Dating is the process of extracting the most desirable person from the data
+structure (Find-Maximum), spending an evening to evaluate them better, and
+then reinserting them into the priority queue with a possibly revised score.
+
+Take-Home Lesson: Building algorithms around data structures such as dictio-
+naries and priority queues leads to both clean structure and good performance.
+
+Stop and Think: Basic Priority Queue Implementations
+
+Problem: What is the worst-case time complexity of the three basic priority
+queue operations (insert, ﬁnd-minimum, and delete-minimum) when the basic
+data structure is as follows:
+
+• An unsorted array.
+
+• A sorted array.
+
+• A balanced binary search tree.
+
+Solution: There is surprising subtlety when implementing these operations,
+even using a data structure as simple as an unsorted array. The unsorted array
+dictionary (discussed on page 77) implements insertion and deletion in constant
+time, and search and minimum in linear time. A linear-time implementation of
+delete-minimum can be composed from ﬁnd-minimum, followed by delete.
+
+3.6. WAR STORY: STRIPPING TRIANGULATIONS
+
+89
+
+Figure 3.6: A triangulated model of a dinosaur (l), with several triangle strips
+peeled oﬀ the model (r).
+
+For sorted arrays, we can implement insert and delete in linear time, and
+minimum in constant time. However, priority queue deletions involve only the
+minimum element. By storing the sorted array in reverse order (largest value on
+top), the minimum element will always be the last one in the array. Deleting the
+tail element requires no movement of any items, just decrementing the number
+of remaining items n, and so delete-minimum can be implemented in constant
+time.
+
+All this is ﬁne, yet the table below claims we can implement ﬁnd-minimum
+
+in constant time for each data structure:
+
+Unsorted
+array
+Insert(Q, x)
+O(1)
+O(1)
+Find-Minimum(Q)
+Delete-Minimum(Q) O(n)
+
+Sorted Balanced
+array
+O(n)
+O(1)
+O(1)
+
+tree
+O(log n)
+O(1)
+O(log n)
+
+The trick is using an extra variable to store a pointer/index to the minimum
+entry in each of these structures, so we can simply return this value whenever we
+are asked to ﬁnd-minimum. Updating this pointer on each insertion is easy—we
+update it iﬀ the newly inserted value is less than the current minimum. But what
+happens on a delete-minimum? We can delete that minimum element we point
+to, and then do a search to restore this canned value. The operation to identify
+the new minimum takes linear time on an unsorted array and logarithmic time
+on a tree, and hence can be folded into the cost of each deletion.
+
+Priority queues are very useful data structures. Indeed, they will be the hero
+of two of our war stories. A particularly nice priority queue implementation
+(the heap) will be discussed in the context of sorting in Section 4.3 (page 115).
+Further, a complete set of priority queue implementations is presented in Section
+15.2 (page 445) of the catalog.
+
+3.6 War Story: Stripping Triangulations
+
+Geometric models used in computer graphics are commonly represented by a
+triangulated surface, as shown in Figure 3.6(l). High-performance rendering
+
+90
+
+1
+
+2
+
+L
+
+R
+
+3
+
+5
+
+R
+
+R
+
+L
+
+R
+
+CHAPTER 3. DATA STRUCTURES
+
+4
+
+1
+
+2
+
+L
+
+R
+
+3
+
+5
+
+R
+
+R
+
+L
+
+R
+
+4
+
+6
+
+7
+
+6
+
+7
+
+Figure 3.7: Extracting a triangle strip from a triangular mesh: A strip with
+partial coverage using alternating left and right turns (left), and a strip with
+complete coverage by exploiting the ﬂexibility of arbitrary turns (right).
+
+engines have special hardware for rendering and shading triangles. This render-
+ing hardware is so fast that the computational bottleneck becomes the cost of
+feeding the triangulation structure into the hardware engine.
+
+Although each triangle can be described by specifying its three endpoints,
+an alternative representation proves more eﬃcient. Instead of specifying each
+triangle in isolation, suppose that we partition the triangles into strips of adja-
+cent triangles and walk along the strip. Since each triangle shares two vertices
+in common with its neighbors, we save the cost of retransmitting the two ex-
+tra vertices and any associated information. To make the description of the
+triangles unambiguous, the OpenGL triangular-mesh renderer assumes that all
+turns alternate left and right. The strip in Figure 3.7 (left) completely describes
+ﬁve triangles of the mesh with the vertex sequence [1,2,3,4,5,7,6] and the im-
+plied left/right order. The strip on the right describes all seven triangles with
+speciﬁed turns: [1,2,3,l-4,r-5,l-7,r-6,r-1,r-3].
+
+The task was to ﬁnd a small number of strips that together cover all the
+triangle in a mesh, without overlap. This can be thought of as a graph problem.
+The graph of interest has a vertex for every triangle of the mesh, and an edge
+between every pair of vertices representing adjacent triangles. This dual graph
+representation captures all the information about the triangulation (see Section
+18.12 (page 581)) needed to partition it into strips.
+
+Once we had the dual graph, the project could begin in earnest. We sought
+to partition the dual graph’s vertices into as few paths or strips as possible.
+Partitioning it into one path implied that we had discovered a Hamiltonian path,
+which by deﬁnition visits each vertex exactly once. Since ﬁnding a Hamiltonian
+path is NP-complete (see Section 19.5 (page 598)), we knew not to look for an
+optimal algorithm, but concentrate instead on heuristics.
+
+The simplest approach for strip cover would start from an arbitrary triangle
+and then do a left–right walk until the walk ends, either by hitting the boundary
+of the object or a previously visited triangle. This heuristic had the advantage
+
+3.6. WAR STORY: STRIPPING TRIANGULATIONS
+
+91
+
+1      2      3      4      
+
+253  254  255  256
+
+top
+
+Figure 3.8: A bounded-height priority queue for triangle strips.
+
+that it would be fast and simple, although there is no reason to expect that it
+must ﬁnd the smallest possible set of left–right strips for a given triangulation.
+The greedy heuristic should result in a relatively small number of strips,
+however. Greedy heuristics always try to grab the best possible thing ﬁrst. In
+the case of the triangulation, the natural greedy heuristic would be to identify
+the starting triangle that yields the longest left–right strip, and peel that one
+oﬀ ﬁrst.
+
+Being greedy does not guarantee you the best possible solution overall, since
+the ﬁrst strip you peel oﬀ might break apart a lot of potential strips we would
+have wanted to use later. Still, being greedy is a good rule of thumb if you want
+to get rich. Removing the longest strip leaves the fewest number of triangles
+remaining for later strips, so greedy should outperform the naive heuristic of
+pick anything.
+
+But how much time does it take to ﬁnd the largest strip to peel oﬀ next?
+Let k be the length of the walk possible from an average vertex. Using the
+simplest possible implementation, we could walk from each of the n vertices to
+ﬁnd the largest remaining strip to report in O(kn) time. Repeating this for
+each of the roughly n/k strips we extract yields an O(n2)-time implementation,
+which would be hopelessly slow on even a small model of 20,000 triangles.
+
+How could we speed this up? It seems wasteful to re-walk from each triangle
+after deleting a single strip. We could maintain the lengths of all the possible
+future strips in a data structure. However, whenever we peel oﬀ a strip, we
+must update the lengths of all aﬀected strips. These strips will be shortened
+because they walked through a triangle that now no longer exists. There are
+two aspects of such a data structure:
+
+• Priority queue – Since we were repeatedly identifying the longest remain-
+ing strip, we needed a priority queue to store the strips ordered according
+to length. The next strip to peel always sits at the top of the queue. Our
+priority queue had to permit reducing the priority of arbitrary elements of
+the queue whenever we updated the strip lengths to reﬂect what triangles
+were peeled away. Because all of the strip lengths were bounded by a fairly
+
+92
+
+CHAPTER 3. DATA STRUCTURES
+
+Model name
+Diver
+Heads
+Framework
+Bart Simpson
+Enterprise
+Torus
+Jaw
+
+Triangle
+count
+3,798
+4,157
+5,602
+9,654
+12,710
+20,000
+75,842
+
+Naive Greedy
+cost
+4,650
+4,749
+7,210
+11,676
+13,738
+20,200
+95,020
+
+cost
+8,460
+10,588
+9,274
+24,934
+29,016
+40,000
+104,203
+
+Greedy
+time
+6.4 sec
+9.9 sec
+9.7 sec
+20.5 sec
+26.2 sec
+272.7 sec
+136.2 sec
+
+Figure 3.9: A comparison of the naive and greedy heuristics for several triangular
+meshes. Cost is the number of strips. Running time generally scales with
+triangle count, except for the highly symmetric torus with very long strips.
+
+small integer (hardware constraints prevent any strip from having more
+than 256 vertices), we used a bounded-height priority queue (an array of
+buckets, shown in Figure 3.8 and described in Section 15.2 (page 445)).
+An ordinary heap would also have worked just ﬁne.
+
+To update the queue entry associated with each triangle, we needed to
+quickly ﬁnd where it was. This meant that we also needed a . . .
+
+• Dictionary – For each triangle in the mesh, we had to ﬁnd where it was in
+the queue. This meant storing a pointer to each triangle in a dictionary.
+By integrating this dictionary with the priority queue, we built a data
+structure capable of a wide range of operations.
+
+Although there were various other complications, such as quickly recalcu-
+lating the length of the strips aﬀected by the peeling, the key idea needed to
+obtain better performance was to use the priority queue. Run time improved
+by several orders of magnitude after employing this data structure.
+
+How much better did the greedy heuristic do than the naive heuristic? Study
+the table in Figure 3.9. In all cases, the greedy heuristic led to a set of strips
+that cost less, as measured by the total number of vertex occurrences in the
+strips. The savings ranged from about 10% to 50%, which is quite remarkable
+since the greatest possible improvement (going from three vertices per triangle
+down to one) yields a savings of only 66.6%.
+
+After implementing the greedy heuristic with our priority queue data struc-
+ture, the program ran in O(n · k) time, where n is the number of triangles and
+k is the length of the average strip. Thus, the torus, which consisted of a small
+number of very long strips, took longer than the jaw, even though the latter
+contained over three times as many triangles.
+
+There are several lessons to be gleaned from this story. First, when working
+with a large enough data set, only linear or near-linear algorithms are likely
+to be fast enough. Second, choosing the right data structure is often the key
+to getting the time complexity down. Finally, using the greedy heuristic can
+
+3.7. HASHING
+
+93
+
+signiﬁcantly improve performance over the naive approach. How much this
+improvement will be can only be determined by experimentation.
+
+3.7 Hashing
+
+Hash tables are a very practical way to maintain a dictionary. They exploit the
+fact that looking an item up in an array takes constant time once you have its
+index. A hash function is a mathematical function that maps keys to integers.
+We will use the value of our hash function as an index into an array, and store
+our item at that position.
+
+The ﬁrst step of the hash function is usually to map each key (here the string
+S) to a big integer. Let α be the size of the alphabet on which S is written.
+Let char(c) be a function that maps each symbol of the alphabet to a unique
+integer from 0 to α − 1. The function
+
+|S|−1
+
+H(S) = α|S|
+
++
+
+α|S|−(i+1) × char(si)
+
+i=0
+(cid:7)
+
+maps each string to a unique (but large) integer by treating the characters of
+the string as “digits” in a base-α number system.
+
+This creates unique identiﬁer numbers, but they are so large they will quickly
+exceed the number of desired slots in our hash table (denoted by m). We must
+reduce this number to an integer between 0 and m − 1, by taking the remainder
+H (cid:2)(S) = H(S) mod m. This works on the same principle as a roulette wheel.
+The ball travels a long distance, around and around the circumference-m wheel
+(cid:8)H(S)/m(cid:9) times before settling down to a random bin.
+If the table size is
+selected with enough ﬁnesse (ideally m is a large prime not too close to 2i − 1),
+the resulting hash values should be fairly uniformly distributed.
+
+3.7.1 Collision Resolution
+
+No matter how good our hash function is, we had better be prepared for col-
+lisions, because two distinct keys will at least occasionally hash to the same
+value. There are two diﬀerent approaches for maintaining a hash table:
+
+• Chaining represents a hash table as an array of m linked lists (“buckets”),
+as shown in Figure 3.10. The ith list will contain all the items that hash
+to the value of i. Search, insertion, and deletion thus reduce to the corre-
+sponding problem in linked lists. If the n keys are distributed uniformly
+in a table, each list will contain roughly n/m elements, making them a
+constant size when m ≈ n.
+Chaining is very natural, but devotes a considerable amount of memory to
+pointers. This is space that could be used to make the table larger, which
+reduces the likelihood of collisions. In fact, the highest-performing hash
+tables generally rely on an alternative method called open addressing.
+
+94
+
+CHAPTER 3. DATA STRUCTURES
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9
+
+55
+
+21
+
+2
+
+13
+
+34
+
+5
+
+8
+
+3
+
+Figure 3.10: Collision resolution by chaining, after hashing the ﬁrst eight Fi-
+bonacci numbers in increasing order, with hash function H(x) = (2x + 1)
+mod 10. Insertions occur at the head of each list in this ﬁgure.
+
+0     1      2     3     4     5     6      7     8      9
+13
+34
+
+21
+
+55
+
+ 5
+
+ 2
+
+ 3
+
+8
+
+Figure 3.11: Collision resolution by open addressing and sequential probing,
+after inserting the ﬁrst eight Fibonacci numbers in increasing order with H(x) =
+(2x + 1) mod 10. The red elements have been bumped to the ﬁrst open slot
+after the desired location.
+
+• Open addressing maintains the hash table as a simple array of elements
+(not buckets). Each cell is initialized to null, as shown in Figure 3.11.
+On each insertion, we check to see whether the desired cell is empty; if
+so, we insert the item there. But if the cell is already occupied, we must
+ﬁnd some other place to put the item. The simplest possibility (called
+sequential probing) inserts the item into the next open cell in the table.
+Provided the table is not too full, the contiguous runs of non-empty cells
+should be fairly short, hence this location should be only a few cells away
+from its intended position.
+
+Searching for a given key now involves going to the appropriate hash value
+and checking to see if the item there is the one we want. If so, return it.
+Otherwise we must keep checking through the length of the run. Deletion
+in an open addressing scheme can get ugly, since removing one element
+might break a chain of insertions, making some elements inaccessible. We
+have no alternative but to reinsert all the items in the run that follows the
+new hole.
+
+Chaining and open addressing both cost O(m) to initialize an m-element
+
+hash table to null elements prior to the ﬁrst insertion.
+
+ 
+3.7. HASHING
+
+95
+
+When using chaining with doubly linked lists to resolve collisions in an m-
+element hash table, the dictionary operations for n items can be implemented
+in the following expected and worst case times:
+
+Hash table Hash table
+(expected)
+O(n/m)
+Search(L, k)
+O(1)
+Insert(L, x)
+O(1)
+Delete(L, x)
+Successor(L, x)
+O(n + m)
+Predecessor(L, x) O(n + m)
+O(n + m)
+Minimum(L)
+O(n + m)
+Maximum(L)
+
+(worst case)
+O(n)
+O(1)
+O(1)
+O(n + m)
+O(n + m)
+O(n + m)
+O(n + m)
+
+Traversing all the elements in the table takes O(n + m) time for chaining,
+since we have to scan all m buckets looking for elements, even if the actual num-
+ber of inserted items is small. This reduces to O(m) time for open addressing,
+since n must be at most m.
+
+Pragmatically, a hash table often is the best data structure to maintain a
+dictionary. The applications of hashing go far beyond dictionaries, however, as
+we will see below.
+
+3.7.2 Duplicate Detection via Hashing
+
+The key idea of hashing is to represent a large object (be it a key, a string, or
+a substring) by a single number. We get a representation of the large object
+by a value that can be manipulated in constant time, such that it is relatively
+unlikely that two diﬀerent large objects map to the same value.
+
+Hashing has a variety of clever applications beyond just speeding up search.
+I once heard Udi Manber—at one point responsible for all search products at
+Google—talk about the algorithms employed in industry. The three most im-
+portant algorithms, he explained, were “hashing, hashing, and hashing.”
+
+Consider the following problems with nice hashing solutions:
+
+• Is a given document unique within a large corpus? – Google crawls yet
+another webpage. How can it tell whether this is new content never seen
+before, or just a duplicate page that exists elsewhere on the web?
+Explicitly comparing the new document D against all n previous docu-
+ments is hopelessly ineﬃcient for a large corpus. However, we can hash
+D to an integer, and compare H(D) to the hash codes of the rest of the
+corpus. Only if there is a collision might D be a possible duplicate. Since
+we expect few spurious collisions, we can explicitly compare the few doc-
+uments sharing a particular hash code with little total eﬀort.
+
+• Is part of this document plagiarized? – A lazy student copies a portion
+of a web document into their term paper. “The web is a big place,” he
+smirks. “How will anyone ever ﬁnd the page I stole this from?”
+
+96
+
+CHAPTER 3. DATA STRUCTURES
+
+This is a more diﬃcult problem than the previous application. Adding,
+deleting, or changing even one character from a document will completely
+change its hash code. The hash codes produced in the previous application
+thus cannot help for this more general problem.
+
+However, we could build a hash table of all overlapping windows (sub-
+strings) of length w in all the documents in the corpus. Whenever there
+is a match of hash codes, there is likely a common substring of length w
+between the two documents, which can then be further investigated. We
+should choose w to be long enough so such a co-occurrence is very unlikely
+to happen by chance.
+
+The biggest downside of this scheme is that the size of the hash table
+becomes as large as the document corpus itself. Retaining a small but
+well-chosen subset of these hash codes is exactly the goal of min-wise
+hashing, discussed in Section 6.6.
+
+• How can I convince you that a ﬁle isn’t changed? – In a closed-bid auction,
+each party submits their bid in secret before the announced deadline. If
+you knew what the other parties were bidding, you could arrange to bid
+$1 more than the highest opponent and walk oﬀ with the prize as cheaply
+as possible. The “right” auction strategy would thus be to hack into the
+computer containing the bids just prior to the deadline, read the bids, and
+then magically emerge as the winner.
+
+How can this be prevented? What if everyone submits a hash code of their
+actual bid prior to the deadline, and then submits the full bid only after
+the deadline? The auctioneer will pick the largest full bid, but checks
+to make sure the hash code matches what was submitted prior to the
+deadline. Such cryptographic hashing methods provide a way to ensure
+that the ﬁle you give me today is the same as the original, because any
+change to the ﬁle will change the hash code.
+
+Although the worst-case bounds on anything involving hashing are dismal,
+with a proper hash function we can conﬁdently expect good behavior. Hashing
+is a fundamental idea in randomized algorithms, yielding linear expected-time
+algorithms for problems that are Θ(n log n) or Θ(n2) in the worst case.
+
+3.7.3 Other Hashing Tricks
+
+Hash functions provide useful tools for many things beyond powering hash ta-
+bles. The fundamental idea is of many-to-one mappings, where many is con-
+trolled so it is very unlikely to be too many.
+
+3.7.4 Canonicalization
+
+Consider a word game that gives you a set of letters S, and asks you to ﬁnd
+all dictionary words that can be made by reordering them. For example, I can
+
+3.7. HASHING
+
+97
+
+make three words from the four letters in S = (a, e, k, l), namely kale, lake, and
+leak.
+
+Think how you might write a program to ﬁnd the matching words for S,
+given a dictionary D of n words. Perhaps the most straightforward approach is
+to test each word d ∈ D against the characters of S. This takes time linear in
+n for each S, and the test is somewhat tricky to program.
+
+What if we instead hash every word in D to a string, by sorting the word’s
+letters. Now kale goes to aekl, as do lake and leak. By building a hash table
+with the sorted strings as keys, all words with the same letter distribution get
+hashed to the same bucket. Once you have built this hash table, you can use it
+for diﬀerent query sets S. The time for each query will be proportional to the
+number of matching words in D, which is a lot smaller than n.
+
+Which set of k letters can be used to make the most dictionary words? This
+seems like a much harder problem, because there are αk possible letter sets,
+where α is the size of the alphabet. But observe that the answer is simply the
+hash code with the largest number of collisions. Sweeping over a sorted array
+of hash codes (or walking through each bucket in a chained hash table) makes
+this fast and easy.
+
+This is a good example of the power of canonicalization, reducing compli-
+cated objects to a standard (i.e. “canonical”) form. String transformations like
+reducing letters to lower case or stemming (removing word suﬃxes like -ed, -s,
+or -ing) result in increased matches, because multiple strings collide on the same
+code. Soundex is a canonicalization scheme for names, so spelling variants of
+“Skiena” like “Skina,”, “Skinnia,” and “Schiena” all get hashed to the same
+Soundex code, S25. Soundex is described in more detail in Section 21.4.
+
+For hash tables, collisions are very bad. But for pattern matching problems
+
+like these, collisions are exactly what we want.
+
+3.7.5 Compaction
+
+Suppose that you wanted to sort all n books in the library, not by their titles but
+by the contents of the actual text. Bulwer-Lytton’s [BL30] “It was a dark and
+stormy night. . . ” would appear before this book’s “What is an algorithm?. . . ”
+Assuming the average book is m ≈ 100,000 words long, doing this sort seems
+an expensive and clumsy job since each comparison involves two books.
+
+But suppose we instead represent each book by the ﬁrst (say) 100 characters,
+and sort these strings. There will be collisions involving duplicates of the same
+preﬁx, involving multiple editions or perhaps plagiarism, but these will be quite
+rare. After sorting the preﬁxes, we can then resolve the collisions by comparing
+the full texts. The world’s fastest sorting programs use this idea, as discussed
+in Section 17.1.
+
+This is an example of hashing for compaction, also called ﬁngerprinting,
+where we representing large objects by small hash codes. It is easier to work
+with small objects than large ones, and the hash code generally preserves the
+identity of each item. The hash function here is trivial (just take the preﬁx) but
+it is designed to accomplish a speciﬁc goal—not to maintain a hash table. More
+
+98
+
+CHAPTER 3. DATA STRUCTURES
+
+sophisticated hash functions can make the probability of collisions between even
+slightly diﬀerent objects vanishingly low.
+
+3.8 Specialized Data Structures
+
+The basic data structures described thus far all represent an unstructured set
+of items so as to facilitate retrieval operations. These data structures are well
+known to most programmers. Not as well known are data structures for repre-
+senting more specialized kinds of objects, such as points in space, strings, and
+graphs.
+
+The design principles of these data structures are the same as for basic
+objects. There exists a set of basic operations we need to perform repeatedly.
+We seek a data structure that allows these operations to be performed very
+eﬃciently. These specialized data structures are important for eﬃcient graph
+and geometric algorithms, so one should be aware of their existence:
+
+• String data structures – Character strings are typically represented by
+arrays of characters, perhaps with a special character to mark the end of
+the string. Suﬃx trees/arrays are special data structures that preprocess
+strings to make pattern matching operations faster. See Section 15.3 (page
+448) for details.
+
+• Geometric data structures – Geometric data typically consists of collec-
+tions of data points and regions. Regions in the plane can be described by
+polygons, where the boundary of the polygon is a closed chain of line
+segments. A polygon P can be represented using an array of points
+(v1, . . . , vn, v1), such that (vi, vi+1) is a segment of the boundary of P .
+Spatial data structures such as kd-trees organize points and regions by ge-
+ometric location to support fast search operations. See Section 15.6 (page
+460).
+
+• Graph data structures – Graphs are typically represented using either ad-
+jacency matrices or adjacency lists. The choice of representation can have
+a substantial impact on the design of the resulting graph algorithms, and
+will be discussed in Chapter 7 and in the catalog in Section 15.4.
+
+• Set data structures – Subsets of items are typically represented using a
+dictionary to support fast membership queries. Alternatively, bit vectors
+are Boolean arrays such that the ith bit is 1 if i is in the subset. Data
+structures for manipulating sets is presented in the catalog in Section 15.5.
+
+3.9 War Story: String ’em Up
+
+The human genome encodes all the information necessary to build a person.
+Sequencing the genome has had an enormous impact on medicine and molecular
+
+3.9. WAR STORY: STRING ’EM UP
+
+99
+
+T A
+
+T C C
+
+T T A T C
+
+G T T A T
+
+C G T T A
+
+A C
+
+G
+
+T T A T C C A
+
+Figure 3.12: The concatenation of two fragments can be in S only if all sub-
+fragments are.
+
+biology. Algorists like me have become interested in bioinformatics, for several
+reasons:
+
+• DNA sequences can be accurately represented as strings of characters on
+the four-letter alphabet (A,C,T,G). The needs of biologist have sparked
+new interest in old algorithmic problems such as string matching (see
+Section 21.3 (page 685)) as well as creating new problems such as shortest
+common superstring (see Section 21.9 (page 709)).
+
+• DNA sequences are very long strings. The human genome is approximately
+three billion base pairs (or characters) long. Such large problem size means
+that asymptotic (Big Oh) complexity analysis is fully justiﬁed on biological
+problems.
+
+• Enough money is being invested in genomics for computer scientists to
+
+want to claim their piece of the action.
+
+One of my interests in computational biology revolved around a proposed
+technique for DNA sequencing called sequencing by hybridization (SBH). This
+procedure attaches a set of probes to an array, forming a sequencing chip. Each
+of these probes determines whether or not the probe string occurs as a sub-
+string of the DNA target. The target DNA can now be sequenced based on the
+constraints of which strings are (and are not) substrings of the target.
+
+We sought to identify all the strings of length 2k that are possible substrings
+of an unknown string S, given the set of all length-k substrings of S. For exam-
+ple, suppose we know that AC, CA, and CC are the only length-2 substrings
+of S. It is possible that ACCA is a substring of S, since the center substring is
+one of our possibilities. However, CAAC cannot be a substring of S, since AA
+is not a substring of S. We needed to ﬁnd a fast algorithm to construct all the
+consistent length-2k strings, since S could be very long.
+
+The simplest algorithm to build the 2k strings would be to concatenate all
+O(n2) pairs of k-strings together, and then test to make sure that all (k − 1)
+length-k substrings spanning the boundary of the concatenation were in fact
+substrings, as shown in Figure 3.12. For example, the nine possible concatena-
+tions of AC, CA, and CC are ACAC, ACCA, ACCC, CAAC, CACA, CACC,
+
+100
+
+CHAPTER 3. DATA STRUCTURES
+
+CCAC, CCCA, and CCCC. Only CAAC can be eliminated, because of the
+absence of AA as a substring of S.
+
+We needed a fast way of testing whether the k − 1 substrings straddling
+the concatenation were members of our dictionary of permissible k-strings. The
+time it takes to do this depends upon which dictionary data structure we use.
+A binary search tree could ﬁnd the correct string within O(log n) comparisons,
+where each comparison involved testing which of two length-k strings appeared
+ﬁrst in alphabetical order. The total time using such a binary search tree would
+be O(k log n).
+
+That seemed pretty good. So my graduate student, Dimitris Margaritis,
+It worked
+
+used a binary search tree data structure for our implementation.
+great up until the moment we ran it.
+
+“I’ve tried the fastest computer we have, but our program is too slow,”
+Dimitris complained. “It takes forever on string lengths of only 2,000 characters.
+We will never get up to n = 50,000.”
+
+We proﬁled our program and discovered that almost all the time was spent
+searching in this data structure. This was no surprise, since we did this k −
+1 times for each of the O(n2) possible concatenations. We needed a faster
+dictionary data structure, since search was the innermost operation in such a
+deep loop.
+
+“How about using a hash table?” I suggested. “It should take O(k) time to
+hash a k-character string and look it up in our table. That should knock oﬀ a
+factor of O(log n).”
+
+Dimitris went back and implemented a hash table implementation for our
+
+dictionary. Again, it worked great, up until the moment we ran it.
+
+“Our program is still too slow,” Dimitris complained. “Sure, it is now about
+ten times faster on strings of length 2,000. So now we can get up to about 4,000
+characters. Big deal. We will never get up to 50,000.”
+
+“We should have expected this,” I mused. “After all, lg2(2,000) ≈ 11. We
+
+need a faster data structure to search in our dictionary of strings.”
+
+“But what can be faster than a hash table?” Dimitris countered. “To look
+up a k-character string, you must read all k characters. Our hash table already
+does O(k) searching.”
+
+“Sure, it takes k comparisons to test the ﬁrst substring. But maybe we
+can do better on the second test. Remember where our dictionary queries are
+coming from. When we concatenate ABCD with EF GH, we are ﬁrst testing
+whether BCDE is in the dictionary, then CDEF . These strings diﬀer from
+each other by only one character. We should be able to exploit this so each
+subsequent test takes constant time to perform. . . ”
+
+“We can’t do that with a hash table,” Dimitris observed. “The second key
+is not going to be anywhere near the ﬁrst in the table. A binary search tree
+won’t help, either. Since the keys ABCD and BCDE diﬀer according to the
+ﬁrst character, the two strings will be in diﬀerent parts of the tree.”
+
+“But we can use a suﬃx tree to do this,” I countered. “A suﬃx tree is a
+trie containing all the suﬃxes of a given set of strings. For example, the suﬃxes
+of ACAC are {ACAC, CAC, AC, C}. Coupled with suﬃxes of string CACT ,
+
+3.9. WAR STORY: STRING ’EM UP
+
+101
+
+A
+
+C
+
+C
+
+A
+
+T
+
+T
+
+A
+
+T
+
+C
+
+C
+
+T
+
+Figure 3.13: Suﬃx tree on ACAC and CACT , with the pointer to the suﬃx
+of ACAC. Green nodes correspond to suﬃxes of ACAC, with blue nodes to
+suﬃxes of CACT .
+
+we get the suﬃx tree of Figure 3.13. By following a pointer from ACAC to its
+longest proper suﬃx CAC, we get to the right place to test whether CACT is
+in our set of strings. One character comparison is all we need to do from there.”
+Suﬃx trees are amazing data structures, discussed in considerably more
+detail in Section 15.3 (page 448). Dimitris did some reading about them, then
+built a nice suﬃx tree implementation for our dictionary. Once again, it worked
+great up until the moment we ran it.
+
+“Now our program is faster, but it runs out of memory,” Dimitris com-
+plained. “The suﬃx tree builds a path of length k for each suﬃx of length k,
+so all told there can be Θ(n2) nodes in the tree. It crashes when we go beyond
+2,000 characters. We will never get up to strings with 50,000 characters.”
+
+I wasn’t ready to give up yet. “There is a way around the space problem, by
+using compressed suﬃx trees,” I recalled. “Instead of explicitly representing long
+paths of character nodes, we can refer back to the original string.” Compressed
+suﬃx trees always take linear space, as described in Section 15.3 (page 448).
+
+Dimitris went back one last time and implemented the compressed suﬃx
+tree data structure. Now it worked great! As shown in Figure 3.14, we ran
+our simulation for strings of length n = 65,536 without incident. Our results
+showed that interactive SBH could be a very eﬃcient sequencing technique.
+Based on these simulations, we were able to arouse interest in our technique
+from biologists. Making the actual wet laboratory experiments feasible provided
+another computational challenge, which is reported in Section 12.8 (page 414).
+The take-home lessons for programmers should be apparent. We isolated a
+single operation (dictionary string search) that was being performed repeatedly
+and optimized the data structure to support it. When an improved dictionary
+structure still did not suﬃce, we looked deeper into the kind of queries we were
+performing, so that we could identify an even better data structure. Finally,
+we didn’t give up until we had achieved the level of performance we needed. In
+algorithms, as in life, persistence usually pays oﬀ.
+
+102
+
+CHAPTER 3. DATA STRUCTURES
+
+Binary
+String
+tree
+length
+0.0
+8
+16
+0.0
+32
+0.1
+0.3
+64
+2.4
+128
+17.1
+256
+31.6
+512
+1,024
+1,828.9
+11,441.7
+2,048
+4,096 > 2 days
+8,192
+16,384
+32,768
+65,536
+
+Hash
+table
+0.0
+0.0
+0.0
+0.4
+1.1
+9.4
+67.0
+96.6
+941.7
+5,246.7
+
+tree
+0.0
+0.0
+0.0
+0.3
+0.5
+3.8
+6.9
+31.5
+553.6
+out of
+> 2 days memory
+
+Suﬃx Compressed
+tree
+0.0
+0.0
+0.0
+0.0
+0.0
+0.2
+1.3
+2.7
+39.0
+45.4
+642.0
+1,614.0
+13,657.8
+39,776.9
+
+Figure 3.14: Run times (in seconds) for the SBH simulation using various data
+structures, as a function of the string length n.
+
+Chapter Notes
+
+Optimizing hash table performance is surprisingly complicated for such a con-
+ceptually simple data structure. The importance of short runs in open address-
+ing has led to more sophisticated schemes than sequential probing for optimal
+hash table performance. For more details, see Knuth [Knu98].
+
+My thinking on hashing was profoundly inﬂuenced by a talk by Mihai P˘atra¸scu,
+
+a brilliant theoretician who sadly died before he turned 30. More detailed treat-
+ments on hashing and randomized algorithms include Motwani and Raghavan
+[MR95] and Mitzenmacher and Upfal [MU17].
+
+Our triangle strip optimizing program, stripe, is described in Evans et al.
+[ESV96]. Hashing techniques for plagiarism detection are discussed in Schlieimer
+et al. [SWA03].
+
+Surveys of algorithmic issues in DNA sequencing by hybridization include
+Chetverin and Kramer [CK94] and Pevzner and Lipshutz [PL94]. Our work on
+interactive SBH reported in the war story is reported in Margaritis and Skiena
+[MS95a].
+
+3.10. EXERCISES
+
+3.10 Exercises
+
+Stacks, Queues, and Lists
+
+103
+
+3-1. [3] A common problem for compilers and text editors is determining whether
+the parentheses in a string are balanced and properly nested. For example, the
+string ((())())() contains properly nested pairs of parentheses, while the strings
+)()( and ()) do not. Give an algorithm that returns true if a string contains
+properly nested and balanced parentheses, and false if otherwise. For full credit,
+identify the position of the ﬁrst oﬀending parenthesis if the string is not properly
+nested and balanced.
+
+3-2. [5] Give an algorithm that takes a string S consisting of opening and closing
+parentheses, say )()(())()()))())))(, and ﬁnds the length of the longest balanced
+parentheses in S, which is 12 in the example above. (Hint: The solution is not
+necessarily a contiguous run of parenthesis from S.)
+
+3-3. [3] Give an algorithm to reverse the direction of a given singly linked list. In
+other words, after the reversal all pointers should now point backwards. Your
+algorithm should take linear time.
+
+3-4. [5] Design a stack S that supports S.push(x), S.pop(), and S.ﬁndmin(), which
+
+returns the minimum element of S. All operations should run in constant time.
+
+3-5. [5] We have seen how dynamic arrays enable arrays to grow while still achiev-
+ing constant-time amortized performance. This problem concerns extending
+dynamic arrays to let them both grow and shrink on demand.
+
+(a) Consider an underﬂow strategy that cuts the array size in half whenever
+the array falls below half full. Give an example sequence of insertions and
+deletions where this strategy gives a bad amortized cost.
+
+(b) Then, give a better underﬂow strategy than that suggested above, one that
+
+achieves constant amortized cost per deletion.
+
+3-6. [3] Suppose you seek to maintain the contents of a refrigerator so as to minimize
+food spoilage. What data structure should you use, and how should you use
+it?
+
+3-7. [5] Work out the details of supporting constant-time deletion from a singly
+linked list as per the footnote from page 79, ideally to an actual implementation.
+Support the other operations as eﬃciently as possible.
+
+Elementary Data Structures
+
+3-8. [5] Tic-tac-toe is a game played on an n × n board (typically n = 3) where two
+players take consecutive turns placing “O” and “X” marks onto the board cells.
+The game is won if n consecutive “O” or ‘X” marks are placed in a row, column,
+or diagonal. Create a data structure with O(n) space that accepts a sequence
+of moves, and reports in constant time whether the last move won the game.
+
+3-9. [3] Write a function which, given a sequence of digits 2–9 and a dictionary of n
+words, reports all words described by this sequence when typed in on a standard
+telephone keypad. For the sequence 269 you should return any, box, boy, and
+cow, among other words.
+
+104
+
+CHAPTER 3. DATA STRUCTURES
+
+3-10. [3] Two strings X and Y are anagrams if the letters of X can be rearranged
+to form Y . For example, silent/listen, and incest/insect are anagrams. Give an
+eﬃcient algorithm to determine whether strings X and Y are anagrams.
+
+Trees and Other Dictionary Structures
+
+3-11. [3] Design a dictionary data structure in which search, insertion, and deletion
+can all be processed in O(1) time in the worst case. You may assume the set
+elements are integers drawn from a ﬁnite set 1, 2, .., n, and initialization can take
+O(n) time.
+
+3-12. [3] The maximum depth of a binary tree is the number of nodes on the path
+from the root down to the most distant leaf node. Give an O(n) algorithm to
+ﬁnd the maximum depth of a binary tree with n nodes.
+
+3-13. [5] Two elements of a binary search tree have been swapped by mistake. Give
+
+an O(n) algorithm to identify these two elements so they can be swapped back.
+
+3-14. [5] Given two binary search trees, merge them into a doubly linked list in sorted
+
+order.
+
+3-15. [5] Describe an O(n)-time algorithm that takes an n-node binary search tree
+and constructs an equivalent height-balanced binary search tree. In a height-
+balanced binary search tree, the diﬀerence between the height of the left and
+right subtrees of every node is never more than 1.
+
+3-16. [3] Find the storage eﬃciency ratio (the ratio of data space over total space)
+
+for each of the following binary tree implementations on n nodes:
+
+(a) All nodes store data, two child pointers, and a parent pointer. The data
+
+ﬁeld requires 4 bytes and each pointer requires 4 bytes.
+
+(b) Only leaf nodes store data; internal nodes store two child pointers. The
+
+data ﬁeld requires four bytes and each pointer requires two bytes.
+
+3-17. [5] Give an O(n) algorithm that determines whether a given n-node binary tree
+
+is height-balanced (see Problem 3-15).
+
+3-18. [5] Describe how to modify any balanced tree data structure such that search,
+insert, delete, minimum, and maximum still take O(log n) time each, but suc-
+cessor and predecessor now take O(1) time each. Which operations have to be
+modiﬁed to support this?
+
+3-19. [5] Suppose you have access to a balanced dictionary data structure that sup-
+ports each of the operations search, insert, delete, minimum, maximum, suc-
+cessor, and predecessor in O(log n) time. Explain how to modify the insert
+and delete operations so they still take O(log n) but now minimum and max-
+imum take O(1) time. (Hint: think in terms of using the abstract dictionary
+operations, instead of mucking about with pointers and the like.)
+
+3-20. [5] Design a data structure to support the following operations:
+
+• insert(x,T) – Insert item x into the set T .
+• delete(k,T) – Delete the kth smallest element from T .
+• member(x,T) – Return true iﬀ x ∈ T .
+
+All operations must take O(log n) time on an n-element set.
+
+

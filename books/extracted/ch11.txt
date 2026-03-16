@@ -1,0 +1,1676 @@
+CHAPTER 11
+Object-Oriented Programming in C
+We favor the simple expression of the complex thought.
+...
+We are for flat forms
+Because they destroy illusion and reveal truth.
+—Le T igre, “Slideshow at Free University”
+Here is the common format for the typical library, in C or in any other language:
+• A small set of data structures that represent key aspects of the field the library
+addresses
+• A set of functions (often referred to as interface functions) that manipulate those
+data structures
+An XML library, for example, would have a structure representing an XML document
+and perhaps views of the document, plus lots of functions for going between the data
+structure and the XML file on disk, querying the structure for elements, et cetera. A
+database library would have a structure representing the state of communications
+with the database, and perhaps structures representing tables, plus lots of functions
+for talking to the database and dissecting the data it sends.
+This is an eminently sensible way to organize a program or a library. It is the means
+by which an author can represent concepts with nouns and verbs that are appropriate
+to the problem at hand.
+I won’t waste time (and invite flame wars) by giving a precise definition of object-
+oriented programming (OOP), but the preceding description of an object-oriented
+library should give you a feel for what we are going after: a few central data struc‐
+tures, each with a set of functions that act on those central data structures.
+245
+
+1 “I once attended a Java user group meeting where James Gosling (Java’s inventor) was the featured speaker.
+During the memorable Q&A session, someone asked him: ‘If you could do Java over again, what would you
+change?’ ‘I’ d leave out classes, ’ he replied. ”
+— Allen Holub, Why extends is evil
+For every expert who insists that a feature is essential for OOP , you will find another
+who sees it as a distraction from the core of OOP .1 Nonetheless, here are a few exten‐
+sions to the basic struct-plus-functions object that are very common:
+• Inheritance, in which a struct is extended to add new elements to it
+• Virtual functions, which have a default behavior for any object in the class, but
+which can have specific behaviors for different instances of the object (or its
+descendants on the inheritance tree)
+• Fine control over scope, like dividing struct elements into private and public
+• Operator overloading, wherein the same operation changes meaning depending
+on the type it operates on
+• Reference counting, allowing objects to be freed if and only if all related resour‐
+ces are no longer in use
+Segments in this chapter will consider how these things can be implemented in C.
+None of them are especially difficult: reference counting basically requires maintain‐
+ing a counter; function (but not operator) overloading uses the _Generic keyword
+which is designed for this purpose; and virtual functions can be implemented via a
+dispatch function optionally backed by a key/value table of alternate functions.
+This brings us to an interesting question: if these extensions to the basic struct-plus-
+functions object are so easy to do and only require a few lines of code, why don’t
+authors writing in C use them all the time?
+The Sapir-Whorf hypothesis, linking language and cognition, has been stated in
+many different ways; the statement I prefer is that some languages force us to think
+about some things that other languages do not force us to consider. Many languages
+force us to think about gender, because it is often awkward to compose sentences
+about a person that avoid gender markers like he, she, his, or her. C requires that you
+think about memory allocation more than other languages do (which may give rise to
+the stereotypes from non-C users who see C code as nothing but memory-twiddling).
+Languages that implement extensive scope operators force us to think precisely about
+when and to what objects a variable is visible—even if the language technically allows
+you to compile code with all your object’s members declared as public, somebody will
+call you lazy and remind you of the norms around the language that force you to
+think about fine-grained scope.
+246 | Chapter 11: Object-Oriented Programming in C
+
+Working in C thus puts us in a good position that we would not be in if we used an
+officially OOP language like C++ or Java: we can implement a number of extensions
+to the basic struct-plus-functions object via simple forms, but we are never forced to,
+and we can leave them out when they would add more moving parts with little bene‐
+fit.
+Extending Structures and Dictionaries
+ Early in this segment, I’ll present an example of the workhorse form for organizing
+libraries: a struct plus a set of functions that operate on that struct. But, as per the
+name, this segment is about how to make extensions: how can we add new elements
+to the struct, and how can we add new functions that work correctly on both already-
+extant structs and on new ones?
+In 1936, in response to a formal mathematical question (The Entscheidungsproblem),
+Alonso Church developed a lambda calculus, a formal means of describing functions
+and variables. In 1937, in response to the same question, Alan Turing described a for‐
+mal language in the form of a machine with a tape holding data and a head that can
+be shifted along the tape to read and write to the tape. Later, Church’s lambda calculus
+and Turing’s machine were shown to be equivalent—any calculation you could
+express in one, you could express in the other. It’s been the same divide ever since,
+and Church’s and Turing’s constructions continue to be the root of how we structure
+our data.
+The lambda calculus relies heavily on named lists; in lambda-inspired pseudocode,
+we might express a person’s information as:
+(person (
+    (name "Sinead")
+    (age 28)
+    (height 173)
+))
+With Turing’s machine, we would have a block of the tape set aside for the structure.
+The first few blocks would be a name, the next few would hold the age, and so on.
+Almost a century later, Turing’s tape is still a not-bad description of computer mem‐
+ory: recall from “ All the Pointer Arithmetic Y ou Need to Know”  on page 136 that this
+base-plus-offset form is exactly how C treats structures. We would write
+typedef struct {
+    char * name;
+    double age, height;
+} person;
+person sinead = {.name="Sinead", .age=28, .height=173};
+Extending Structures and Dictionaries | 247
+
+and sinead would point to a block of memory, and sinead.height would point to
+the tape immediately after name and age (and after any padding for alignment pur‐
+poses).
+Here are some differences between the list approach and the block-of-memory
+approach:
+• Telling the computer to go to a certain offset from a certain address is still among
+the fastest operations a machine can execute. Y our C compiler even does the
+translation from labels to offsets during compile time. Conversely, finding some‐
+thing in the list requires a lookup: given the label "age", which element in the list
+corresponds and where is its data in memory? Every system has techniques to
+make this as fast a lookup as possible, but a lookup will always be more work
+than a simple base-plus-offset.
+• Adding a new element to a list is a much easier process than adding to a struct,
+which is basically fixed at compile time.
+• A C compiler can tell you at compile time that hieght is a typo, because it can
+look in the struct’s definition and see that there is no such element. Because a list
+is extensible, we won’t know that there is no hieght element until the program
+runs and checks on the list.
+Those last two items demonstrate a direct tension: we want extensibility, wherein we
+can add elements to a structure; we want registration, wherein things that are not in
+the structure are flagged as errors. That’s a balance that has to be struck, and every‐
+body implements controlled extension of an existing list differently.
+C++, Java, and their siblings have a syntax for producing a new type that is an
+instance of the type to be extended but that inherits the old type’s elements. Y ou still
+get base-plus-offset speed and compile-time checking, but at the price of voluminous
+paperwork; where C has struct and its absurdly simple scoping rules (see “Scope” on
+page 267), Java has implements, extends, final, instanceof, class, this, interface,
+private, public, and protected.
+Perl, Python, and many LISP-inspired languages are based on named lists, so that is a
+natural means of implementing a structure. Extend the list by just adding elements to
+it. Pros: fully extensible by just adding a new named item. Cons: as previously, we
+don’t get registration, and although you can improve the name search via various
+tricks, you’re a long way from the speed of a single base-plus-offset step. Many lan‐
+guages in this family have a class definition system, so that you can register a certain
+set of list items and thus check whether future uses conform to the definition, which,
+when done right, provides a nice compromise between checking and ease of exten‐
+sion.
+248 | Chapter 11: Object-Oriented Programming in C
+
+Getting back to plain old C, its structs are the fastest way to access a structure’s ele‐
+ments, and we get compile-time checking at the price of runtime extensibility. If you
+want a flexible list that can grow as the runtime need arises, you will need a list struc‐
+ture, such as the GLib’s hashes, or the sample dictionary described later.
+Implementing a Dictionary
+A dictionary is an easy structure to generate, given what we have in struct-based C.
+Doing so is a fine chance to try building some objects and demonstrate the struct-
+plus-functions form that is the basis of this chapter. Please note, however, that flesh‐
+ing this out and making it bulletproof has already been done by other authors; see the
+GLib’s keyed data tables or GHashTable, for example. The point here is simply that
+having compound structs plus simple arrays equals a short hop to a dictionary object.
+We’re going to start with a simple key/value pair. Its mechanism will be in keyval.c.
+The header in Example 11-1 lists the structure and its interface functions.
+Example 11-1. The header, or the public-facing portion of the key/value class (keyval.h)
+typedef struct keyval{
+   char *key;
+   void *value;
+} keyval;
+keyval *keyval_new(char *key, void *value);
+keyval *keyval_copy(keyval const *in);
+void keyval_free(keyval *in);
+int keyval_matches(keyval const *in, char const *key);
+Those of you with experience in traditional object-oriented programming languages
+will find this to be very familiar. The first instinct when establishing a new object is to
+write down new/copy/free functions, and that is what the example does. After that,
+there are typically a few structure-specific functions, such as the keyval_matches
+function to check whether the key in a keyval pair matches the input string.
+Having new/copy/free functions mean that your memory management worries are
+brief: in the new and copy functions, allocate the memory with malloc; in the free
+function, remove the structure with free; having set up these functions, code that
+uses the object will never explicitly use malloc or free on them, but will trust that
+keyval_new, keyval_copy, and keyval_free will do all the memory management
+correctly.
+Example 11-2 implements these new/copy/free functions for a key-value pair.
+Extending Structures and Dictionaries | 249
+
+Example 11-2. The typical boilerplate for a key/value object: a structure plus new/copy/
+free functions (keyval.c)
+#include <stdlib.h> //malloc
+#include <strings.h> //strcasecmp (from POSIX)
+#include "keyval.h"
+keyval *keyval_new(char *key, void *value){
+    keyval *out = malloc(sizeof(keyval));
+    *out = (keyval){.key = key, .value=value};      
+    return out;
+}
+/** Copy a key/value pair. The new pair has pointers to
+  the values in the old pair, not copies of their data.  */
+keyval *keyval_copy(keyval const *in){
+    keyval *out = malloc(sizeof(keyval));
+    *out = *in;                                     
+    return out;
+}
+void keyval_free(keyval *in){ free(in); }
+int keyval_matches(keyval const *in, char const *key){
+    return !strcasecmp(in->key, key);
+}
+Designated initializers make filling a struct easy.
+Remember, you can copy the contents of structs with an equals sign. If we wanted
+to copy the contents of pointers in the struct (rather than copy the pointers them‐
+selves), we would need more lines of code after this one.
+Now that we have an object representing a single key/value pair, we can move on to
+establishing a dictionary as a list of these. Example 11-3 provides the header.
+Example 11-3. The public parts of the dictionary structure (dict.h)
+#include "keyval.h"
+extern void *dictionary_not_found;    
+typedef struct dictionary{
+   keyval **pairs;
+   int length;
+} dictionary;
+dictionary *dictionary_new (void);
+dictionary *dictionary_copy(dictionary *in);
+void dictionary_free(dictionary *in);
+250 | Chapter 11: Object-Oriented Programming in C
+
+
+void dictionary_add(dictionary *in, char *key, void *value);
+void *dictionary_find(dictionary const *in, char const *key);
+This will be the marker for when a key is not found in the dictionary. It has to be
+public.
+As you can see, you get the same new/copy/free functions, plus a few other
+dictionary-specific functions, and a marker to be described later. Example 11-4 pro‐
+vides the private implementation.
+Example 11-4. The implementation of the dictionary object (dict.c)
+#include <stdio.h>
+#include <stdlib.h>
+#include "dict.h"
+void *dictionary_not_found;
+dictionary *dictionary_new (void){
+    static int dnf;                                                     
+    if (!dictionary_not_found) dictionary_not_found = &dnf;
+    dictionary *out= malloc(sizeof(dictionary));
+    *out= (dictionary){ };                          
+    return out;
+} 
+static void dictionary_add_keyval(dictionary *in, keyval *kv){          
+    in->length++;
+    in->pairs = realloc(in->pairs, sizeof(keyval*)*in->length);
+    in->pairs[in->length-1] = kv;
+}
+void dictionary_add(dictionary *in, char *key, void *value){
+    if (!key){fprintf(stderr, "NULL is not a valid key.\n"); abort();}  
+    dictionary_add_keyval(in, keyval_new(key, value));
+}
+void *dictionary_find(dictionary const *in, char const *key){
+    for (int i=0; i< in->length; i++)
+        if (keyval_matches(in->pairs[i], key))    
+            return in->pairs[i]->value;
+    return dictionary_not_found;
+}
+dictionary *dictionary_copy(dictionary *in){
+    dictionary *out = dictionary_new();
+    for (int i=0; i< in->length; i++)
+        dictionary_add_keyval(out, keyval_copy(in->pairs[i]));
+    return out;
+}
+Extending Structures and Dictionaries | 251
+
+
+void dictionary_free(dictionary *in){
+    for (int i=0; i< in->length; i++)
+        keyval_free(in->pairs[i]);
+    free(in);
+}
+It is reasonable to have a NULL value in the key/value table, so we need a unique
+marker to indicate a missing value. I don’t know where dnf will be stored in
+memory, but its address will certainly be unique.
+Recall that a function marked as static can not be used outside the file, so this is
+one more reminder that the function is private to the implementation.
+A confession: using abort like this is bad form; better would be to use a macro
+like the one in stopif.h. I did it this way to demonstrate a feature of the test har‐
+ness.
+Now that we have a dictionary, Example 11-5 can use it without thinking about mem‐
+ory management, which the new/copy/free/add functions take care of, and without
+making reference to key/value pairs, because that is one level too low for our pur‐
+poses.
+Example 11-5. Sample usage of the dictionary object; no need to delve into the guts of
+the struct, because the interface functions provide all we need (dict_use.c)
+#include <stdio.h>
+#include "dict.h"
+int main(){
+    int zero = 0;
+    float one = 1.0;
+    char two[] = "two";
+    dictionary *d = dictionary_new();
+    dictionary_add(d, "an int", &zero);
+    dictionary_add(d, "a float", &one);
+    dictionary_add(d, "a string", &two);
+    printf("The integer I recorded was: %i\n", *(int*)dictionary_find(d, "an int"));
+    printf("The string was: %s\n", (char*)dictionary_find(d, "a string"));
+    dictionary_free(d);
+}
+So writing a struct and its new/copy/free and other associated functions was enough
+to give us the right level of encapsulation: the dictionary didn’t have to care about the
+internals of the key/value pair, and the application didn’t have to worry about dictio‐
+nary internals.
+252 | Chapter 11: Object-Oriented Programming in C
+
+
+The boilerplate code is not as bad as it is in some languages, but there is certainly
+some repetition to the new/copy/free functions. And as the examples continue, you’ll
+see this boilerplate several times more.
+At some point, I even wrote myself macros to autogenerate these. For example, the
+copy functions differ only in dealing with internal pointers, so we could write a
+macro to automate all the boilerplate not about internal pointers:
+#define def_object_copy(tname, ...)         \
+    void * tname##_copy(tname *in) {        \
+        tname *out = malloc(sizeof(tname)); \
+        *out = *in;                         \
+        __VA_ARGS__;                        \
+        return out;                         \
+    }
+def_object_copy(keyval) // Expands to the previous declarations of keyval_copy.
+But the redundancy is nothing to worry about all that much. Despite our mathemati‐
+cal æsthetic of minimizing repetition and text on the page, sometimes having more
+code really does make the program more readable and robust.
+C, with fewer seams
+All the machinery you have in C for inserting new elements into a structure is to
+wrap it in another structure. Say that we have a type defined via a form such as:
+typedef struct {
+    ...
+} list_element_s;
+which is already packaged and cannot be changed, but we’ d like to add a type marker.
+Then we’ll need a new structure:
+typedef struct {
+    list_element_s elmt;
+    char typemarker;
+} list_element_w_type_s;
+Pros: this is so stupid easy, and you still get the speed bonus. Cons: Now, every time
+you want to refer to the name of the element, you’ll need to write out the full path,
+your_typed_list->elmt->name, instead of what you’ d get via a C++/Java-like exten‐
+sion: your_typed_list->name. Add a few layers to this and it starts to get annoying.
+Y ou already saw in “Pointers Without malloc” on page 129  how using aliases can help
+here.
+C11 made structs within structs easier to use by allowing us to include anonymous
+elements of a structure [C11 §6.7.2.1(13)]. Although this got added to the standard in
+December 2011, it follows a Microsoft extension from a long time before then. I will
+show you a strong and weak form; gcc and clang allow the strong form using the the
+Extending Structures and Dictionaries | 253
+
+--fms-extensions flag on the command line, while the weak form is supported by
+these compilers in C11 mode without additional flags.
+The syntax for the strong form: include a struct specifier somewhere in the declara‐
+tion of the new structure, as per the point struct in Example 11-6, without a name for
+the element. The example uses a bare structure name, struct point , whereas a
+named declaration would be something like struct point elementname. All of the
+elements of the referred-to structure are included in the new structure as if they were
+declared in the wrapping structure.
+Example 11-6 extends a 2D point into a 3D point. So far, it is only notable because the
+threepoint struct extends the point seamlessly, to the point where users of the three
+point won’t even know that its definition is based on another struct.
+Example 11-6. An anonymous substructure inside a wrapping structure merges
+seamlessly into the wrapper (seamlessone.c)
+#include <stdio.h>
+#include <math.h>
+typedef struct point {
+   double x, y;
+} point;
+typedef struct {
+    struct point;                              
+    double z;
+} threepoint;
+double threelength (threepoint p){
+    return sqrt(p.x*p.x + p.y*p.y + p.z*p.z);  
+}
+int main(){
+    threepoint p = {.x=3, .y=0, .z=4};         
+    printf("p is %g units from the origin\n", threelength(p));
+}
+This is anonymous. The not-anonymous version would have had a name like
+struct point twopt.
+The x and y elements of the point structure look and behave exactly like the
+additional z element of the threepoint.
+Even the declaration gives no hint that x and y were inherited from an existing
+structure.
+254 | Chapter 11: Object-Oriented Programming in C
+
+
+The original object, the point, was probably accompanied by several interface func‐
+tions that are still useful, like a length function measuring the distance between zero
+and the given point. How are we going to use that function, now that we don’t have a
+name for that subpart of the larger structure?
+The solution is to use an anonymous union of a named point and an unnamed
+point. Being the union of two identical structures, the two structures share absolutely
+everything, and the only distinction is in the naming: use the named version when
+you need to call functions that use the original struct as an input, and use the anony‐
+mous version for seamless merging into the larger struct. Example 11-7  rewrites
+Example 11-6 using this form.
+Example 11-7. The point is seamlessly incorporated into a threepoint, and we still have a
+name for use with functions that operate on a point (seamlesstwo.c)
+#include <stdio.h>
+#include <math.h>
+typedef struct point {
+   double x, y;
+} point;
+typedef struct {
+    union {
+        struct point;                   
+        point p2;                       
+    };
+    double z;
+} threepoint;
+double length (point p){
+    return sqrt(p.x*p.x + p.y*p.y);
+}
+double threelength (threepoint p){
+    return sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
+}
+int main(){
+    threepoint p = {.x=3, .y=0, .z=4};  
+    printf("p is %g units from the origin\n", threelength(p));
+    double xylength = length(p.p2);     
+    printf("Its projection onto the XY plane "
+           "is %g units from the origin\n", xylength);
+}
+This is an anonymous structure.
+Extending Structures and Dictionaries | 255
+
+
+This is a named structure. Being part of a union, it is identical to the anonymous
+structure, differing only in having a name.
+The point structure is still seamlessly included in the threepoint structure,
+but ...
+... the p2 element is a named element as it always was, so we can use it to call the
+interface functions written around the original struct.
+After the declaration threepoint p, we can refer to the x coordinate via p.x (because
+of the anonymous struct) or via p.p2.x (because of the named struct). The last line of
+the example shows the length when projecting onto the xy plane, and does so using
+length(p.p2). We’ve successfully extended the structure and can still use all the func‐
+tions associated with the original.
+Inheriting from multiple structures may or may not work: if both structs to be
+included have an element named x then the compiler will throw an error, and we
+have no syntax for renaming elements in an existing structure or pulling out only a
+subset of elements. But if you have a structure in unmodifiable legacy code with ten
+elements, and you just want to turn that up to eleven so you can address one new
+requirement, this method will get you there.
+Did you notice this is the first time I’ve used the union keyword in
+this book? Unions are another one of those things where the
+explanation is brief—it’s like a struct, but all the elements occupy
+the same space—and then the caveats about how to not hang your‐
+self take up several pages. Memory is cheap, and for writing appli‐
+cations, we don’t have to care about memory alignment, so sticking
+to structs will reduce the possibility of errors, even when only one
+element is used at a time.
+The weaker form, which will compile without the -fms-extensions flag, does not
+accept an anonymous struct specifier that refers to the previously-defined structure as
+above, and requires that the struct be defined in place. Thus, replace the shorter
+struct specifier point p2 with the full cut-and-pasted definition of the p2 struct:
+typedef struct {
+    union {
+        struct {
+           double x, y;
+        };
+        point p2;
+    };
+    double z;
+} threepoint;
+256 | Chapter 11: Object-Oriented Programming in C
+
+
+In the repository of sample code, you will find seamlessthree.c, which uses this
+form and has different compilation notes, but is otherwise identical to seam
+lesstwo.c.
+The weak form may not seem especially useful for the sort of extension discussed
+here, because now you have to keep the two struct declarations synced. But it can still
+have utility, depending on your situation:
+• Much of this book is about dealing with the immense quantity of legacy C code
+we have. If the only person who could modify a code base retired in 2003 and
+everybody else is afraid to touch it, that gives strong indication that the struct you
+cut and pasted into your extension will not be changed in the legacy code base.
+• If the code is under your control, then you have the option of eliminating redun‐
+dancies via macros. For example:
+#define pointcontents { \
+   double x, y;         \
+}
+typedef struct pointcontents point;
+typedef struct {
+    union {
+        struct pointcontents;
+        point p2;
+    };
+    double z;
+} threepoint;
+This is not especially convenient, but does achieve the goals of consistency across
+both the base and extended structs, still compiling given a stricter interpretation
+of the standard, and retaining the safety of having the compiler check types for
+you.
+Base Your Code on Pointers to Objects
+Most of the techniques presented in Chapter 10 were about data structures, not point‐
+ers to data structures, but all the examples in this chapter are about declaring and
+using pointers to structs.
+In fact, if you use a plain struct, the new/copy/free functions write themselves:
+new
+Use designated initializers on the first line where you need a struct. As an added
+plus, structures can be declared at compile time, so they are immediately avail‐
+able to users without an initial call to a setup function.
+Extending Structures and Dictionaries | 257
+
+copy
+The equals sign does this.
+free
+Don’t bother; it’ll go out of scope soon enough.
+So we’re making things more difficult for ourselves with pointers. Y et from what I’ve
+seen, there’s consensus on using pointers to objects as the base of our designs.
+Pros to using pointers:
+• Copying a single pointer is cheaper than copying a full structure, so you save a
+microsecond on every function call with a struct as an input. Of course, this only
+adds up after a few billion function calls.
+• Data structure libraries (your trees and linked lists, for example) are all written
+around hooks for a pointer.
+• Now that you’re filling a tree or a list, having the system automatically free the
+struct at the end of the scope in which it was created might not be what you want.
+• Many of your functions that take in a struct will modify the struct’s contents,
+meaning that you’ve got to pass a pointer to the struct anyway. Having some
+functions that take in the struct itself and some that take in a pointer to struct is
+confusing (I have written an interface like this and I regret it), so you might as
+well just send a pointer every time.
+• If the contents of the struct include a pointer to data elsewhere, then the conve‐
+nience bonus from using a plain struct evaporates anyway: if you want a deep
+copy (wherein the data pointed to is copied, not just the pointer) then you need a
+copy function, and you will probably want a free function to make sure the inter‐
+nal data is eliminated.
+There’s no one-size-fits-all set of rules for using structs. As struct evolves from being a
+throwaway to facilitate some logistics to becoming a core of how your data is organ‐
+ized, the benefits to pointers wax and the benefits to nonpointers wane.
+Functions in Your Structs
+To this point, every header has presented a struct followed by a set of functions, but a
+struct can include functions among its member elements as easily as it can hold typi‐
+cal variables, so we could move all but the object_new function into the struct itself:
+typedef struct keyval{
+    char *key;
+    void *value;
+    keyval *(*keyval_copy)(keyval const *in);
+    void (*keyval_free)(keyval *in);
+    int (*keyval_matches)(keyval const *in, char const *key);
+258 | Chapter 11: Object-Oriented Programming in C
+
+} keyval;
+keyval *keyval_new(char *key, void *value);
+Say we have a pointer to a function, fn, meaning that *fn is a func‐
+tion and fn is its address in memory. Then (*fn)(x) makes sense
+as a function call, but what would fn(x) mean? In this case, C takes
+a do-what-I-mean approach and interprets calling a pointer-to-
+function as a simple call to the function. The term for this is pointer
+decay. This is why I treat functions and pointers-to-functions as
+equivalent in the text.
+This is, for the most part, a stylistic choice, affecting how we look up functions in the
+documentation and how the code looks on the page. The documentation issue, by the
+way, is why I prefer the keyval_copy naming scheme over the copy_keyval scheme:
+with the first form, the documentation’s index lists all of keyval_s’s associated func‐
+tions in one place.
+The real advantage of the element-of-struct form is that you can more easily change
+the function associated with every instance of the object. Example 11-8 shows a sim‐
+ple list structure, which is nondescript enough that it could hold an advertisement,
+song lyrics, a recipe, or who knows what else. It seems natural to print these different
+types of list using different formatting, so we will have several types of print function.
+Example 11-8. A rather generic struct, with a built-in print method (print_typedef.h)
+#ifndef textlist_s_h
+#define textlist_s_h
+typedef struct textlist_s {
+    char *title;
+    char **items;
+    int len;
+    void (*print)(struct textlist_s*);
+} textlist_s;
+#endif
+Example 11-9  declares and uses two objects with the typedef above. The disparate
+print methods are assigned as part of the object definition.
+Example 11-9. Putting the function inside the struct clarifies which function goes with
+which struct (print_methods.c)
+#include <stdio.h>
+#include "print_typedef.h"
+Functions in Your Structs | 259
+
+static void print_ad(textlist_s *in){
+    printf("BUY THIS %s!!!! Features:\n", in->title);
+    for (int i=0; i< in->len; i++)
+        printf("∙ %s\n", in->items[i]);
+}
+static void print_song(textlist_s *in){
+    printf("♫ %s ♫\nLyrics:\n\n", in->title);
+    for (int i=0; i< in->len; i++)
+        printf("\t%s\n", in->items[i]);
+}
+textlist_s save = {.title="God Save the Queen",
+     .len=3, .items=(char*[]){
+    "There's no future" , "No future", "No future for me."},
+    .print=print_song};                                 
+textlist_s spend = {.title="Never mind the Bollocks LP",
+    .items=(char*[]){"By the Sex Pistols", "Anti-consumption themes"},
+    .len=2, .print=print_ad};
+#ifndef skip_main
+int main(){
+    save.print(&save);                                  
+    printf("\n-----\n\n");
+    spend.print(&spend);
+}
+#endif
+So you don’t miss it, here is the spot where the function is added to the save
+struct. A similar thing happens with print_ad in the spend struct a few lines
+down.
+When calling the methods embedded in a struct, they all look the same. Y ou don’t
+have to remember that save is song lyrics and spend an advertisement.
+By the last three lines, we are on our way to having a uniform interface to entirely
+distinct functions. Y ou could picture a function that takes in a textlist_s*, names it
+t, and calls t->print(&t).
+On the minus side, we run risk of once again breaking the rule that things that do
+different things should look different: if one function in the print slot has subtly dif‐
+ferent side effects, you have no warning.
+Note the use of the static keyword, which indicates that outside of this file, no code
+will be able to call print_song or print_ad by those names. They will, however, be
+able to use the names save.print and spend.print to call them.
+260 | Chapter 11: Object-Oriented Programming in C
+
+
+There are a few bells and whistles that we’ d like to add. First, save.print(&save) is a
+redundant form that repeats save. It would be nice to be able to write save.print()
+and let the system just know that the first argument should be the object making the
+call. The function might see a special variable named this or self, or we could add a
+special-case rule that object.fn(x) gets reshuffled to fn(object, x).
+Sorry, but it’s not going to happen in C.
+C doesn’t define magic variables for you, and it is always honest and transparent
+about what parameters get sent in to a function. Normally, if we want to futz around
+with the parameters of a function, we do it with the preprocessor, which will gladly
+rewrite f(anything) to f(anything else). However, all the transformations happen
+to what goes on inside the parens. There’s no way to get the preprocessor to trans‐
+form the text s.prob(d) to s.prob(s, d). If you don’t want to slavishly imitate C++-
+type syntax, you can write macros like:
+#define Print(in) (in).print(&in)
+#define Copy(in, ...) (in).copy((in), __VA_ARGS__)
+#define Free(in, ...) (in).free((in), __VA_ARGS__)
+But now you’ve cluttered up the global namespace with the Print, Copy, and Free
+symbols. Maybe it’s worth it to you (especially given that every function should have
+associated copy and free functions).
+Y ou could keep the namespace organized and prevent name collisions by naming
+your macros appropriately:
+#define Typelist_print(in) (in).estimate(&in)
+#define Typelist_copy(in, ...) (in).copy((in), __VA_ARGS__)
+Getting back to the typelist_s, we have a way to print songs and advertisements.
+But what about recipes, or whatever other lists people may dream up? Or, what would
+happen if somebody writes a list but forgets to add the right function?
+We want a default method to fall back on, and one easy way to achieve this is a dis‐
+patch function. The function would check the input struct for a print method, and
+use what it finds if it is not NULL. Otherwise, it provides a default method.
+Example 11-10 demonstrates such a dispatch function, which correctly prints a song
+object with its included print method, but because there is no print method associ‐
+ated with the recipe for a vegan egg replacer (via Isa Chandra Moskowitz of the Post
+Punk Kitchen), the dispatch function fills in a default.
+Example 11-10. The recipe has no print method, but the dispatch function prints it
+anyway (print_dispatch.c)
+#define skip_main
+#include "print_methods.c"
+Functions in Your Structs | 261
+
+textlist_s recipe = {.title="1 egg for baking",
+     .len=2, .items=(char*[]){"1 Tbsp ground flax seeds", "3 Tbsp water"}};
+void textlist_print(textlist_s *in){
+    if (in->print){
+        in->print(in);
+        return;
+    }
+    printf("Title: %s\n\nItems:\n", in->title);
+    for (int i=0; i< in->len; i++)
+        printf("\t%s\n", in->items[i]); 
+}
+int main(){
+    textlist_print(&save);
+    printf("\n-----\n\n");
+    textlist_print(&recipe);
+}
+So dispatch functions gave us default routines, solved the annoyance of not having a
+magic this or self variable, and did so in a manner that looks similar to the usual
+interface functions like textlist_copy or textlist_free (if they were defined).
+There are other ways to do it. Earlier, I used designated initializers to set up the func‐
+tions, so unspecified elements are NULL and a dispatch function makes sense. If we
+required that users always use a textlist_new function, then we could set the default
+functions there. Then eliminating the redundancy of save.print(&save) can be done
+by a simple macro, as previously.
+Once again, you’ve got options. We already have more than enough syntactic tools to
+uniformly call diverse functions for diverse objects. That just leaves the hard part of
+writing those diverse functions so that calling them in a uniform manner always
+behaves as expected.
+Vtables
+ Say that time has passed since the textlist_s struct was designed, and we have dis‐
+covered that we have new needs. We would like to post lists to the World Wide Web,
+but doing so requires formatting the lists using HTML. How are we going to add a
+new HTML print function to the existing structure, which has only a print-to-screen
+function?
+Y ou already saw how structs can be extended in “C, with fewer seams” on page 253,
+and we could use that form to set up a struct with the new functions inside the struct,
+like the print function.
+262 | Chapter 11: Object-Oriented Programming in C
+
+The alternative presented in this section is to add new functions outside the object’s
+struct. They are recorded in what is called a virtual table, where the name is a refer‐
+ence to the virtual functions from the object-oriented lexicon, and the 1990s fashion
+of calling everything implemented in software virtual. A vtable is a hash table, a sim‐
+ple list of key/value pairs. “Implementing a Dictionary” on page 249 showed how to
+build such a key/value table, but in this section I will use GLib’s hash tables.
+Given the object(s), generate a hash (the key), and associate a function with the hash.
+Then, when a user calls the dispatch function for the given operation, the dispatch
+function will check the hash table for a function, and if it finds one will execute it, else
+it will execute the default operation.
+Here are the ingredients we will need to make this recipe work:
+• A hashing function.
+• A type-checker. We have to make sure that every function stored in the hash
+table has the same type signature.
+• A key/value table and its accompanying storage and retrieval functions.
+The hash function
+A hash function mangles its input into a single number, in a manner such that the
+odds are close to zero that two inputs are mangled into the same number.
+GLib provides a few hashes out of the box, including g_direct_hash, g_int_hash,
+and g_str_hash. The direct hash is intended for pointers, and simply reads the
+pointer as a number, in which case there can only be a hash collision if two objects are
+at the same point in memory.
+For more complex situations, we can invent new hashes. Here is a common hash
+function, attributed to Dan J. Bernstein. For each character in the string (or each byte
+of a UTF-8 multibyte character), it multiplies the tally so far by 33, then adds the new
+character (or byte). The value is likely to overflow what an unsigned int can store,
+but the overflow is just another implicit but deterministic step in the algorithm.
+static unsigned int string_hash(char const *str){
+    unsigned int hash = 5381;
+    char c;
+    while ((c = *str++)) hash = hash*33 + c;
+    return hash;
+}
+Again, GLib offers its g_str_hash functions, so there is no need to use the function
+here, but we could use this as a template to implement alternative hashes. Let us say
+that we have a list of pointers, then we could use this hash:
+Functions in Your Structs | 263
+
+static unsigned int ptr_list_hash(void const **in){
+    unsigned int hash = 5381;
+    void *c;
+    while ((c = *in++)) hash = hash*33 + (uintptr_t)c;
+    return hash;
+}
+For the object-oriented reader, note that we are already most of the way toward
+implementing multiple dispatch. Give me two distinct objects, and I can hash
+together one pointer from the first and one from the second, and associate an appro‐
+priate function in the key/value table for the pair.
+GLib’s hash tables will also want an equality check, so GLib provides g_direct_equal,
+g_int_equal, and g_str_equal to go with the corresponding hashes.
+For any hash, there is still some chance of hash collisions, although it is very small for
+a reasonably written hash. I use hashes like the ones above in my code, and I am
+aware that there is some small chance that one day somebody will get unlucky and hit
+on two sets of pointers that cause a hash collision. But when deciding where to
+allocate my finite time on this Earth, I can always find another bug fix, feature imple‐
+mentation, documentation addition, or personal interaction that will provide a
+greater benefit for a greater number of users than would eliminating the chance of
+hash collision. Git relies on hashes to record commits, and users have produced mil‐
+lions (billions?) of commits, and yet eliminating hash collisions also seems very low
+on the agenda of the Git maintainers.
+Type checking
+We are going to allow users to store an arbitrary function in the hash table, and then
+our dispatch function will at some point retrieve that function and use it via a prede‐
+fined template. If a user writes a function that takes the wrong types, then your dis‐
+patch function will crash, and the user will post snarky comments to various social
+media about how your code doesn’t work.
+Normally, when a function call is explicitly written in the code, all the types are
+checked at compile-time. On the one hand, this is the type safety that we are losing
+with dynamically selected functions; on the other hand, we can use this to check that
+a function has the right type.
+Let us say that we want our functions to take in a double* and an int (like a list and
+its length) and return a struct of type out_type. Then we can define its type as:
+typedef out_type (*object_fn_type)(double *, int);
+Now define a do-nothing function like this:
+void object_fn_type_check(object_fn_type in){ };
+264 | Chapter 11: Object-Oriented Programming in C
+
+In the example below, this will be wrapped in a macro, to make sure users call it. Call‐
+ing this function brings us back to type safety: if the user tries to put a function with
+the wrong arguments into the hash table, then the compiler will throw a type error
+when attempting to compile the call to the do-nothing function.
+Putting it all together
+Example 11-11  is the header needed for the vtable, providing the macro that adds
+new methods and the dispatch function that does the retrieval.
+Example 11-11. A header for a vtable associating functions with certain objects
+(print_vtable.h)
+#include <glib.h>
+#include "print_typedef.h"
+extern GHashTable *print_fns;
+typedef void (*print_fn_type)(textlist_s*);                           
+void check_print_fn(print_fn_type pf);
+#define print_hash_add(object, print_fn){                         \   
+    check_print_fn(print_fn);                                     \
+    g_hash_table_insert(print_fns, (object)->print, print_fn);    \
+}
+void textlist_print_html(textlist_s *in);
+It’s optional, but a good typedef makes life with function pointers much more
+pleasant.
+Admonishing users that they should call the type-checking function is a waste of
+time—provide a macro that does it for them.
+Example 11-12 provides the dispatch function that checks the vtable as its first step.
+Apart from the doing the lookup in the vtable rather than the input struct itself, it
+isn’t much different from the previous dispatch method.
+Example 11-12. A dispatch function using a virtual table (print_vtable.c)
+#include <stdio.h>
+#include "print_vtable.h"
+GHashTable *print_fns;                                                            
+void check_print_fn(print_fn_type pf) { }                                
+Functions in Your Structs | 265
+
+
+void textlist_print_html(textlist_s *in){
+    if (!print_fns) print_fns = g_hash_table_new(g_direct_hash, g_direct_equal);  
+    print_fn_type ph = g_hash_table_lookup(print_fns, in->print);                 
+    if (ph) {
+        ph(in);
+        return;
+    }
+    printf("<title>%s</title>\n<ul>", in->title);
+    for (int i=0; i < in->len; i++)
+        printf("<li>%s</li>\n", in->items[i]);
+    printf("</ul>\n");
+}
+Note how the hash table is here in the private implementation, not the public
+interface. Users never touch it directly.
+Initialize GLib’s hash tables with the hash and equality functions. Once they are
+stored in the hash struct, users never need to explicitly refer to them again. This
+line sets up a hash for the print function, and we could set up as many additional
+hashes as desired.
+The print method of the input struct can be used to identify whether the struct
+is a song, recipe, or what have you, so we can use that method to retrieve the
+appropriate HTML print method.
+Finally, here is the usage in Example 11-13. Notice that the user uses only the macro
+to associate a special function with an object, and the dispatch function to do the
+work.
+Example 11-13. A virtual table associating functions with certain objects
+(print_vtable_use.c)
+#define skip_main
+#include "print_methods.c"
+#include "print_vtable.h"
+static void song_print_html(textlist_s *in){
+    printf("<title>♫ %s ♫</title>\n", in->title);
+    for (int i=0; i < in->len; i++)
+        printf("%s<br>\n", in->items[i]);
+}
+int main(){
+    textlist_print_html(&save);                
+    printf("\n-----\n\n");
+    print_hash_add(&save, song_print_html);    
+266 | Chapter 11: Object-Oriented Programming in C
+
+
+2 Because nobody reads footnotes, it is perhaps safe for me to here confess my love for m4, a macro processing
+language from the 1970s. Y ou probably have m4 on your system right now, because it is a POSIX-standard
+and Autoconf uses it. Besides being ubiquitous, it has two features that make it relatively unique and useful.
+First, it is designed to search for macros embedded in a file written for other purposes, like the shell scripts
+Autoconf produces, or HTML files, or C programs. After macro processing, the output can be a standards-
+compliant shell/HTML/C file, without any remaining trace of m4. Second, you can write macros that generate
+other macros. The C preprocessor can’t do this. In a project where I knew I would be generating a lot of dis‐
+tinct vtables, I wrote m4 macros that generate the type-checking functions and plain C macros. The code is
+less redundant for me, and after putting the m4 filtering step in the makefile, I distribute pure C code to oth‐
+ers. Anybody who wants to work with the prefiltered source can do so, because m4 is so prevalent.
+    textlist_print_html(&save);
+}
+At this point, the hash table is empty, so this call will use the default print method
+written into the dispatch function
+Here, we add the special print method to the hash, so the next call to the dispatch
+function will find and use it.
+Vtables are typically how the officially object-oriented languages implement many
+features, and they aren’t especially difficult to implement. If you count up the lines
+about vtables in the above examples, I think you’ d still be under 10 lines. 2 Even speci‐
+fying special-case functions for certain combinations of objects works with the setup
+here, especially given that there was no need to invent an awkward syntax to accom‐
+modate it. Vtables do take some setup, but they can often be implemented in later
+revisions when needed, and in practice there is real benefit to implementing them
+only for certain operations for certain structures.
+Scope
+ The scope of a variable is the range of code over which it exists and can be used. The
+rule of thumb for sane programming is to keep the scope of a variable as small as
+practicable, because doing so limits the number of variables you have to keep in mind
+at any given point, and means lower risk that a variable will be changed by code you
+didn’t bear in mind.
+OK, here goes: all the rules for variable scope in C.
+• A variable never has scope in the code before it is declared. That would be silly.
+• If a variable is declared somewhere inside a pair of curly braces, then at the clos‐
+ing curly brace, the variable goes out of scope. Semiexception: for loops and
+functions may have variables declared in a set of parens just before their opening
+Scope | 267
+
+
+curly brace; variables declared within the parens have scope as if they were
+declared inside the curly braces.
+• If a variable isn’t inside any curly braces, then it has scope from its declaration to
+the end of the file.
+Y ou’re done.
+There is no class scope, prototype scope, friend scope, namespace scope, runtime
+environment rebinding, or special scoping keywords or operators (beyond those
+curly braces, and arguably the linkage specifiers static and extern). Does dynamic
+scoping confuse you? Don’t worry about it. If you know where the curly braces are,
+you can determine which variables can be used where.
+Everything else is a simple corollary. For example, if code.c has a line that will
+#include <header.h>, then the full text of header.h is pasted into code.c, and vari‐
+ables therein have scope accordingly.
+Functions are just another example of curly-brace scope. Here is a sample function to
+sum all the integers up to the input number:
+int sum (int max){
+    int total=0;
+    for (int i=0; i<= max; i++){
+        total += i;
+    }
+    return total;
+}
+Then max and total have scope inside the function, by the curly-brace rule and the
+semiexception about how variables in parens just before the curly brace act as if they
+are inside the braces. The same holds with the for loop, and how i is born and dies
+with the curly braces of the for loop. If you have a one-line for loop, you don’t have
+to write the curly braces, like for (int i=0; i <= max; i++) total += i; , but the
+scope of i is still limited to the loop.
+Summary paragraph: C is awesome for having such simple scoping rules, which effec‐
+tively consist of finding the end of the enclosing curly braces or the end of the file.
+Y ou can teach the whole scoping system to a novice student in maybe 10 minutes. For
+the experienced author, the rule is more general than just the curly braces for func‐
+tions and for loops, so you can use them for occasional additional scoping restric‐
+tions in exceptional situations, as per the macro examples in “Cultivate Robust and
+Flourishing Macros” on page 161 .
+Private Struct Elements
+So we’re cathartically throwing out all the additional rules and keywords that support
+very fine-grained scope control.
+268 | Chapter 11: Object-Oriented Programming in C
+
+Could we implement private struct elements without the extra keywords? In typical
+OOP usage, “private” data is not encrypted by the compiler or otherwise seriously
+hidden: if you have the address of the variable (e.g., if you have its offset in the struct),
+you can point to it, look at it in the debugger, and modify it. To give the data that
+limited level of opacity, we have the technology.
+An object will typically be defined via two files: the .c file with the details and the .h
+file to be included in other writing that makes use of the object. It is not unreasonable
+to think of the .c file as the private segment and the .h file as the public. For example,
+say we are set on keeping some elements of an object private. The public header
+might be:
+typedef struct a_box_s {
+    int public_size;
+    void *private;
+} a_box_s;
+The pointer to private is basically useless to other authors, because they don’t know
+what type to cast it to. The private segment, a_box.c, would hold the requisite typedef
+and its uses:
+typedef struct private_box_s {
+    long double how_much_i_hate_my_boss;
+    char **coworkers_i_have_a_crush_on;
+    double fudge_factor;
+} private_box_s;
+//Given the typedef, we have no problem casting the private pointer to
+//its desired type and making use here in a_box.c.
+a_box_s *box_new(){
+    a_box_s *out = malloc(sizeof(a_box_s));
+    private_box_s *outp = malloc(sizeof(private_box_s));
+    *out = (a_box_s){.public_size=0, .private=outp};
+    return out;
+}
+void box_edit(a_box_s *in){
+    private_box_s *pb = in->private;
+    //now work with private variables, e.g.:
+    pb->fudge_factor *= 2;
+}
+So it’s not all that hard to implement a private segment of a C struct, but I rarely see it
+used in real-world libraries. Few C authors seem to think that there’s serious benefit
+to doing so.
+Here’s a sample of the much more common means of putting a private element
+within a public struct:
+Scope | 269
+
+typedef struct {
+    int pub_a, pub_b;
+    int private_a, private_b; //Private: please do not use these.
+} public_s;
+That is, document when something should not be used, and trust your users to not
+cheat. If your colleagues won’t follow an instruction as simple as this, then chain the
+coffeemaker to the wall, because you’ve got problems bigger than a compiler can
+solve.
+Functions are especially easy to make private: don’t put their declaration in a header.
+Optionally, put the static keyword in front of the definition so that readers know
+that the function is private.
+Overload
+My impression is that most folks think of integer division—that 3/2==1—as an
+annoyance. If I type in 3/2, I expect 1.5, darn it, not 1.
+Indeed, this is an annoying gotcha to C and other integer-arithmetic languages, and
+more broadly, it shows us the dangers of operator overloading. Operator overloading
+is when an operator, such as /, does something different depending on the types
+involved. For two integer types, the slash effectively does a divide-and-truncate oper‐
+ation, and for anything else, it performs the usual division.
+Recall the rule from “Pointers Without malloc” on page 129 that things that behave
+differently should look different. That’s the failure of 3/2: integer division and
+floating-point division behave differently but look identical. Confusion and bugs
+ensue.
+Human language is redundant, which is a good thing, partly because it allows error
+correction. When Nina Simone says “ne me quitte pas” (which would translate word-
+for-word as “don’t leave me no”), it’s OK if you space out at the beginning, because “ …
+me quitte pas” has the pas to indicate negation, and it’s OK if you space out at the end,
+because “ne me quitte … ” has the ne to indicate negation.
+Grammatical gender typically doesn’t have much real-world meaning, and sometimes
+objects will change depending on word choice. My favorite example is in Spanish,
+where el pene and la polla both refer to the same object, but the first is masculine and
+the second feminine. The real value to the gender is that it provides redundancy, forc‐
+ing parts of the sentence to match, and thus adding clarity.
+Programming languages avoid redundancy. Negation entirely changes an expression’s
+meaning, yet it is typically expressed with only one character ( !). But programming
+languages do have genders, where they’re called types. Generally, your verbs and your
+nouns need to agree in type (as in Arabic, Hebrew, and Russian, among other lan‐
+270 | Chapter 11: Object-Oriented Programming in C
+
+3 “"Making Wrong Code Look Wrong” ; reprinted in (Spolsky, 2008; p 192).
+guages). With this added redundancy, you’ d need matrix_multiply(a, b) when you
+have two matrices, and complex_multiply(a, b) when you have two complex num‐
+bers.
+Operator overloading is about eliminating redundancy: writing a * b  whether you
+have a pair of matrices, complex numbers, natural numbers, or sets. Here’s a snippet
+from an excellent essay on the cost of that reduced redundancy: “When you see the
+code i = j * 5;  in C you know, at least, that j is being multiplied by five and the
+results stored in i. But if you see that same snippet of code in C++, you don’t know
+anything. ”3 The problem is that you don’t know what * means until you look up the
+type for j, look through the inheritance tree for j’s type to determine which version of
+* you mean, and then you can start over with identifying i and how that relates to =,
+given the type of j * 5.
+Here’s my own rule of thumb for overloading, via _Generic or whatever other means:
+if users forget what the input type is, will they still get the right answer?  For example,
+the overloading of absolute value for int, float, and double work just fine with this
+rule. The GNU Scientific Library provides a gsl_ complex type to represent complex
+numbers, while standard C allows types like complex double; it might make sense to
+overload functions regarding these types with identical intent.
+As you’ve seen in the examples to this point, the C custom is to closely follow the sort
+of gender-agreement rules I’ d just described; for example:
+//add two vectors in the GNU Scientific Library
+gsl_vector *v1, *v2;
+gsl_vector_add(v1, v2);
+//Open a GLib I/O channel for reading at a given filename.
+GError *e;
+GIOChannel *f  = g_io_channel_new_file("indata.csv", "r", &e);
+It’s more typing, and when you have 10 lines acting on the same structure, things start
+to look repetitive, but each line is very clear.
+_Generic
+C provides limited overloading support via the _Generic keyword. The keyword
+evaluates to a value based on the type of its input, which lets you write macros that
+consolidate some types together.
+We need type-generic functions when we have a proliferation of types. Some systems
+provide a voluminous number of precise types, but every new type is another moving
+part that we have to support. For example, the GNU Scientific Library provides a
+Overload | 271
+
+complex number type, a complex vector type, and a vector type—and then there’s the
+C complex type. One could reasonably multiply any of those four types together,
+which theoretically means we need 16 functions. Example 11-14 lists several of these
+functions; if you are not a complex vector aficionado, it would be entirely reasonable
+to recognize this example as a hairy mess and move on to the part where we clean
+it up.
+Example 11-14. Where the sausage is made, for those of you with an interest in GSL
+complex types (complex.c)
+#include "cplx.h"                 //gsl_cplx_from_c99; see below.
+#include <gsl/gsl_blas.h>         //gsl_blas_ddot
+#include <gsl/gsl_complex_math.h> //gsl_complex_mul(_real)
+gsl_vector_complex *cvec_dot_gslcplx(gsl_vector_complex *v, gsl_complex x){
+    gsl_vector_complex *out = gsl_vector_complex_alloc(v->size);
+    for (int i=0; i< v->size; i++)
+        gsl_vector_complex_set(out, i,
+                            gsl_complex_mul(x, gsl_vector_complex_get(v, i)));
+    return out;
+}
+gsl_vector_complex *vec_dot_gslcplx(gsl_vector *v, gsl_complex x){
+    gsl_vector_complex *out = gsl_vector_complex_alloc(v->size);
+    for (int i=0; i< v->size; i++)
+        gsl_vector_complex_set(out, i,
+                            gsl_complex_mul_real(x, gsl_vector_get(v, i)));
+    return out;
+}
+gsl_vector_complex *cvec_dot_c(gsl_vector_complex *v, complex double x){
+    return cvec_dot_gslcplx(v, gsl_cplx_from_c99(x));
+}
+gsl_vector_complex *vec_dot_c(gsl_vector *v, complex double x){
+    return vec_dot_gslcplx(v, gsl_cplx_from_c99(x));
+}
+complex double ddot (complex double x, complex double y){return x*y;}   
+void gsl_vector_complex_print(gsl_vector_complex *v){
+    for (int i=0; i< v->size; i++) {
+        gsl_complex x = gsl_vector_complex_get(v, i);
+        printf("%4g+%4gi%c", GSL_REAL(x), GSL_IMAG(x), i < v->size-1 ? '\t'  : '\n' );
+    }
+}
+C-native complex numbers are multiplied with a simple *, like real numbers.
+272 | Chapter 11: Object-Oriented Programming in C
+
+
+The cleanup happens in the header, Example 11-15. It uses _Generic to select one of
+the functions from Example 11-14 based on the input types. The first argument (the
+controlling expression) is not evaluated, but is simply checked for its type, and the
+value of the _Generic statement is selected based on that type. We want to select a
+function based on two types, so the first macro picks which of the second or third
+macros to use.
+Example 11-15. Using _Generic to provide a simple frontend to the mess (cplx.h)
+#include <complex.h> //nice names for C’s complex types
+#include <gsl/gsl_vector.h> //gsl_vector_complex
+gsl_vector_complex *cvec_dot_gslcplx(gsl_vector_complex *v, gsl_complex x);
+gsl_vector_complex *vec_dot_gslcplx(gsl_vector *v, gsl_complex x);
+gsl_vector_complex *cvec_dot_c(gsl_vector_complex *v, complex double x);
+gsl_vector_complex *vec_dot_c(gsl_vector *v, complex double x);
+void gsl_vector_complex_print(gsl_vector_complex *v);
+#define gsl_cplx_from_c99(x) (gsl_complex){.dat= {creal(x), cimag(x)}} 
+complex double ddot (complex double x, complex double y);
+#define dot(x,y)  _Generic((x),                                 \      
+                    gsl_vector*: dot_given_vec(y),              \
+                    gsl_vector_complex*: dot_given_cplx_vec(y), \
+                    default: ddot)((x),(y))
+#define dot_given_vec(y) _Generic((y),                          \
+                        gsl_complex: vec_dot_gslcplx,           \
+                        default: vec_dot_c)
+#define dot_given_cplx_vec(y) _Generic((y),                     \
+                        gsl_complex: cvec_dot_gslcplx,          \
+                        default: cvec_dot_c)
+gsl_complex and C99 complex double are both a two-element array consisting of
+real double followed by imaginary double [see the GSL manual and C99 and C11
+§6.2.5(13)]. All we have to do is build the appropriate struct—and a compound
+literal is the perfect way to build a struct on the fly.
+The first use of x is not actually evaluated, just checked for its type. That means
+that a call like dot(x++, y) would increment x only once.
+In Example 11-16, life is (mostly) easy again: we can use dot to find the product of a
+gsl_vector times a gsl_complex, a gsl_vector_complex times a C complex, and so
+on for a great many combinations. Of course, you still need to know the output type,
+because the return value of a scalar times a scalar is a scalar, not a vector, so the use of
+Overload | 273
+
+
+the output depends on the input types. The proliferation of types is a fundamental
+problem, but the _Generic facility at least provides a band-aid.
+Example 11-16. The payoff: we can use dot (almost) regardless of input type
+(simple_cplx.c)
+#include <stdio.h>
+#include "cplx.h"
+int main(){
+    int complex a = 1+2I;                                                
+    complex double b = 2+I;
+    gsl_complex c = gsl_cplx_from_c99(a);
+    gsl_vector *v = gsl_vector_alloc(8);
+    for (int i=0; i< v->size; i++) gsl_vector_set(v, i, i/8.);
+    complex double adotb = dot(a, b);                                    
+    printf("(1+2i) dot (2+i): %g + %gi\n", creal(adotb), cimag(adotb));  
+    printf("v dot 2:\n");
+    double d = 2;
+    gsl_vector_complex_print(dot(v, d));
+    printf("v dot (1+2i):\n");
+    gsl_vector_complex *vc = dot(v, a);
+    gsl_vector_complex_print(vc);
+    printf("v dot (1+2i) again:\n");
+    gsl_vector_complex_print(dot(v, c));
+}
+Declarations with complex are a bit like declarations with const: both complex
+int and int complex are valid.
+Finally, the payoff: this function will use the dot function four times, each with
+different input types.
+Here are the C-native means of getting the real and imaginary parts of a complex
+number.
+Count References
+The remainder of this chapter shows a few examples of adding a reference counter to
+the boilerplate new/copy/free functions. Because adding a reference counter is not
+especially challenging, these are really a chance to provide some extended examples
+of the form, taking into account more real-world considerations and doing some‐
+274 | Chapter 11: Object-Oriented Programming in C
+
+
+thing interesting. Because, after all the interesting extensions and variants presented
+throughout this chapter, the struct plus accompanying functions is still the workhorse
+format used by a large chunk of the world’s C libraries.
+The first example presents a small library that has one structure to speak of, which is
+intended to read an entire file into a single string. Having all of Moby Dick in a single
+string in memory is not a big deal at all, but having a thousand copies of it floating
+around starts to be wasteful. So instead of copying the potentially very long data
+string, we’ll have views that just mark different start and end points.
+Now that we have several views of the string, we need to free the string exactly once,
+when the string no longer has any views attached. Thanks to the object framework,
+it’s easy to make this happen.
+The second example, an agent-based microsimulation of group formation, has a simi‐
+lar problem: the groups should exist as long as they have members, and need to be
+freed if and when the last member leaves.
+Example: A Substring Object
+The key to managing a lot of objects pointing to the same string is to add a reference-
+count element to the structure. Modify the four boilerplate elements as follows:
+• The type definition includes a pointer-to-integer named refs. It will be set up
+only once (via the new function), and all copies (made via the copy function) will
+share the string and this reference counter.
+• The new function sets up the refs pointer and sets *refs = 1.
+• The copy function copies the original struct into the output copy and increments
+the reference count.
+• The free function decrements the reference count and, if it has hit zero, frees the
+shared string.
+Example 11-17 provides the header for the string manipulation example, fstr.h, which
+introduces the key structure representing a segment of a string and an auxiliary struc‐
+ture representing a list of these string segments.
+Example 11-17. The public tip of the iceberg (fstr.h)
+#include <stdio.h>
+#include <stdlib.h>
+#include <glib.h>
+typedef struct {        
+    char *data;
+    size_t start, end;
+Count References | 275
+
+    int* refs;
+} fstr_s;
+fstr_s *fstr_new(char const *filename);
+fstr_s *fstr_copy(fstr_s const *in, size_t start, size_t len);
+void fstr_show(fstr_s const *fstr);
+void fstr_free(fstr_s *in);
+typedef struct {        
+    fstr_s **strings;
+    int count;
+} fstr_list;
+fstr_list fstr_split (fstr_s const *in, gchar const *start_pattern);
+void fstr_list_free(fstr_list in);
+I hope these typdef/new/copy/free sets are getting dull for you. The fstr_show
+function will be very useful for debugging.
+This is an auxiliary structure that isn’t quite a full object. Notice that the
+fstr_split function returns the list, not a pointer to the list.
+Example 11-18 shows the library, fstr.c. It uses GLib to read in the text file and for
+Perl-compatible regular expression parsing. The numbered callouts focus on the steps
+at the head of this section, so you can follow them to trace the use of the refs element
+to implement reference counting.
+Example 11-18. An object representing a substring (fstr.c)
+#include "fstr.h"
+#include "string_utilities.h"
+fstr_s *fstr_new(char const *filename){
+    fstr_s *out = malloc(sizeof(fstr_s));
+    *out = (fstr_s){.start=0, .refs=malloc(sizeof(int))};          
+    out->data = string_from_file(filename);
+    out->end = out->data ? strlen(out->data): 0;
+    *out->refs = 1;
+    return out;
+}
+fstr_s *fstr_copy(fstr_s const *in, size_t start, size_t len){     
+    fstr_s *out = malloc(sizeof(fstr_s));
+    *out=*in;
+    out->start += start;
+    if (in->end > out->start + len)
+        out->end = out->start + len;
+    (*out->refs)++;                                                
+    return out;
+}
+276 | Chapter 11: Object-Oriented Programming in C
+
+
+void fstr_free(fstr_s *in){                                        
+    (*in->refs)--;
+    if (!*in->refs) {
+        free(in->data);
+        free(in->refs);
+    }
+    free(in);
+}
+fstr_list fstr_split (fstr_s const *in, gchar const *start_pattern){
+    if (!in->data) return (fstr_list){ };
+    
+    fstr_s **out=malloc(sizeof(fstr_s*));
+    int outlen = 1;
+    out[0] = fstr_copy(in, 0, in->end); 
+    
+    GRegex *start_regex = g_regex_new (start_pattern, 0, 0, NULL);
+    gint mstart=0, mend=0;
+    fstr_s *remaining = fstr_copy(in, 0, in->end);
+    do {                                                           
+        GMatchInfo *start_info;
+        g_regex_match(start_regex, &remaining->data[remaining->start], 
+                                    0, &start_info);
+        g_match_info_fetch_pos(start_info, 0, &mstart, &mend);
+        g_match_info_free(start_info);
+        if (mend > 0 && mend < remaining->end - remaining->start){ 
+            out = realloc(out, ++outlen * sizeof(fstr_s*));
+            out[outlen-1] = fstr_copy(remaining, mend, remaining->end-mend);
+            out[outlen-2]->end = remaining->start + mstart;
+            remaining->start += mend;
+        } else break;
+    } while (1);
+    
+    fstr_free(remaining);
+    g_regex_unref(start_regex);
+    return (fstr_list){.strings=out, .count=outlen};
+}
+void fstr_list_free(fstr_list in){
+    for (int i=0; i< in.count; i++){
+        fstr_free(in.strings[i]);   
+    }
+    free(in.strings);
+}
+void fstr_show(fstr_s const *fstr){
+    printf("%.*s", (int)fstr->end-fstr->start, &fstr->data[fstr->start]);
+}
+For a new fstr_s, the owner bit is set to one. Otherwise, the lines to this point
+are the boilerplate new object function.
+Count References | 277
+
+
+The copy function copies the fstr_s sent in, and sets the start and end points to
+the substring given (making sure that the endpoint doesn’t go past the endpoint
+of the input fstr_s).
+Here’s where the owner bit gets set.
+Here’s where the owner bit gets used, to determine whether the base data should
+be freed or not.
+This function uses GLib’s Perl-compatible regular expressions to split the input
+string at given markers. As discussed in “Parsing Regular Expressions” on page 322 ,
+regex matchers gives the location of the segment of the string that matches the
+input, and we can then use fstr_copy to pull that segment. Then, start at the end
+of that range and try matching again to get the next chunk.
+Else, no match or out of bounds.
+And finally, an application. To make this work, you’ll need a copy of Moby Dick, or
+the Whale , by Herman Melville. If you don’t have a copy on your drive, try
+Example 11-19 to download one from Project Gutenberg.
+Example 11-19. Use curl to get the Project Gutenberg edition of Moby Dick, then use sed
+to cut the Gutenberg header and footer. You might have to ask your package manger to
+install curl (find.moby)
+if [ ! -e moby ] ; then
+ curl http://www.gutenberg.org/cache/epub/2701/pg2701.txt  \
+     | sed -e '1,/START OF THIS PROJECT GUTENBERG/d'       \
+     | sed -e '/End of Project Gutenberg/,$d'              \
+     > moby
+fi
+Now that you have a copy of the book, Example 11-21 splits it into chapters and uses
+the same splitting function to count the uses of the words whale(s) and I in each
+chapter. Notice that the fstr structs can be used as opaque objects at this point, using
+only the new, copy, free, show, and split functions.
+The program requires GLib, fstr.c, and the string utilities from earlier in the book, so
+the basic makefile is now as in Example 11-20.
+Example 11-20. A sample makefile for the cetology program (cetology.make)
+P=cetology
+CFLAGS=` pkg-config --cflags glib-2.0`  -g -Wall -std=gnu99 -O3
+LDLIBS=` pkg-config --libs glib-2.0`
+objects=fstr.o string_utilities.o
+278 | Chapter 11: Object-Oriented Programming in C
+
+
+$(P): $(objects)
+Example 11-21. An example, in which a book is split into chapters and characteristics of
+each chapter counted (cetology.c)
+#include "fstr.h"
+int main(){
+    fstr_s *fstr = fstr_new("moby");
+    fstr_list chapters = fstr_split(fstr, "\nCHAPTER");
+    for (int i=0; i< chapters.count; i++){
+        fstr_list for_the_title=fstr_split(chapters.strings[i],"\\.");
+        fstr_show(for_the_title.strings[1]);
+        fstr_list me     = fstr_split(chapters.strings[i], "\\WI\\W");
+        fstr_list whales = fstr_split(chapters.strings[i], "whale(s|)");
+        fstr_list words  = fstr_split(chapters.strings[i], "\\W");
+        printf("\nch %i, words: %i.\t Is: %i\twhales: %i\n", i, words.count-1,
+                me.count-1, whales.count-1);
+                
+        fstr_list_free(for_the_title);
+        fstr_list_free(me);
+        fstr_list_free(whales);
+        fstr_list_free(words);
+    }
+    fstr_list_free(chapters);
+    fstr_free(fstr);
+}
+To give you incentive to try the program, I won’t reprint the results in detail. But I
+will give some notes, which generally point to how hard it would be for Mr. Melville
+to publish or even blog the book here in the modern day:
+• Chapter lengths range by an order of magnitude.
+• Whales don’t get discussed all that much until around Chapter 30.
+• The narrator decidedly has a voice. Even in the famed cetology chapter, he uses
+the first person singular 60 times, personalizing what would otherwise be an
+encyclopedia chapter.
+• GLib’s regex parser is a little slower than I’ d hoped it’ d be.
+Example: An Agent-Based Model of Group Formation
+This example is an agent-based model of group membership. Agents are on a two-
+dimensional preference space (because we’ll plot the groups) in the square between
+(-1, -1) and (1, 1). At each round, agents will join the group with the best utility to the
+agent. An agent’s utility from a group is -(distance to group’s mean position +
+Count References | 279
+
+M*number of members). The group’s mean position is the mean of the positions of
+the group’s members (excluding the agent querying the group), and M is a constant
+that scales how much the agents care about being in a large group relative to how
+much they care about the group’s mean position: if M is near zero, then size of group
+is basically irrelevant, and agents care only about proximity; as M goes to infinity,
+position becomes irrelevant, and only group size matters.
+With some random odds, the agent will originate a new group. However, because
+agents are picking a new group every period, the agent may abandon that newly origi‐
+nated group in the next period.
+The problem of reference counting is similar, and the process is roughly similar for
+this case:
+• The type definition includes an integer named counter.
+• The new function sets counter = 1.
+• The copy function sets counter++.
+• The free function queries if(--counter==0), and if yes, then free all shared
+data; or else, just leave everything as is, because we know there are still references
+to the structure.
+Again, as long as your changes to the structure are entirely via its interface functions,
+you don’t have to think about memory allocation when using the object at all.
+The simulation takes almost 125 lines of code, and because I used CWEB to docu‐
+ment it, the code files total almost double that length (where I gave some tips on
+reading and writing CWEB in “Literate Code with CWEB” on page 61). Given the
+literate coding style, this should be very readable; even if you’re in the habit of skip‐
+ping big blocks of code, maybe give it a skim. If you have CWEB on hand, you can
+generate the PDF documentation and try reading it in that format.
+The output from this program is intended to be piped to Gnuplot, a plotting program
+that stands out for being easy to automate. Here is a command-line script that uses a
+here document to pipe the given text to Gnuplot, including a series of data points
+(with an e to mark the end of the series).
+cat << "------" | gnuplot --persist
+set xlabel "Year"
+set ylabel "U.S. Presidential elections"
+set yrange [0:5]
+set key off
+plot '-'  with boxes
+2000, 1
+2001, 0
+2002, 0
+2003, 0
+280 | Chapter 11: Object-Oriented Programming in C
+
+2004, 1
+2005, 0
+e
+------
+Y ou can probably already picture producing commands to Gnuplot programmati‐
+cally, via a printf or two for the plot settings, and a for loop to output the data set.
+Further, sending a series of plots to Gnuplot generates an animation sequence.
+The simulation below produces an animation like this, so you can run the simulation
+via ./groups | gnuplot to display the animation on-screen. It’s hard to print an ani‐
+mation, so you’ll have to run it yourself. Y ou will see that, even though such behavior
+was not programmed into the simulation, new groups cause nearby groups to shift,
+producing an evenly spaced, uniform distribution of group positions. Political scien‐
+tists have often observed similar behavior in the space of political party positions:
+when new parties enter, existing parties adjust their positions accordingly.
+Now for the header. What I call the join and exit functions might more commonly be
+read as the copy and free functions. The group_s structure has a size element, which
+is the number of group members—the reference count. Y ou can see that I use Apo‐
+phenia and GLib. Notably, the groups are held in a linked list, private to the groups.c
+file; maintaining that list will require fully two lines of code, including a call to
+g_list_append and g_list_remove (Example 11-22).
+Example 11-22. The public portion of the group_s object. (groups.h)
+#include <apop.h>
+#include <glib.h>
+typedef struct {
+    gsl_vector *position;
+    int id, size;
+} group_s;
+group_s* group_new(gsl_vector *position);
+group_s* group_join(group_s *joinme, gsl_vector *position);
+void group_exit(group_s *leaveme, gsl_vector *position);
+group_s* group_closest(gsl_vector *position, double mb);
+void print_groups();
+Now for the file defining the details of the group object (shown in Example 11-23).
+Example 11-23. The group_s object. (groups.w)
+@ Here in the introductory material, we include the header and specify
+the global list of groups that the program makes use of. We' ll need
+new/copy/free functions for each group.
+Count References | 281
+
+@c
+#include "groups.h"
+GList *group_list;
+@<new group@>
+@<copy group@>
+@<free group@>
+@ The new group method is boilerplate: we |malloc| some space,
+fill the struct using designated initializers, and append the newly formed
+group to the list.
+@<new group@>=
+group_s *group_new(gsl_vector *position){
+    static int id=0;
+    group_s *out = malloc(sizeof(group_s));
+    *out = (group_s) {.position=apop_vector_copy(position), .id=id++, .size=1};
+    group_list = g_list_append(group_list, out);
+    return out;
+}
+@ When an agent joins a group, the group is ` copied'  to the agent, but
+there isn' t any memory being copied: the group is simply modified to
+accommodate the new person. We have to increment the reference count, which
+is easy enough, and then modify the mean position.  If the mean position
+without the $n$th person is $P_{n-1}$, and the $n$th person is at position
+$p$, then the new mean position with the person, $P_n$ is the weighted sum.
+$$P_n = \left( (n-1)P_{n-1}/n \right) + p/n.$$
+We calculate that for each dimension.
+@<copy group@>=
+group_s *group_join(group_s *joinme, gsl_vector *position){
+   int n = ++joinme->size;  //increment the reference count
+   for (int i=0; i< joinme->position->size; i++){
+       joinme->position->data[i] *= (n-1.)/n;
+       joinme->position->data[i] += position->data[i]/n;
+   }
+   return joinme;
+}
+@ The ` free'  function really only frees the group when the reference count
+is zero. When it isn' t, then we need to run the data-augmenting formula
+for the mean in reverse to remove a person.
+@<free group@>=
+void group_exit(group_s *leaveme, gsl_vector *position){
+   int n = leaveme->size--;  //lower the reference count
+   for (int i=0; i< leaveme->position->size; i++){
+       leaveme->position->data[i] -= position->data[i]/n;
+       leaveme->position->data[i] *= n/(n-1.);
+282 | Chapter 11: Object-Oriented Programming in C
+
+   }
+   if (leaveme->size == 0){ //garbage collect?
+       gsl_vector_free(leaveme->position);
+       group_list= g_list_remove(group_list, leaveme);
+       free(leaveme);
+   }
+}
+@ I played around a lot with different rules for how exactly people
+evaluate the distance to the groups. In the end, I wound up using the $L_3$
+norm. The standard distance is the $L_2$ norm, aka Euclidian distance,
+meaning that the distance between $(x_1, y_1)$ and $(x_2, y_2)$ is
+$\sqrt{(x_1-x_2)^2+(y_1-y_2)^2}$. This is $L_3$,
+$\sqrt[3]{(x_1-x_2)^3+(y_1-y_2)^3}$.
+This and the call to |apop_copy| above are the only calls to the Apophenia
+library; you could write around them if you don' t have that library on hand.
+@<distance@>=
+apop_vector_distance(g->position, position, .metric='L' , .norm=3)
+@ By ` closest' , I mean the group that provides the greatest benefit,
+by having the smallest distance minus weighted size. Given the utility
+function represented by the |dist| line, this is just a simple |for|
+loop to find the smallest distance.
+@c
+group_s *group_closest(gsl_vector *position, double mass_benefit){
+    group_s *fave=NULL;
+    double smallest_dist=GSL_POSINF;
+    for (GList *gl=group_list; gl!= NULL; gl = gl->next){
+        group_s *g = gl->data;
+        double dist= @<distance@> - mass_benefit*g->size;
+        if(dist < smallest_dist){
+            smallest_dist = dist;
+            fave = g;
+        }
+    }
+    return fave;
+}
+@ Gnuplot is automation-friendly. Here we get an animated simulation with
+four lines of plotting code. The header |plot '-' | tells the system to plot
+the data to follow, then we print the $(X, Y)$ positions, one to a line. The
+final |e| indicates the end of the data set. The main program will set some
+initial Gnuplot settings.
+@c
+void print_groups(){
+    printf("plot '-' with points pointtype 6 \n");
+    for (GList *gl=group_list; gl!= NULL; gl = gl->next)
+        apop_vector_print(((group_s*)gl->data)->position);
+Count References | 283
+
+    printf("e\n");
+}
+Now that we have a group object and interface functions to add, join, and leave
+groups, the main program can focus on the simulation procedure: defining the array
+of persons followed by the main loop of rechecking memberships and printing out
+(Example 11-24).
+Example 11-24. The agent-based model, making use of the group_s object
+(groupabm.w)
+@* Initializations.
+@ This is the part of the agent-based model with the handlers for the
+|people| structures and the procedure itself.
+At this point all interface with the groups happens via the
+new/join/exit/print functions from |groups.cweb.c|. Thus, there is zero
+memory management code in this file--the reference counting guarantees us
+that when the last member exits a group, the group will be freed.
+@c
+#include "groups.h"
+int pop=2000,
+    periods=200,
+    dimension=2;
+@ In |main|, we' ll initialize a few constants that we can' t have as static
+variables because they require math.
+@<set up more constants@>=
+    double  new_group_odds = 1./pop,
+            mass_benefit = .7/pop;
+    gsl_rng *r = apop_rng_alloc(1234);
+@* The |person_s| structure.
+@ The people in this simulation are pretty boring: they do not die, and do
+not move. So the struct that represents them is simple, with just |position|
+and a pointer to the group of which the agent is currently a member.
+@c
+typedef struct {
+    gsl_vector *position;
+    group_s *group;
+} person_s;
+@ The setup routine is also boring, and consists of allocating a uniform 
+random vector in two dimensions.
+284 | Chapter 11: Object-Oriented Programming in C
+
+@c
+person_s person_setup(gsl_rng *r){
+    gsl_vector *posn = gsl_vector_alloc(dimension);
+    for (int i=0; i< dimension; i++)
+        gsl_vector_set(posn, i, 2*gsl_rng_uniform(r)-1);
+    return (person_s){.position=posn};
+}
+@* Group membership.
+@ At the outset of this function, the person leaves its group.
+Then, the decision is only whether to form a new group or join an existing one.
+@c
+void check_membership(person_s *p, gsl_rng *r,
+                        double mass_benefit, double new_group_odds){
+    group_exit(p->group, p->position);
+    p->group = (gsl_rng_uniform(r) < new_group_odds)
+             ? @<form a new group@>
+             : @<join the closest group@>;
+}
+@
+@<form a new group@>=
+group_new(p->position)
+@
+@<join the closest group@>=
+group_join(group_closest(p->position, mass_benefit), p->position)
+@* Setting up.
+@ The initialization of the population. Using CWEB' s macros, it is at this point
+self-documenting.
+@c
+void init(person_s *people, int pop, gsl_rng *r){
+    @<position everybody@>
+    @<start with ten groups@>
+    @<everybody joins a group@>
+}
+@
+@<position everybody@>=
+    for (int i=0; i< pop; i++)
+        people[i] = person_setup(r);
+@ The first ten people in our list form new groups, but because everybody' s
+position is random, this is assigning the ten groups at random.
+@<start with ten groups@>=
+    for (int i=0; i< 10; i++)
+Count References | 285
+
+        people[i].group = group_new(people[i].position);
+@
+@<everybody joins a group@>=
+    for (int i=10; i< pop; i++)
+        people[i].group = group_join(people[i%10].group, people[i].position);
+@* Plotting with Gnuplot.
+@ This is the header for Gnuplot. I arrived at it by playing around on 
+Gnuplot' s command line, then writing down my final picks for settings here.
+@<print the Gnuplot header@>=
+printf("unset key;set xrange [-1:1]\nset yrange [-1:1]\n");
+@ Gnuplot animation simply consists of sending a sequence of plot statements.
+@<plot one animation frame@>=
+print_groups();
+@* |main|.
+@ The |main| routine consists of a few setup steps, and a simple loop:
+calculate a new state, then plot it.
+@c
+int main(){
+    @<set up more constants@>
+    person_s people[pop];
+    init(people, pop, r);
+    @<print the Gnuplot header@>
+    for (int t=0; t< periods; t++){
+        for (int i=0; i< pop; i++)
+            check_membership(&people[i], r, mass_benefit, new_group_odds);
+        @<plot one animation frame@>
+    }
+}
+Conclusion
+This section gave several examples of the basic form of an object: a struct with accom‐
+panying new/copy/free elements. I gave so many examples because over the decades it
+has proven to be an excellent method for organizing code in thousands of libraries.
+Those parts that weren’t giving examples of the basic struct/new/copy/free form
+demonstrated various ways of extending existing setups. In terms of extending the
+struct itself, you saw how to extend a struct by anonymous inclusion in a wrapper
+struct.
+With regard to the associated functions, you saw several methods of having one func‐
+tion call take a different action with different struct instances. By including functions
+286 | Chapter 11: Object-Oriented Programming in C
+
+inside a struct, you can create dispatch functions that use the struct contained in the
+object. With vtables, these dispatch functions can be extended even after the struct is
+written and shipped out. Y ou saw the _Generic keyword, which will select the func‐
+tion to call based on the type of a controlling expression.
+Whether these make your code more readable and improve the user interface is up to
+you. But these additional forms are especially useful for making other people’s  code
+more readable. Y ou may have a library written perhaps decades ago, and needs that
+are different from the needs of the original authors. The methods in this chapter
+become very relevant: you can extend their structs and add new possibilities to their
+functions.
+Count References | 287

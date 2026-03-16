@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "个人学习笔记与读书翻译"
 requires-python = ">=3.11"
 dependencies = [
+    "pdfminer-six>=20251230",
     "pdfplumber>=0.11.9",
     "pypdf>=6.8.0",
 ]

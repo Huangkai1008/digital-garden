@@ -1,0 +1,745 @@
+CHAPTER 9
+Easier Text Handling
+I believe that in the end the word will break cement.
+—Pussy Riot, paraphrasing Aleksandr Solzhenitsyn in a
+statement on August 8, 2012
+A string of letters is an array of indeterminate length, and automatically allocated
+arrays (allocated on the stack) can’t be resized, and that in a nutshell is the problem
+with text in C. Fortunately, many others before us have already faced this problem
+and produced at least partial solutions. A handful of C-standard and POSIX-standard
+functions are sufficient to handle many of our string-building needs.
+Also, C was designed in the 1970s, before the invention of non-English languages.
+Again, with the right functions (and the right understanding of how language is
+encoded), C’s original focus on English is not a real problem.
+Making String Handling Less Painful with asprintf
+The asprintf function allocates the amount of string space you will need, and then
+fills the string. That means you never really have to worry about string-allocating
+again.
+asprintf is not part of the C standard, but it’s available on systems with the GNU
+or BSD standard library, which covers a big range of users. Further, the GNU Libib‐
+erty library provides a version of asprintf that you can either cut and paste into your
+own code base or call from the library with a -liberty flag for the linker. Libiberty
+ships with some systems with no native asprintf, like MSYS for Windows. And if
+cutting and pasting from libiberty is not an option, I’ll present a quick reimple‐
+mentation using the standard vsnprintf function.
+185
+
+The old way made people homicidal (or suicidal, depending on temperament),
+because they first had to get the length of the string they were about to fill, allocate
+space, and then actually write to the space. Don’t forget the extra slot for the null ter‐
+minator!
+Example 9-1 demonstrates the painful way of setting up a string, for the purpose of
+using C’s system command to run an external utility. The thematically appropriate
+utility, strings, searches a binary for printable plain text. The get_strings function
+will receive argv[0], the name of the program itself, so the program searches itself for
+strings. This is perhaps amusing, which is all we can ask of demo code.
+Example 9-1. The tedious way of setting up strings (sadstrings.c)
+#include <stdio.h>
+#include <string.h> //strlen
+#include <stdlib.h> //malloc, free, system
+void get_strings(char const *in){
+    char *cmd;
+    int len = strlen("strings ") + strlen(in) + 1;   
+    cmd = malloc(len);                               
+    snprintf(cmd, len, "strings %s", in);
+    if (system(cmd)) fprintf(stderr, "something went wrong running %s.\n", cmd);
+    free(cmd);
+}
+int main(int argc, char **argv){
+    get_strings(argv[0]);
+}
+Premeasuring lengths is such a waste of time.
+The C standard says sizeof(char)==1, so we at least don’t need malloc(
+len*sizeof(char)).
+Example 9-2 uses asprintf, so malloc gets called for you, which means that you also
+don’t need the step where you measure the length of the string.
+Example 9-2. This version cuts only two lines from Example 9-1, but they’re the most
+misery-inducing lines (getstrings.c)
+#define _GNU_SOURCE //cause stdio.h to include asprintf
+#include <stdio.h>
+#include <stdlib.h> //free
+void get_strings(char const *in){
+    char *cmd;
+    asprintf(&cmd, "strings %s", in);
+186 | Chapter 9: Easier Text Handling
+
+
+    if (system(cmd)) fprintf(stderr, "something went wrong running %s.\n", cmd); 
+    free(cmd);
+}
+int main(int argc, char **argv){
+    get_strings(argv[0]);
+}
+The actual call to asprintf looks a lot like the call to sprintf, except you need to
+send the location of the string, not the string itself, because new space will be mal
+loced and the location written into the char ** you input.
+Say that, for whatever reason, the GNU asprintf isn’t available for your use. Count‐
+ing the length that a printf statement and its arguments will eventually expand to is
+error-prone, so how can we get the computer to do it for us? The answer has been
+staring at us all along, in C99 §7.19.6.12(3) and C11 §7.21.6.12(3): “The vsnprintf
+function returns the number of characters that would have been written had n been
+sufficiently large, not counting the terminating null character, or a negative value if an
+encoding error occurred. ” The snprintf function also returns a would-have-been
+value.
+So if we do a test run with vsnprintf on a 1-byte string, we can get a return value
+with the length that the string should be. Then we can allocate the string to that
+length and run vsnprintf for real. We’re running the function twice, so it may take
+twice as long to work, but it’s worth it for the safety and convenience.
+Example 9-3 presents an implementation of asprintf via this procedure of running
+vsnprintf twice. I wrapped it in a HAVE_ASPRINTF check to be Autoconf-friendly; see
+below.
+Example 9-3. An alternative implementation of asprintf (asprintf.c)
+#ifndef HAVE_ASPRINTF
+#define HAVE_ASPRINTF
+#include <stdio.h>  //vsnprintf
+#include <stdlib.h> //malloc
+#include <stdarg.h> //va_start et al
+/* The declaration, to put into a .h file. The __attribute___ tells the compiler to check printf-style
+support it; just remove it if yours doesn't. */
+int asprintf(char **str, char* fmt, ...) __attribute__ ((format (printf,2,3)));
+int asprintf(char **str, char* fmt, ...){
+    va_list argp; 
+    va_start(argp, fmt);
+    char one_char[1];
+Making String Handling Less Painful with asprintf | 187
+
+    int len = vsnprintf(one_char, 1, fmt, argp);
+    if (len < 1){
+        fprintf(stderr, "An encoding error occurred. Setting the input pointer to NULL.\n");
+        *str = NULL;
+        return len;
+    }
+    va_end(argp);
+    *str = malloc(len+1);
+    if (!str) {
+        fprintf(stderr, "Couldn't allocate %i bytes. \n", len+1);
+        return -1;
+    }
+    va_start(argp, fmt);
+    vsnprintf(*str, len+1, fmt, argp);
+    va_end(argp);
+    return len;
+}
+#endif
+#ifdef Test_asprintf
+int main(){
+    char *s;
+    asprintf(&s, "hello, %s.", "—Reader—" );
+    printf("%s\n", s);
+    asprintf(&s, "%c", '\0' );
+    printf("blank string: [%s]\n", s);
+    int i = 0;
+    asprintf(&s, "%i", i++);
+    printf("Zero: %s\n", s);
+}
+#endif
+Security
+  If you have a string of predetermined length, str, and write data of unknown length
+to it using sprintf, then you might find that data gets written to whatever is adjacent
+to str—a classic security breach. Thus, sprintf is effectively deprecated in favor of
+snprintf, which limits the amount of data written.
+Using asprintf effectively prevents this problem, because as much memory as is
+needed will get written. It’s not perfect: eventually, whatever mangled and improper
+input string will hit a \0 somewhere, but the amount of data could conceivably
+exceed the amount of free memory, or the additional data written to str might be
+sensitive information like a password.
+188 | Chapter 9: Easier Text Handling
+
+If memory is exceeded, then asprintf will return -1, so in a situation involving user
+inputs, the careful author would use something like the Stopif macro (which I intro‐
+duce in “Variadic Macros” on page 208 ) with a form like:
+Stopif(asprintf(&str, "%s", user_input)==-1, return -1, "asprintf failed.")
+But if you got as far as sending an unchecked string to asprintf, you’ve already lost.
+Check that strings from untrusted inputs are of a sane length beforehand. The func‐
+tion might also fail on a string of reasonable length because the computer is out of
+memory or is being eaten by gremlins.
+C11 (Appendix K) also offers all the usual formatted printing functions with an _s
+attached: printf_s, snprintf_s, fprintf_s, and so on. They are intended to be more
+secure than the no- _s versions. Input strings may not be NULL, and if an attempt is
+made to write more than RINT_MAX bytes to a string, (where RINT_MAX is intended to
+be half the maximum capacity of a size_t) the function fails with a “runtime con‐
+straint violation. ” However, support for these functions in the standard C libraries is
+still spotty.
+Constant Strings
+Here is a program that sets up two strings and prints them to the screen:
+#include <stdio.h>
+int main(){
+    char *s1 = "Thread";
+    char *s2;
+    asprintf(&s2, "Floss");
+    printf("%s\n", s1);
+    printf("%s\n", s2);
+}
+Both forms will leave a single word in the given string. However, the C compiler
+treats them in a very different manner, which can trip up the unaware.
+Did you try the earlier sample code that showed what strings are embedded into the
+program binary? In the example here, Thread would be such an embedded string,
+and s1 could thus point to a location in the executable program itself. How efficient—
+you don’t need to spend runtime having the system count characters or waste mem‐
+ory repeating information already in the binary. I suppose in the 1970s, this mattered.
+Both the baked-in s1 and the allocated-on-demand s2 behave identically for reading
+purposes, but you can’t modify or free s1. Here are some lines you could add to the
+example, and their effects:
+Making String Handling Less Painful with asprintf | 189
+
+s2[0]='f' ; //Switch Floss to lowercase.
+s1[0]='t' ; //Segfault.
+free(s2); //Clean up.
+free(s1); //Segfault.
+Y our system may point directly to the string embedded in the executable, or it may
+copy the string to a read-only data segment; in fact, C99 §6.4.5(6) and C11 §6.4.5(7)
+say the method of storing constant strings is unspecified, and what happens if they
+are modified is undefined. Because that undefined behavior could be and often is a
+segfault, that means we should take s1’s contents as read-only.
+The difference between constant and variable strings is subtle and error-prone, and it
+makes hardcoded strings useful only in limited contexts. I can’t think of a scripting
+language where you would need to care about this distinction.
+But here is one simple solution: strdup, which is POSIX-standard, and is short for
+string duplicate. It works like this:
+char *s3 = strdup("Thread");
+The string Thread is still hardcoded into the program, but s3 is a copy of that con‐
+stant blob, and so can be freely modified as you wish. With liberal use of strdup, you
+can treat all strings equally, without worrying about which are constant and which are
+pointers.
+If you are unable to use the POSIX standard and are worried that you don’t have a
+copy of strdup on your machine, it’s easy enough to write a version for yourself. For
+example, we can once again use asprintf:
+#ifndef HAVE_STRDUP
+char *strdup(char const* in){
+    if (!in) return NULL;
+    char *out;
+    asprintf(&out, "%s", in);
+    return out;
+}
+#endif
+And where does that HAVE_STRDUP macro come from? If you are using Autotools,
+then putting this line:
+AC_CHECK_FUNCS([asprintf strdup])
+into configure.ac would produce a segment in the configure script that generates a
+configure.h with HAVE_STRDUP and HAVE_ASPRINTF defined or not defined as
+appropriate.
+190 | Chapter 9: Easier Text Handling
+
+Extending Strings with asprintf
+Here is an example of the basic form for appending another bit of text to a string
+using asprintf:
+asprintf(&q, "%s and another clause %s", q, addme);
+I use this for generating database queries. I would put together a chain, such as this
+contrived example:
+int col_number=3, person_number=27;
+char *q =strdup("select ");
+asprintf(&q, "%scol%i \n", q, col_number);
+asprintf(&q, "%sfrom tab \n", q);
+asprintf(&q, "%swhere person_id = %i", q, person_number);
+And in the end I have:
+select col3
+from tab
+where person_id = 27
+This is a rather nice way of putting together a long and painful string, which becomes
+essential as the subclauses get convoluted.
+But it’s a memory leak, because the blob at the original address of q isn’t released
+when q is given a new location by asprintf. For one-off string generation, it’s not
+even worth caring about—you can drop a few million query-length strings on the
+floor before anything noticeable happens.
+If you are in a situation where you might produce an unknown number of strings of
+unknown length, then you will need a form like that in Example 9-4.
+Example 9-4. A macro to cleanly extend strings (sasprintf.c)
+#include <stdio.h>  
+#include <stdlib.h> //free
+//Safer asprintf macro
+#define Sasprintf(write_to,  ...) {           \
+    char *tmp_string_for_extend = (write_to); \
+    asprintf(&(write_to), __VA_ARGS__);       \
+    free(tmp_string_for_extend);              \
+}
+//sample usage:
+int main(){
+    int i=3;
+    char *q = NULL;
+    Sasprintf(q, "select * from tab");
+    Sasprintf(q, "%s where col%i is not null", q, i);
+Making String Handling Less Painful with asprintf | 191
+
+    printf("%s\n", q);
+}
+The Sasprintf macro, plus occasional use of strdup, may be enough for all of your
+string-handling needs. Except for one glitch and the occasional free, you don’t have
+to think about memory issues at all.
+The glitch is that if you forget to initialize q to NULL or via strdup, then the first use of
+the Sasprintf macro will be freeing whatever junk happened to be in the uninitial‐
+ized location q—a segfault.
+For example, the following fails—wrap that declaration in strdup to make it work:
+char *q = "select * from";  //fails—needs strdup().
+Sasprintf(q, "%s %s where col%i is not null", q, tablename, i);
+In extensive usage, this sort of string concatenation can theoretically cause slow‐
+downs, as the first part of the string gets rewritten over and over. In this case, you can
+use C as a prototyping language for C: if and only if the technique here proves to be
+too slow, take the time to replace it with more traditional snprintfs.
+A Pæan to strtok
+   Tokenizing is the simplest and most common parsing problem, in which we split a
+string into parts at delimiters. This definition covers all sorts of tasks:
+• Splitting words at whitespace delimiters such as one of " \t\n\r"
+• Given a path such as "/usr/include:/usr/local/include:.", cutting it at the
+colons into the individual directories
+• Splitting a string into lines using a simple newline delimiter, "\n"
+• Y ou might have a configuration file with lines of the form value = key, in which
+case your delimiter is "="
+• Comma-delimited values in a datafile are of course cut at the comma
+Two levels of splitting will get you still further, such as reading a full configuration file
+by first splitting at newlines, then splitting each line at the =.
+If your needs are more complex than splitting at single-character
+delimiters, you may need regular expressions. See “Parsing Regular
+Expressions” on page 322  for a discussion of the POSIX-standard reg‐
+ular expression parsers and how they can pull subsections of
+strings for you.
+192 | Chapter 9: Easier Text Handling
+
+Tokenizing comes up often enough that there’s a standard C library function to do it,
+strtok (string tokenize), which is one of those neat little functions that does its job
+quietly and well.
+The basic working of strtok is to step through the string you input until it hits the
+first delimiter, then overwrite the delimiter with a '\0' . Now the first part of the
+input string is a valid string representing the first token, and strtok returns a pointer
+to the head of that substring for your use. The function holds the original string’s
+information internally, so when you call strtok again, it can search for the end of the
+next token, nullify that end, and return the head of that token as a valid string.
+The head of each substring is a pointer to a spot within an already-allocated string, so
+the tokenizing does a minimum of data writing (just those \0s) and no copying. The
+immediate implication is that the string you input is mangled, and because substrings
+are pointers to the original string, you can’t free the input string until you are done
+using the substrings (or, you can use strdup to copy out the substrings as they come
+out).
+The strtok function holds the rest of the string you first input in a single static inter‐
+nal pointer, meaning that it is limited to tokenizing one string (with one set of delim‐
+iters) at a time, and it can’t be used while threading. Therefore, consider strtok to be
+deprecated.
+Instead, use strtok_r or strtok_s, which are threading-friendly versions of strtok.
+The POSIX standard provides strtok_r, and the C11 standard provides strtok_s.
+The use of either is a little awkward, because the first call is different from the subse‐
+quent calls.
+• The first time you call the function, send in the string to be parsed as the first
+argument.
+• On subsequent calls, send in NULL as the first argument.
+• The last argument is the scratch string. Y ou don’t have to initialize it on first use;
+on subsequent uses it will hold the string as parsed so far.
+Here’s a line counter for you (actually, a counter of nonblank lines; see warning later
+on). Tokenizing is often a one-liner in scripting languages, but this is about as brief as
+it gets with strtok_r. Notice the if ? then : else to send in the original string only
+on the first use.
+#include <string.h> //strtok_r
+int count_lines(char *instring){
+    int counter = 0;
+    char *scratch, *txt, *delimiter = "\n";
+    while ((txt = strtok_r(!counter ? instring : NULL, delimiter, &scratch)))
+A Pæan to strtok | 193
+
+        counter++;
+    return counter;
+}
+The Unicode section will give a full example, as will the Cetology example of “Count
+References” on page 274 .
+The C11-standard strtok_s works just like strtok_r, but has an extra argument (the
+second) which gives the length of the input string, and is updated to shrink to the
+length of the remaining string on each call. If the input string is not \0-delimited, this
+extra element would be useful. We could redo the earlier example with:
+#include <string.h> //strtok_s
+//first use
+size_t len = strlen(instring);
+txt = strtok_s(instring, &len, delimiter, &scratch);
+//subsequent use:
+txt = strtok_s(NULL, &len, delimiter, &scratch);
+Two or more delimiters in a row are treated as a single delimiter,
+meaning that blank tokens are simply ignored. For example, if your
+delimiter is ":" and you are asking strtok_r or strtok_s to break
+down /bin:/usr/bin::/opt/bin, then you will get the three direc‐
+tories in sequence—the :: is treated like a :. This is also why the
+preceding line counter is actually a nonblank line counter, as the
+double newline in a string like one \n\n three \n four  (indicat‐
+ing that line two is blank) would be treated by strtok and its var‐
+iants as a single newline.
+Ignoring double delimiters is often what you want (as in the path
+example), but sometimes it isn’t, in which case you’ll need to think
+about how to detect double delimiters. If the string to be split was
+written by you, then be sure to generate the string with a marker
+for intentionally blank tokens. Writing a function to precheck
+strings for doubled delimiters is not too difficult (or try the BSD/
+GNU-standard strsep). For inputs from users, you can add stern
+warnings about not allowing delimiters to double up, and warn
+them of what to expect, like how the line-counter here ignores
+blank lines.
+Example 9-6 presents a small library of string utilities that might be useful to you,
+including some of the macros from earlier in this book.
+There are two key functions: string_from_file reads a complete file into a string.
+This saves us all the hassle of trying to read and process smaller chunks of a file. If
+you routinely deal with text files larger than a few gigabytes, you won’t be able to rely
+194 | Chapter 9: Easier Text Handling
+
+on this, but for situations in which text files never make it past a few megabytes,
+there’s no point screwing around with incrementally reading a text file one chunk at a
+time. I’ll use this function for several examples over the course of the book.
+The second key function is ok_array_new, which tokenizes a string and writes the
+output to a struct, an ok_array.
+Example 9-5 is the header.
+Example 9-5. A header for a small set of string utilities (string_utilities.h)
+#include <string.h>
+#define _GNU_SOURCE //asks stdio.h to include asprintf
+#include <stdio.h>
+//Safe asprintf macro
+#define Sasprintf(write_to,  ...) {          \                   
+    char *tmp_string_for_extend = write_to;  \
+    asprintf(&(write_to), __VA_ARGS__);      \
+    free(tmp_string_for_extend);             \
+}
+char *string_from_file(char const *filename);
+typedef struct ok_array {
+    char **elements;
+    char *base_string;
+    int length;
+} ok_array;                                                      
+ok_array *ok_array_new(char *instring, char const *delimiters);  
+void ok_array_free(ok_array *ok_in);
+This is the Sasprintf macro from earlier, reprinted for your convenience.
+This is an array of tokens, which you get when you call ok_array_new to tokenize
+a string.
+This is the wrapper to strtok_r that will produce the ok_array.
+Example 9-6  does the work of having GLib read a file into a string and using
+strtok_r to turn a single string into an array of strings. Y ou’ll see some examples of
+usage in Example 9-7, Example 12-2, and Example 12-3.
+Example 9-6. Some useful string utilities (string_utilities.c)
+#include <glib.h>
+#include <string.h>
+A Pæan to strtok | 195
+
+
+#include "string_utilities.h"
+#include <stdio.h>
+#include <assert.h>
+#include <stdlib.h> //abort
+char *string_from_file(char const *filename){
+    char *out;
+    GError *e = NULL;
+    GIOChannel *f = g_io_channel_new_file(filename, "r", &e);       
+    if (!f) {
+        fprintf(stderr, "failed to open file '%s'. \n", filename);
+        return NULL;
+    }
+    if (g_io_channel_read_to_end(f, &out, NULL, &e) != G_IO_STATUS_NORMAL){
+        fprintf(stderr, "found file '%s' but couldn't read it. \n", filename);
+        return NULL;
+    }
+    return out;
+}
+ok_array *ok_array_new(char *instring, char const *delimiters){     
+    ok_array *out= malloc(sizeof(ok_array));
+    *out = (ok_array){.base_string=instring};
+    char *scratch = NULL;
+    char *txt = strtok_r(instring, delimiters, &scratch);
+    if (!txt) return NULL;
+    while (txt) {
+        out->elements = realloc(out->elements, sizeof(char*)*++(out->length));
+        out->elements[out->length-1] = txt;
+        txt = strtok_r(NULL, delimiters, &scratch);
+    }
+    return out;
+}
+/* Frees the original string, because strtok_r mangled it, so it
+   isn't useful for any other purpose. */
+void ok_array_free(ok_array *ok_in){
+    if (ok_in == NULL) return;
+    free(ok_in->base_string);
+    free(ok_in->elements);
+    free(ok_in);
+}
+#ifdef test_ok_array
+int main (){                                                        
+    char *delimiters = " `~!@#$%^&*()_-+={[]}| \\;:\",<>./?\n";
+    ok_array *o = ok_array_new(strdup("Hello, reader. This is text."), delimiters);
+    assert(o->length==5);
+    assert(!strcmp(o->elements[1], "reader"));
+    assert(!strcmp(o->elements[4], "text"));
+    ok_array_free(o);
+    printf("OK.\n");
+196 | Chapter 9: Easier Text Handling
+
+1 The range from 0000 to FFFF is the basic multilingual plane (BMP), and includes most but not all of the char‐
+acters used in modern languages. Later code points (conceivably from 10000 to 10FFFF) are in the supplemen‐
+tary planes, including mathematical symbols (like the symbol for the real numbers, ℝ) and a unified set of
+CJK ideographs. If you are one of the ten million Chinese Miao, or one of the hundreds of thousands of
+Indian Sora Sompeng or Chakma speakers, your language is here. Y es, the great majority of text can be
+expressed with the BMP , but rest assured that if you assume that all text is in the Unicode range below FFFF ,
+then you will be wrong on a regular basis.
+}
+#endif
+Although it doesn’t work in all situations, I’ve grown enamored of just reading an
+entire text file into memory at once, which is a fine example of eliminating pro‐
+grammer annoyances by throwing hardware at the problem. If we expect files to
+be too big for memory, we could use mmap (q.v.) to the same effect.
+This is the wrapper to strtok_r. If you’ve read to this point, you are familiar with
+the while loop that is all but obligatory in its use, and the function here records
+the results from it into an ok_array struct.
+If test_ok_array is not set, then this is a library for use elsewhere. If it is set
+(CFLAGS=-Dtest_ok_array), then it is a program that tests that ok_array_new
+works, by splitting the sample string at nonalphanumeric characters.
+Unicode
+Back when all the computing action was in the United States, ASCII (American Stan‐
+dard Code for Information Interchange) defined a numeric code for all of the usual
+letters and symbols printed on a standard US QWERTY keyboard, which I will refer
+to as the naïve English character set. A C char is 8 bits (binary digits) = 1 byte = 256
+possible values. ASCII defined 128 characters, so it fit into a single char with even a
+bit to spare. That is, the eighth bit of every ASCII character will be zero, which will
+turn out to be serendipitously useful later.
+Unicode follows the same basic premise, assigning a hexadecimal numeric value, typ‐
+ically between 0000 and FFFF , to every glyph used for human communication. 1 By
+custom, these code points are written in the form U+0000. The work is much more
+ambitious and challenging, because it requires cataloging all the usual Western letters,
+tens of thousands of Chinese and Japanese characters, all the requisite glyphs for
+Ugaritic, Deseret, and so on, throughout the world and throughout human history.
+The next question is how it is to be encoded, and at this point, things start to fall
+apart. The primary question is how many bytes to set as the unit of analysis. UTF-32
+(UTF stands for UCS Transformation Format; UCS stands for Universal Character
+Unicode | 197
+
+
+2 See Web Technology Surveys
+Set) specifies 32 bits = 4 bytes as the basic unit, which means that every character can
+be encoded in a single unit, at the cost of a voluminous amount of empty padding,
+given that naïve English can be written with only 7 bits. UTF-16 uses 2 bytes as the
+basic unit, which handles most characters comfortably with a single unit but requires
+that some characters be written down using two. UTF-8 uses 1 byte as its unit, mean‐
+ing still more code points written down via multiunit amalgams.
+I like to think about the UTF encodings as a sort of trivial encryption. For every code
+point, there is a single byte sequence in UTF-8, a single byte sequence in UTF-16, and
+a single byte sequence in UTF-32, none of which are necessarily related. Barring an
+exception discussed below, there is no reason to expect that the code point and any of
+the encrypted values are numerically the same, or even related in an obvious way, but
+I know that a properly programmed decoder can easily and unambiguously translate
+among the UTF encodings and the correct Unicode code point.
+What do the machines of the world choose? On the Web, there is a clear winner: as of
+this writing over 81% of websites use UTF-8. 2 Also, Mac and Linux boxes default to
+using UTF-8 for everything, so you have good odds that an unmarked text file on a
+Mac or Linux box is in UTF-8.
+About 10% of the world’s websites still aren’t using Unicode at all, but are using a rela‐
+tively archaic format, ISO/IEC 8859 (which has code pages, with names like Latin-1).
+And Windows, the free-thinking flipping-off-the-POSIX-man operating system, uses
+UTF-16.
+Displaying Unicode is up to your host operating system, and it already has a lot of
+work to do. For example, when printing the naïve English set, each character gets one
+spot on the line of text, but the Hebrew בּ = b, for instance, can be written as a combi‐
+nation of בU+05D1) and ּU+05BC). Vowels are added to the consonant to further
+build the character: בָּ = ba (U+05D1 and U+05BC and U+05B8). And how many
+bytes it takes to express these three code points in UTF-8 (in this case, six) is another
+unrelated layer. Now, when we talk about string length, we could mean number of
+code points, width on the screen, or the number of bytes required to express the
+string.
+So, as the author of a program that needs to communicate with humans who speak all
+kinds of languages, what are your responsibilities? Y ou need to:
+• Work out what encoding the host system is using, so that you aren’t fooled into
+using the wrong encoding to read inputs and can send back outputs that the host
+can correctly decode
+• Successfully store text somewhere, unmangled
+198 | Chapter 9: Easier Text Handling
+
+3 There may once have been ASCII-oriented machines where compilers used 7-bit chars, but C99 and C11
+§5.2.4.2.1(1) define CHAR_BIT to be 8 or more; see also §6.2.6.1(4), which defines a byte as CHAR_BIT bits.
+• Recognize that one character is not a fixed number of bytes, so any base-plus-
+offset code you write (given a Unicode string us, things like us++) may give you
+fragments of a code point
+• Have on hand utilities to do any sort of comprehension of text: toupper and tol
+ower work only for naïve English, so we will need replacements
+Meeting these responsibilities will require picking the right internal encoding to pre‐
+vent mangling, and having on hand a good library to help us when we need to
+decode.
+The Encoding for C Code
+The choice of internal coding is especially easy. UTF-8 was designed for you, the C
+programmer.
+• The UTF-8 unit is 8 bits: a char.3 It is entirely valid to write a UTF-8 string to a
+char * string, as with naïve English text.
+• The first 128 Unicode code points exactly match ASCII. For example, A is 41
+(hexadecimal) in ASCII and is Unicode code point U+0041. Therefore, if your
+Unicode text happens to consist entirely of naïve English, then you can use the
+usual ASCII-oriented utilities on them, or UTF-8 utilities. If the eighth bit of a
+char is 0, then the char represents an ASCII character; if it is 1, then that char is
+one chunk of a multibyte character. Thus, no part of a UTF-8 non-ASCII Uni‐
+code character will ever match an ASCII character.
+• U+0000 is a valid code point, which we C authors like to write as '\0' . Because
+\0 is the ASCII zero as well, this rule is a special case of the last one. This is
+important because a UTF-8 string with one \0 at the end is exactly what we need
+for a valid C char * string. Recall how the unit for UTF-16 and UTF-32 is several
+bytes long, and for naïve English, there will be padding for most of the unit; that
+means that the first 8 bits have very good odds of being entirely zero, which
+means that dumping UTF-16 or UTF-32 text to a char * variable is likely to give
+you a string littered with null bytes.
+So we C coders have been well taken care of: UTF-8 encoded text can be stored and
+copied with the char * string type we have been using all along. Now that one char‐
+acter may be several bytes long, be careful not to change the order of any of the bytes
+and to never split a multibyte character. If you aren’t doing these things, you’re as OK
+Unicode | 199
+
+as you would be if the string were naïve English. Therefore, here is a partial list of
+standard library functions that are UTF-8 safe:
+• strdup and strndup
+• strcat and strncat
+• strcpy and strncpy
+• The POSIX basename and dirname
+• strcmp and strncmp, but only if you use them as zero/nonzero functions to
+determine whether two strings are equal. If you want to meaningfully sort, you
+will need a collation function; see the next section.
+• strstr
+• printf and family, including sprintf, where %s is still the marker to use for a
+string
+• strtok_r, strtok_s and strsep, provided that you are splitting at an ASCII
+character like one of " \t\n\r:|;,"
+• strlen and strnlen, but recognize that you will get the number of bytes, which
+is not the number of Unicode code points or width on the screen. For these you’ll
+need a new library function, as discussed in the next section.
+These are pure byte-slinging functions, but most of what we want to do with text
+requires decoding it, which brings us to the libraries.
+Unicode Libraries
+Our first order of business is to convert from whatever the rest of the world dumped
+on us to UTF-8 so that we can use the data internally. That is, you’ll need gatekeeper
+functions that encode incoming strings to UTF-8, and decode outgoing strings from
+UTF-8 to whatever the recipient wants on the other end, leaving you safe to do all
+internal work in one sensible encoding.
+This is how Libxml (which we’ll meet in “libxml and cURL ” on page 335 ) works: a well-
+formed XML document states its encoding at the header (and the library has a set of
+rules for guessing if the encoding declaration is missing), so Libxml knows what
+translation to do. Libxml parses the document into an internal format, and then you
+can query and edit that internal format. Barring errors, you are guaranteed that the
+internal format will be UTF-8, because Libxml doesn’t want to deal with alternate
+encodings either.
+If you have to do your own translations at the door, then you have the POSIX-
+standard iconv function. This is going to be an unbelievably complicated function,
+200 | Chapter 9: Easier Text Handling
+
+given that there are so many encodings to deal with. The GNU provides a portable
+libiconv in case your computer doesn’t have the function on hand.
+The POSIX standard also specifies that there be a command-line
+iconv program, a shell-friendly wrapper to the C function.
+GLib provides a few wrappers to iconv, and the ones you’re going to care about are
+g_locale_to_utf8 and g_locale_from_utf8. And while you’re in the GLib manual,
+you’ll see a long section on Unicode manipulation tools. Y ou’ll see that there are two
+types: those that act on UTF-8 and those that act on UTF-32 (which GLib stores via a
+gunichar).
+Recall that 8 bytes is not nearly enough to express all characters in one unit, so a sin‐
+gle character is between one and six units long. Thus, UTF-8 counts as a multibyte
+encoding, and therefore, the problems you’ll have are getting the true length of the
+string (using a character-count or screen-width definition of length), getting the next
+full character, getting a substring, or getting a comparison for sorting purposes (a.k.a.
+collating).
+UTF-32 has enough padding to express any character with the same number of
+blocks, and so it is called a wide character. Y ou’ll often see reference to multibyte-to-
+wide conversions; this is the sort of thing they’re talking about.
+Once you have a single character in UTF-32 (GLib’s gunichar), you’ll have no prob‐
+lem doing character-content things with it, like getting its type (alpha, numeric, …),
+converting it to upper- or lowercase, et cetera.
+If you read the C standard, you no doubt noticed that it includes a wide character
+type, and all sorts of functions to go with it. The wchar_t is from C89, and therefore
+predates the publication of the first Unicode standard. I’m not sure what it’s useful for
+anymore. The width of a wchar_t isn’t fixed by the standard, so it could mean 32-bit
+or 16-bit (or anything else). Compilers on Windows machines like to set it at 16-bit,
+to accommodate Microsoft’s preference for UTF-16, but UTF-16 is still a multibyte
+encoding, so we need yet another type to guarantee a true fixed-width encoding. C11
+fixes this by providing a char16_t and char32_t, but we don’t have much code writ‐
+ten around those types yet.
+The Sample Code
+Example 9-7 presents a program to take in a file and break it into “words, ” by which I
+mean use strtok_r to break it at spaces and newlines, which are pretty universal. For
+each word, I use GLib to convert the first character from multibyte UTF-8 to wide
+Unicode | 201
+
+character UTF-32, and then comment on whether that first character is a letter, a
+number, or a CJK-type wide symbol (where CJK stands for Chinese/Japanese/Korean,
+which are often printed with more space per character).
+ The string_from_file function reads the whole input file to a string, then local
+string_to_utf8 converts it from the locale of your machine to UTF-8. The notable
+thing about my use of strtok_r is that there is nothing notable. If I’m splitting at
+spaces and newlines, then I can guarantee you that I’m not splitting a multibyte char‐
+acter in half.
+I output to HTML, because then I can specify UTF-8 and not worry about the encod‐
+ing on the output side. If you have a UTF-16 host, open the output file in your
+browser.
+Because this program uses GLib and string_utilities, my makefile looks like:
+CFLAGS==` pkg-config --cflags glib-2.0`  -g -Wall -O3
+LDADD=` pkg-config --libs glib-2.0`
+CC=c99
+objects=string_utilities.o
+unicode: $(objects)
+For another example of Unicode character dealings, see Example 10-21, which enu‐
+merates every character in every UTF-8-valid file in a directory.
+Example 9-7. Take in a text file and print some useful information about its characters
+(unicode.c)
+#include <glib.h>
+#include <locale.h> //setlocale
+#include "string_utilities.h"
+#include "stopif.h"
+//Frees instring for you—we can't use it for anything else.
+char *localstring_to_utf8(char *instring){ 
+    GError *e=NULL;
+    setlocale(LC_ALL, ""); //get the OS's locale.
+    char *out = g_locale_to_utf8(instring, -1, NULL, NULL, &e);
+    free(instring); //done with the original
+    Stopif(!g_utf8_validate(out, -1, NULL), free(out); return NULL,
+            "Trouble: I couldn't convert your file to a valid UTF-8 string." );
+    return out;
+}
+int main(int argc, char **argv){
+    Stopif(argc==1, return 1, "Please give a filename as an argument. "
+                      "I will print useful info about it to uout.html.");
+    char *ucs = localstring_to_utf8(string_from_file(argv[1]));
+    Stopif(!ucs, return 1, "Exiting.");
+202 | Chapter 9: Easier Text Handling
+
+    
+    FILE *out = fopen("uout.html", "w");
+    Stopif(!out, return 1, "Couldn't open uout.html for writing." );
+    fprintf(out, "<head><meta http-equiv=\"Content-Type\" "
+                 "content=\"text/html; charset=UTF-8\" />\n");
+    fprintf(out, "This document has %li characters.<br>", 
+                 g_utf8_strlen(ucs, -1)); 
+    fprintf(out, "Its Unicode encoding required %zu bytes.<br>", strlen(ucs));
+    fprintf(out, "Here it is, with each space-delimited element on a line "
+                 "(with commentary on the first character):<br>");
+                 
+    ok_array *spaced = ok_array_new(ucs, " \n"); 
+    for (int i=0; i< spaced->length; i++, (spaced->elements)++){
+        fprintf(out, "%s", *spaced->elements);
+        gunichar c = g_utf8_get_char(*spaced->elements); 
+        if (g_unichar_isalpha(c)) fprintf(out, " (a letter)");
+        if (g_unichar_isdigit(c)) fprintf(out, " (a digit)");
+        if (g_unichar_iswide(c)) fprintf(out, " (wide, CJK)");
+        fprintf(out, "<br>");
+    }
+    fclose(out);
+    printf("Info printed to uout.html. Have a look at it in your browser.\n");
+}
+This is the incoming gateway, which converts from whatever it is that your box
+likes to use to UTF-8. There’s no outgoing gateway because I write to an HTML
+file, and browsers know how to deal with UTF-8. An outgoing gateway would
+look a lot like this function, but use g_locale_from_utf8.
+strlen is one of those functions that assumes one character equals 1 byte, and so
+we need a replacement for it.
+Use the ok_array_new function from earlier in the chapter to split at spaces and
+newlines.
+Here are some per-character operations, which will only work after you convert
+from the multibyte UTF-8 to a fixed-width (wide-character) encoding.
+Gettext
+ Y our program probably writes a lot of messages to readers, such as error messages
+and prompts for user input. Truly user-friendly software has translations of these bits
+of text in as many human languages as possible. GNU Gettext provides a framework
+for organizing the translations. The Gettext manual is pretty readable, so I refer you
+there for details, but here is a rough overview of the procedure to give you a sense of
+the system:
+Unicode | 203
+
+
+• Replace every instance of "Human message" in your code with _("Human mes
+sage"). The underscore is a macro that will eventually expand to a function call
+that selects the right string given the user’s runtime locale.
+• Run xgettext to produce an index of strings that need translating, in the form of
+a portable object template (.pot) file.
+• Send the .pot file to your colleagues around the globe who speak diverse lan‐
+guages, so they can send you .po files providing translations of the strings for
+their language.
+• Add AM_GNU_GETTEXT to your configure.ac (along with any optional macros to
+specify where to find the .po files and other such details).
+204 | Chapter 9: Easier Text Handling

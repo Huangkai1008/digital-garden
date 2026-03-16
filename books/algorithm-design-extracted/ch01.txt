@@ -1,0 +1,2849 @@
+1.3. REASONING ABOUT CORRECTNESS
+
+13
+
+example, the ExhaustiveScheduling algorithm on page 10 would have better
+been written in English as:
+
+ExhaustiveScheduling(I)
+
+Test all 2n subsets of intervals from I, and return the largest subset
+
+consisting of mutually non-overlapping intervals.
+
+Take-Home Lesson: The heart of any algorithm is an idea. If your idea is
+not clearly revealed when you express an algorithm, then you are using too
+low-level a notation to describe it.
+
+1.3.3 Demonstrating Incorrectness
+
+The best way to prove that an algorithm is incorrect is to produce an instance on
+which it yields an incorrect answer. Such instances are called counterexamples.
+No rational person will ever defend the correctness of an algorithm after a
+counter-example has been identiﬁed. Very simple instances can instantly defeat
+reasonable-looking heuristics with a quick touch´e. Good counterexamples have
+two important properties:
+
+• Veriﬁability – To demonstrate that a particular instance is a counterex-
+ample to a particular algorithm, you must be able to (1) calculate what
+answer your algorithm will give in this instance, and (2) display a better
+answer so as to prove that the algorithm didn’t ﬁnd it.
+
+• Simplicity – Good counter-examples have all unnecessary details stripped
+away. They make clear exactly why the proposed algorithm fails. Simplic-
+ity is important because you must be able to hold the given instance in
+your head in order to reason about it. Once a counterexample has been
+found, it is worth simplifying it down to its essence. For example, the
+counterexample of Figure 1.6(l) could have been made simpler and better
+by reducing the number of overlapped segments from ﬁve to two.
+
+Hunting for counterexamples is a skill worth developing.
+
+It bears some
+similarity to the task of developing test sets for computer programs, but relies
+more on inspiration than exhaustion. Here are some techniques to aid your
+quest:
+
+• Think small – Note that the robot tour counter-examples I presented
+boiled down to six points or less, and the scheduling counter-examples
+to only three intervals. This is indicative of the fact that when algorithms
+fail, there is usually a very simple example on which they fail. Amateur
+algorists tend to draw a big messy instance and then stare at it helplessly.
+The pros look carefully at several small examples, because they are easier
+to verify and reason about.
+
+14
+
+CHAPTER 1.
+
+INTRODUCTION TO ALGORITHM DESIGN
+
+• Think exhaustively – There are usually only a small number of possible
+instances for the ﬁrst non-trivial value of n. For example, there are only
+three distinct ways two intervals on the line can occur: as disjoint intervals,
+as overlapping intervals, and as properly nesting intervals, one within the
+other. All cases of three intervals (including counter-examples to both of
+the movie heuristics) can be systematically constructed by adding a third
+segment in each possible way to these three instances.
+
+• Hunt for the weakness – If a proposed algorithm is of the form “always
+take the biggest” (better known as the greedy algorithm), think about why
+that might prove to be the wrong thing to do. In particular, . . .
+
+• Go for a tie – A devious way to break a greedy heuristic is to provide
+instances where everything is the same size. Suddenly the heuristic has
+nothing to base its decision on, and perhaps has the freedom to return
+something suboptimal as the answer.
+
+• Seek extremes – Many counter-examples are mixtures of huge and tiny,
+left and right, few and many, near and far. It is usually easier to verify or
+reason about extreme examples than more muddled ones. Consider two
+tightly bunched clouds of points separated by a much larger distance d.
+The optimal TSP tour will be essentially 2d regardless of the number of
+points, because what happens within each cloud doesn’t really matter.
+
+Take-Home Lesson: Searching for counterexamples is the best way to disprove
+the correctness of a heuristic.
+
+Stop and Think: Greedy Movie Stars?
+
+Problem: Recall the movie star scheduling problem, where we seek to ﬁnd the
+largest possible set of non-overlapping intervals in a given set S. A natural
+greedy heuristic selects the interval i, which overlaps the smallest number of
+other intervals in S, removes them, and repeats until no intervals remain.
+
+Give a counter-example to this proposed algorithm.
+
+Solution: Consider the counter-example in Figure 1.7. The largest possible
+independent set consists of the four intervals in red, but the interval of lowest
+degree (shown in pink) overlaps two of these, After we grab it, we are doomed
+to ﬁnding a solution of only three intervals.
+
+But how would you go about constructing such an example? My thought
+process started with an odd-length chain of intervals, each of which overlaps
+one interval to the left and one to the right. Picking an even-length chain would
+mess up the optimal solution (hunt for the weakness). All intervals overlap two
+others, except for the left and right-most intervals (go for the tie). To make
+these terminal intervals unattractive, we can pile other intervals on top of them
+
+1.4.
+
+INDUCTION AND RECURSION
+
+15
+
+Figure 1.7: Counter-example to the greedy heuristic for movie star scheduling.
+Picking the pink interval, which intersects the fewest others, blocks us from the
+optimal solution (the four red intervals).
+
+(seek extremes). The length of our chain (7) is the shortest that permits this
+construction to work.
+
+1.4
+
+Induction and Recursion
+
+Failure to ﬁnd a counterexample to a given algorithm does not mean “it is
+obvious” that the algorithm is correct. A proof or demonstration of correctness
+is needed. Often mathematical induction is the method of choice.
+
+When I ﬁrst learned about mathematical induction it seemed like complete
+n
+i=1 i = n(n + 1)/2 for some basis case like
+magic. You proved a formula like
+n = 1 or 2, then assumed it was true all the way to n − 1 before proving it was
+in fact true for general n using the assumption. That was a proof? Ridiculous!
+When I ﬁrst learned the programming technique of recursion it also seemed
+like complete magic. The program tested whether the input argument was some
+basis case like 1 or 2. If not, you solved the bigger case by breaking it into pieces
+and calling the subprogram itself to solve these pieces. That was a program?
+Ridiculous!
+
+(cid:3)
+
+The reason both seemed like magic is because recursion is mathematical
+induction in action. In both, we have general and boundary conditions, with
+the general condition breaking the problem into smaller and smaller pieces. The
+initial or boundary condition terminates the recursion. Once you understand
+either recursion or induction, you should be able to see why the other one also
+works.
+
+I’ve heard it said that a computer scientist is a mathematician who only
+knows how to prove things by induction. This is partially true because computer
+scientists are lousy at proving things, but primarily because so many of the
+algorithms we study are either recursive or incremental.
+
+Consider the correctness of insertion sort, which we introduced at the be-
+
+ginning of this chapter. The reason it is correct can be shown inductively:
+
+16
+
+CHAPTER 1.
+
+INTRODUCTION TO ALGORITHM DESIGN
+
+Figure 1.8: Large-scale changes in the optimal solution (red boxes) after insert-
+ing a single interval (dashed) into the instance.
+
+• The basis case consists of a single element, and by deﬁnition a one-element
+
+array is completely sorted.
+
+• We assume that the ﬁrst n − 1 elements of array A are completely sorted
+
+after n − 1 iterations of insertion sort.
+
+• To insert one last element x to A, we ﬁnd where it goes, namely the unique
+spot between the biggest element less than or equal to x and the smallest
+element greater than x. This is done by moving all the greater elements
+back by one position, creating room for x in the desired location.
+
+One must be suspicious of inductive proofs, however, because very subtle
+reasoning errors can creep in. The ﬁrst are boundary errors. For example,
+our insertion sort correctness proof above boldly stated that there was a unique
+place to insert x between two elements, when our basis case was a single-element
+array. Greater care is needed to properly deal with the special cases of inserting
+the minimum or maximum elements.
+
+The second and more common class of inductive proof errors concerns cava-
+lier extension claims. Adding one extra item to a given problem instance might
+cause the entire optimal solution to change. This was the case in our scheduling
+problem (see Figure 1.8). The optimal schedule after inserting a new segment
+may contain none of the segments of any particular optimal solution prior to
+insertion. Boldly ignoring such diﬃculties can lead to very convincing inductive
+proofs of incorrect algorithms.
+
+Take-Home Lesson: Mathematical induction is usually the right way to verify
+the correctness of a recursive or incremental insertion algorithm.
+
+Stop and Think: Incremental Correctness
+
+Problem: Prove the correctness of the following recursive algorithm for incre-
+menting natural numbers, that is, y → y + 1:
+
+Increment(y)
+
+if (y = 0) then return(1) else
+if (y mod 2) = 1 then
+
+return(2 · Increment((cid:8)y/2(cid:9)))
+
+else return(y + 1)
+
+1.5. MODELING THE PROBLEM
+
+17
+
+Solution: The correctness of this algorithm is certainly not obvious to me. But
+as it is recursive and I am a computer scientist, my natural instinct is to try to
+prove it by induction. The basis case of y = 0 is obviously correctly handled.
+Clearly the value 1 is returned, and 0 + 1 = 1.
+
+Now assume the function works correctly for the general case of y = n − 1.
+Given this, we must demonstrate the truth for the case of y = n. The cases
+corresponding to even numbers are obvious, because y + 1 is explicitly returned
+when (y mod 2) = 0.
+
+For odd numbers, the answer depends on what Increment((cid:8)y/2(cid:9)) returns.
+Here we want to use our inductive assumption, but it isn’t quite right. We have
+assumed that Increment worked correctly for y = n − 1, but not for a value that
+is about half of it. We can ﬁx this problem by strengthening our assumption to
+declare that the general case holds for all y ≤ n − 1. This costs us nothing in
+principle, but is necessary to establish the correctness of the algorithm.
+
+Now, the case of odd y (i.e. y = 2m + 1 for some integer m) can be dealt
+
+with as:
+
+2 · Increment((cid:8)(2m + 1)/2(cid:9)) = 2 · Increment((cid:8)m + 1/2(cid:9))
+
+= 2 · Increment(m)
+= 2(m + 1)
+= 2m + 2 = y + 1
+
+and the general case is resolved.
+
+1.5 Modeling the Problem
+
+Modeling is the art of formulating your application in terms of precisely de-
+scribed, well-understood problems. Proper modeling is the key to applying
+algorithmic design techniques to real-world problems.
+Indeed, proper model-
+ing can eliminate the need to design or even implement algorithms, by relating
+your application to what has been done before. Proper modeling is the key to
+eﬀectively using the “Hitchhiker’s Guide” in Part II of this book.
+
+Real-world applications involve real-world objects. You might be working on
+a system to route traﬃc in a network, to ﬁnd the best way to schedule classrooms
+in a university, or to search for patterns in a corporate database. Most algo-
+rithms, however, are designed to work on rigorously deﬁned abstract structures
+such as permutations, graphs, and sets. To exploit the algorithms literature,
+you must learn to describe your problem abstractly, in terms of procedures on
+such fundamental structures.
+
+1.5.1 Combinatorial Objects
+
+Odds are very good that others have probably stumbled upon any algorithmic
+problem you care about, perhaps in substantially diﬀerent contexts. But to ﬁnd
+
+18
+
+CHAPTER 1.
+
+INTRODUCTION TO ALGORITHM DESIGN
+
+Sol
+
+Stony Brook
+
+Greenport
+
+Morris
+
+Eve
+
+Sid
+
+Riverhead
+
+Shelter Island
+
+Steve
+
+Len
+
+Rob
+
+Richard
+
+Laurie
+
+Jim
+
+Lisa
+
+Jeff
+
+Islip
+
+Sag Harbor
+
+Figure 1.9: Modeling real-world structures with trees and graphs.
+
+Orient Point
+
+Montauk
+
+out what is known about your particular “widget optimization problem,” you
+can’t hope to ﬁnd it in a book under widget. You must ﬁrst formulate widget
+optimization in terms of computing properties of common structures such as
+those described below:
+
+• Permutations are arrangements, or orderings, of items. For example,
+{1, 4, 3, 2} and {4, 3, 2, 1} are two distinct permutations of the same set
+of four integers. We have already seen permutations in the robot opti-
+mization problem, and in sorting. Permutations are likely the object in
+question whenever your problem seeks an “arrangement,” “tour,” “order-
+ing,” or “sequence.”
+
+• Subsets represent selections from a set of items. For example, {1, 3, 4}
+and {2} are two distinct subsets of the ﬁrst four integers. Order does
+not matter in subsets the way it does with permutations, so the subsets
+{1, 3, 4} and {4, 3, 1} would be considered identical. Subsets arose as can-
+didate solutions in the movie scheduling problem. They are likely the
+object in question whenever your problem seeks a “cluster,” “collection,”
+“committee,” “group,” “packaging,” or “selection.”
+
+• Trees represent hierarchical relationships between items. Figure 1.9(a)
+Trees are likely the
+shows part of the family tree of the Skiena clan.
+object in question whenever your problem seeks a “hierarchy,” “dominance
+relationship,” “ancestor/descendant relationship,” or “taxonomy.”
+
+• Graphs represent relationships between arbitrary pairs of objects. Figure
+1.9(b) models a network of roads as a graph, where the vertices are cities
+and the edges are roads connecting pairs of cities. Graphs are likely the
+object in question whenever you seek a “network,” “circuit,” “web,” or
+“relationship.”
+
+• Points deﬁne locations in some geometric space. For example, the loca-
+tions of McDonald’s restaurants can be described by points on a map/plane.
+Points are likely the object in question whenever your problems work on
+“sites,” “positions,” “data records,” or “locations.”
+
+1.5. MODELING THE PROBLEM
+
+19
+
+• Polygons deﬁne regions in some geometric spaces. For example, the bor-
+ders of a country can be described by a polygon on a map/plane. Polygons
+and polyhedra are likely the object in question whenever you are working
+on “shapes,” “regions,” “conﬁgurations,” or “boundaries.”
+
+• Strings represent sequences of characters, or patterns. For example, the
+names of students in a class can be represented by strings. Strings are
+likely the object in question whenever you are dealing with “text,” “char-
+acters,” “patterns,” or “labels.”
+
+These fundamental structures all have associated algorithm problems, which
+are presented in the catalog of Part II. Familiarity with these problems is im-
+portant, because they provide the language we use to model applications. To
+become ﬂuent in this vocabulary, browse through the catalog and study the in-
+put and output pictures for each problem. Understanding these problems, even
+at a cartoon/deﬁnition level, will enable you to know where to look later when
+the problem arises in your application.
+
+Examples of successful application modeling will be presented in the war
+stories spaced throughout this book. However, some words of caution are in
+order. The act of modeling reduces your application to one of a small number
+of existing problems and structures. Such a process is inherently constraining,
+and certain details might not ﬁt easily into the given target problem. Also,
+certain problems can be modeled in several diﬀerent ways, some much better
+than others.
+
+Modeling is only the ﬁrst step in designing an algorithm for a problem. Be
+alert for how the details of your applications diﬀer from a candidate model, but
+don’t be too quick to say that your problem is unique and special. Temporarily
+ignoring details that don’t ﬁt can free the mind to ask whether they really were
+fundamental in the ﬁrst place.
+
+Take-Home Lesson: Modeling your application in terms of well-deﬁned struc-
+tures and algorithms is the most important single step towards a solution.
+
+1.5.2 Recursive Objects
+
+Learning to think recursively is learning to look for big things that are made
+from smaller things of exactly the same type as the big thing. If you think of
+houses as sets of rooms, then adding or deleting a room still leaves a house
+behind.
+
+Recursive structures occur everywhere in the algorithmic world. Indeed, each
+of the abstract structures described above can be thought about recursively. You
+just have to see how you can break them down, as shown in Figure 1.10:
+
+• Permutations – Delete the ﬁrst element of a permutation of n things
+{1, . . . , n} and you get a permutation of the remaining n − 1 things. This
+may require renumbering to keep the object a permutation of consecu-
+tive integers. For example, removing the ﬁrst element of {4, 1, 5, 2, 3} and
+
+20
+
+CHAPTER 1.
+
+INTRODUCTION TO ALGORITHM DESIGN
+
+{4,1,5,2,3}
+
+{1,2,7,9}
+
+4 −
+
+9 −
+
+4
+
+ {1,4,2,3}
+
+ {1,2,7}
+9
+
+A L G O R I T H M
+
+A L G O R I T H M
+
+Figure 1.10: Recursive decompositions of combinatorial objects. Permutations,
+subsets, trees, and graphs (left column). Point sets, polygons, and strings (right
+column). Note that the elements of a permutation of {1, . . . , n} get renumbered
+after element deletion in order to remain a permutation of {1, . . . , n − 1}.
+
+renumbering gives {1, 4, 2, 3}, a permutation of {1, 2, 3, 4}. Permutations
+are recursive objects.
+
+• Subsets – Every subset of {1, . . . , n} contains a subset of {1, . . . , n − 1}
+obtained by deleting element n, if it is present. Subsets are recursive
+objects.
+
+• Trees – Delete the root of a tree and what do you get? A collection of
+smaller trees. Delete any leaf of a tree and what do you get? A slightly
+smaller tree. Trees are recursive objects.
+
+• Graphs – Delete any vertex from a graph, and you get a smaller graph.
+Now divide the vertices of a graph into two groups, left and right. Cut
+through all edges that span from left to right, and what do you get? Two
+smaller graphs, and a bunch of broken edges. Graphs are recursive objects.
+
+• Points – Take a cloud of points, and separate them into two groups by
+drawing a line. Now you have two smaller clouds of points. Point sets are
+recursive objects.
+
+• Polygons – Inserting any internal chord between two non-adjacent ver-
+tices of a simple polygon cuts it into two smaller polygons. Polygons are
+recursive objects.
+
+• Strings – Delete the ﬁrst character from a string, and what do you get?
+
+A shorter string. Strings are recursive objects.1
+
+1An alert reader of the previous edition observed that salads are recursive objects, in ways
+that hamburgers are not. Take a bite (or an ingredient) out of a salad, and what is left is a
+smaller salad. Take a bite out of a hamburger, and what is left is something disgusting.
+
+1.6. PROOF BY CONTRADICTION
+
+21
+
+Recursive descriptions of objects require both decomposition rules and basis
+cases, namely the speciﬁcation of the smallest and simplest objects where the
+decomposition stops. These basis cases are usually easily deﬁned. Permutations
+and subsets of zero things presumably look like {}. The smallest interesting tree
+or graph consists of a single vertex, while the smallest interesting point cloud
+consists of a single point. Polygons are a little trickier; the smallest genuine
+simple polygon is a triangle. Finally, the empty string has zero characters in it.
+The decision of whether the basis case contains zero or one element is more a
+question of taste and convenience than any fundamental principle.
+
+Recursive decompositions will deﬁne many of the algorithms we will see in
+
+this book. Keep your eyes open for them.
+
+1.6 Proof by Contradiction
+
+Although some computer scientists only know how to prove things by induction,
+this isn’t true of everyone. The best sometimes use contradiction.
+The basic scheme of a contradiction argument is as follows:
+• Assume that the hypothesis (the statement you want to prove) is false.
+• Develop some logical consequences of this assumption.
+• Show that one consequence is demonstrably false, thereby showing that
+
+the assumption is incorrect and the hypothesis is true.
+
+The classic contradiction argument is Euclid’s proof that there are an inﬁnite
+integers n like 2, 3, 5, 7, 11, . . . that have no non-
+number of prime numbers:
+trivial factors, only 1 and n itself. The negation of the claim would be that there
+are only a ﬁnite number of primes, say m, which can be listed as p1, . . . , pm. So
+let’s assume this is the case and work with it.
+
+Prime numbers have particular properties with respect to division. Suppose
+
+we construct the integer formed as the product of “all” of the listed primes:
+
+m
+
+N =
+
+pi
+
+This integer N has the property that it is divisible by each and every one of the
+known primes, because of how it was built.
+
+i=1
+(cid:4)
+
+But consider the integer N + 1. It can’t be divisible by p1 = 2, because N is.
+The same is true for p2 = 3 and every other listed prime. Since N + 1 doesn’t
+have any non-trivial factor, this means it must be prime. But you asserted that
+there are exactly m prime numbers, none of which are N + 1. This assertion is
+false, so there cannot be a bounded number of primes. Touch´e!
+
+For a contradiction argument to be convincing, the ﬁnal consequence must
+be clearly, ridiculously false. Muddy outcomes are not convincing. It is also
+important that this contradiction be a logical consequence of the assumption.
+We will see contradiction arguments for minimum spanning tree algorithms in
+Section 8.1.
+
+22
+
+CHAPTER 1.
+
+INTRODUCTION TO ALGORITHM DESIGN
+
+1.7 About the War Stories
+
+The best way to learn how careful algorithm design can have a huge impact on
+performance is to look at real-world case studies. By carefully studying other
+people’s experiences, we learn how they might apply to our work.
+
+Scattered throughout this text are several of my own algorithmic war sto-
+ries, presenting our successful (and occasionally unsuccessful) algorithm design
+eﬀorts on real applications. I hope that you will be able to internalize these
+experiences so that they will serve as models for your own attacks on problems.
+Every one of the war stories is true. Of course, the stories improve somewhat
+in the retelling, and the dialogue has been punched up to make them more
+interesting to read. However, I have tried to honestly trace the process of going
+from a raw problem to a solution, so you can watch how this process unfolded.
+The Oxford English Dictionary deﬁnes an algorist as “one skillful in reckon-
+ings or ﬁguring.” In these stories, I have tried to capture some of the mindset
+of the algorist in action as they attack a problem.
+
+The war stories often involve at least one problem from the problem catalog
+in Part II. I reference the appropriate section of the catalog when such a problem
+occurs. This emphasizes the beneﬁts of modeling your application in terms of
+standard algorithm problems. By using the catalog, you will be able to pull out
+what is known about any given problem whenever it is needed.
+
+1.8 War Story: Psychic Modeling
+
+The call came for me out of the blue as I sat in my oﬃce.
+
+“Professor Skiena, I hope you can help me.
+
+I’m the President of Lotto
+Systems Group Inc., and we need an algorithm for a problem arising in our
+latest product.”
+
+“Sure,” I replied. After all, the dean of my engineering school is always
+
+encouraging our faculty to interact more with industry.
+
+“At Lotto Systems Group, we market a program designed to improve our
+customers’ psychic ability to predict winning lottery numbers.2 In a standard
+lottery, each ticket consists of six numbers selected from, say, 1 to 44. However,
+after proper training, our clients can visualize (say) ﬁfteen numbers out of the
+44 and be certain that at least four of them will be on the winning ticket. Are
+you with me so far?”
+
+“Probably not,” I replied. But then I recalled how my dean encourages us
+
+to interact with industry.
+
+“Our problem is this. After the psychic has narrowed the choices down to
+ﬁfteen numbers and is certain that at least four of them will be on the winning
+ticket, we must ﬁnd the most eﬃcient way to exploit this information. Suppose
+a cash prize is awarded whenever you pick at least three of the correct numbers
+on your ticket. We need an algorithm to construct the smallest set of tickets
+that we must buy in order to guarantee that we win at least one prize.”
+
+2Yes, this is a true story.
+
+1.8. WAR STORY: PSYCHIC MODELING
+
+23
+
+Tickets
+
+1  2  3 
+1  4  5 
+2  4  5 
+3  4  5
+
+Winning Pairs
+
+1  2     
+1  3 
+1  4 
+1  5
+
+2  3 
+2  4 
+2  5 
+
+3  4 
+3  5 
+4  5 
+
+Figure 1.11: Covering all pairs of {1, 2, 3, 4, 5} with tickets {1, 2, 3}, {1, 4, 5},
+{2, 4, 5}, {3, 4, 5}. Pair color reﬂects the covering ticket.
+
+“Assuming the psychic is correct?”
+“Yes, assuming the psychic is correct. We need a program that prints out
+a list of all the tickets that the psychic should buy in order to minimize their
+investment. Can you help us?”
+
+Maybe they did have psychic ability, for they had come to the right place.
+Identifying the best subset of tickets to buy was very much a combinatorial
+algorithm problem. It was going to be some type of covering problem, where
+each ticket bought would “cover” some of the possible 4-element subsets of the
+psychic’s set. Finding the absolute smallest set of tickets to cover everything was
+a special instance of the NP-complete problem set cover (discussed in Section
+21.1 (page 678)), and presumably computationally intractable.
+
+It was indeed a special instance of set cover, completely speciﬁed by only
+four numbers: the size n of the candidate set S (typically n ≈ 15), the number of
+slots k for numbers on each ticket (typically k ≈ 6), the number of psychically-
+promised correct numbers j from S (say j = 4), and ﬁnally, the number of
+matching numbers l necessary to win a prize (say l = 3). Figure 1.11 illustrates
+a covering of a smaller instance, where n = 5, k = 3, and l = 2, and no psychic
+contribution (meaning j = 5).
+
+“Although it will be hard to ﬁnd the exact minimum set of tickets to buy,
+with heuristics I should be able to get you pretty close to the cheapest covering
+ticket set,” I told him. “Will that be good enough?”
+
+“So long as it generates better ticket sets than my competitor’s program,
+that will be ﬁne. His system doesn’t always guarantee a win. I really appreciate
+your help on this, Professor Skiena.”
+
+“One last thing. If your program can train people to pick lottery winners,
+
+why don’t you use it to win the lottery yourself?”
+
+“I look forward to talking to you again real soon, Professor Skiena. Thanks
+
+for the help.”
+
+I hung up the phone and got back to thinking. It seemed like the perfect
+project to give to a bright undergraduate. After modeling it in terms of sets
+and subsets, the basic components of a solution seemed fairly straightforward:
+
+• We needed the ability to generate all subsets of k numbers from the can-
+didate set S. Algorithms for generating and ranking/unranking subsets of
+sets are presented in Section 17.5 (page 521).
+
+ 
+ 
+ 
+ 
+ 
+24
+
+CHAPTER 1.
+
+INTRODUCTION TO ALGORITHM DESIGN
+
+• We needed the right formulation of what it meant to have a covering set
+of purchased tickets. The obvious criteria would be to pick a small set of
+tickets such that we have purchased at least one ticket containing each of
+the
+
+l-subsets of S that might pay oﬀ with the prize.
+
+n
+l
+
+(cid:5)
+
+(cid:6)
+
+• We needed to keep track of which prize combinations we have thus far
+covered. We seek tickets to cover as many thus-far-uncovered prize com-
+binations as possible. The currently covered combinations are a subset of
+all possible combinations. Data structures for subsets are discussed in Sec-
+tion 15.5 (page 456). The best candidate seemed to be a bit vector, which
+would answer in constant time “is this combination already covered?”
+
+• We needed a search mechanism to decide which ticket to buy next. For
+small enough set sizes, we could do an exhaustive search over all possible
+subsets of tickets and pick the smallest one. For larger problems, a ran-
+domized search process like simulated annealing (see Section 12.6.3 (page
+406)) would select tickets-to-buy to cover as many uncovered combina-
+tions as possible. By repeating this randomized procedure several times
+and picking the best solution, we would be likely to come up with a good
+set of tickets.
+
+The bright undergraduate, Fayyaz Younas, rose to the challenge. Based
+on this framework, he implemented a brute-force search algorithm and found
+optimal solutions for problems with n ≤ 5 in a reasonable time. He implemented
+a random search procedure to solve larger problems, tweaking it for a while
+before settling on the best variant. Finally, the day arrived when we could call
+Lotto Systems Group and announce that we had solved the problem.
+
+“Our program found an optimal solution for n = 15, k = 6, j = 4, l = 3
+
+meant buying 28 tickets.”
+
+“Twenty-eight tickets!” complained the president. “You must have a bug.
+Look, these ﬁve tickets will suﬃce to cover everything twice over: {2, 4, 8, 10, 13, 14},
+{4, 5, 7, 8, 12, 15}, {1, 2, 3, 6, 11, 13}, {3, 5, 6, 9, 10, 15}, {1, 7, 9, 11, 12, 14}.” We
+ﬁddled with this example for a while before admitting that he was right.
+
+We hadn’t modeled the problem correctly! In fact, we didn’t need to explicitly
+cover all possible winning combinations. Figure 1.12 illustrates the principle by
+giving a two-ticket solution to our previous four-ticket example. Although the
+pairs {2, 4}, {2, 5}, {3, 4}, or {3, 5} do not explicitly appear in one of our two
+tickets, these pairs plus any possible third ticket number must create a pair in
+either {1, 2, 3} or {1, 4, 5}. We were trying to cover too many combinations, and
+the penny-pinching psychics were unwilling to pay for such extravagance.
+
+Fortunately, this story has a happy ending. The general outline of our search-
+based solution still holds for the real problem. All we must ﬁx is which subsets
+we get credit for covering with a given set of tickets. After this modiﬁcation,
+we obtained the kind of results they were hoping for. Lotto Systems Group
+gratefully accepted our program to incorporate into their product, and we hope
+they hit the jackpot with it.
+
+1.9. ESTIMATION
+
+25
+
+Tickets
+
+1  2   3
+1  4   5
+
+Winning Pairs
+
+1  2
+1  3
+1  4
+1  5
+
+2  3
+2  4
+2  5
+
+3  4
+3  5
+4  5
+
+2 4
+
+1
+
+3
+
+5
+
+{1 2 3}
+
+{1 4 5}
+
+2 5
+
+1
+
+3
+
+4
+
+{1 2 3}
+
+{1 4 5}
+
+3 4
+
+1
+
+2
+
+5
+
+{1 2 3}
+
+{1 4 5}
+
+3 5
+
+1
+
+2
+
+4
+
+{1 2 3}
+
+{1 4 5}
+
+Figure 1.12: Guaranteeing a winning pair from {1, 2, 3, 4, 5} using only tickets
+{1, 2, 3} and {1, 4, 5}. The bottom ﬁgure shows how all missing pairs imply a
+covered pair on expansion.
+
+The moral of this story is to make sure that you model your problem cor-
+rectly before trying to solve it. In our case, we came up with a reasonable model,
+but didn’t work hard enough to validate it before we started to program. Our
+misinterpretation would have become obvious had we worked out a small ex-
+ample by hand and bounced it oﬀ our sponsor before beginning work. Our
+success in recovering from this error is a tribute to the basic correctness of our
+initial formulation, and our use of well-deﬁned abstractions for such tasks as (1)
+ranking/unranking k-subsets, (2) the set data structure, and (3) combinatorial
+search.
+
+1.9 Estimation
+
+When you don’t know the right answer, the best thing to do is guess. Principled
+guessing is called estimation. The ability to make back-of-the-envelope estimates
+of diverse quantities such as the running time of a program is a valuable skill in
+algorithm design, as it is in any technical enterprise.
+
+Estimation problems are best solved through some kind of logical reasoning
+process, typically a mix of principled calculations and analogies. Principled
+calculations give the answer as a function of quantities that either you already
+know, can look up on Google, or feel conﬁdent enough to guess. Analogies
+reference your past experiences, recalling those that seem similar to some aspect
+of the problem at hand.
+
+I once asked my class to estimate the number of pennies in a hefty glass jar,
+and got answers ranging from 250 to 15,000. Both answers will seem pretty silly
+if you make the right analogies:
+
+• A penny roll holds 50 coins in a tube roughly the length and width of your
+biggest ﬁnger. So ﬁve such rolls can easily be held in your hand, with no
+need for a hefty jar.
+
+26
+
+CHAPTER 1.
+
+INTRODUCTION TO ALGORITHM DESIGN
+
+• 15,000 pennies means $150 in value. I have never managed to accumulate
+that much value in coins even in a hefty pile of change—and here I am
+only using pennies!
+
+But the class average estimate proved very close to the right answer, which
+turned out to be 1879. There are at least three principled ways I can think of
+to estimate the number of coins in the jar:
+
+• Volume – The jar was a cylinder with about 5 inches diameter, and the
+coins probably reached a level equal to about ten pennies tall stacked end
+to end. Figure a penny is ten times longer than it is thick. The bottom
+layer of the jar was a circle of radius about ﬁve pennies. So
+
+(10 × 10) × (π × 2.52) ≈ 1962.5
+
+• Weight – Lugging the jar felt like carrying around a bowling ball. Mul-
+tiplying the number of US pennies in a pound (181 when I looked it up)
+times a 10 lb. ball gave a frighteningly accurate estimate of 1810.
+
+• Analogy – The coins had a height of about 8 inches in the jar, or twice
+that of a penny roll. Figure I could stack about two layers of ten rolls per
+layer in the jar, or a total estimate of 1,000 coins.
+
+A best practice in estimation is to try to solve the problem in diﬀerent ways
+and see if the answers generally agree in magnitude. All of these are within a
+factor of two of each other, giving me conﬁdence that my answer is about right.
+Try some of the estimation exercises at the end of this chapter, and see how
+many diﬀerent ways you can approach them. If you do things right, the ratio
+between your high and low estimates should be somewhere within a factor of two
+to ten, depending upon the nature of the problem. A sound reasoning process
+matters a lot more here than the actual numbers you get.
+
+Chapter Notes
+
+Every algorithm book reﬂects the design philosophy of its author. For stu-
+dents seeking alternative presentations and viewpoints, I particularly recom-
+mend the books of Cormen, et al. [CLRS09], Kleinberg and Tardos [KT06],
+Manber [Man89], and Roughgarden [Rou17].
+
+Formal proofs of algorithm correctness are important, and deserve a fuller
+discussion than this chapter is able to provide. See Gries [Gri89] for a thorough
+introduction to the techniques of program veriﬁcation.
+
+The movie scheduling problem represents a very special case of the general
+independent set problem, which will be discussed in Section 19.2 (page 589).
+The restriction limits the allowable input instances to interval graphs, where
+the vertices of the graph G can be represented by intervals on the line and
+(i, j) is an edge of G iﬀ the intervals overlap. Golumbic [Gol04] provides a full
+treatment of this interesting and important class of graphs.
+
+1.10. EXERCISES
+
+27
+
+Jon Bentley’s Programming Pearls columns are probably the best known
+collection of algorithmic “war stories,” collected in two books [Ben90, Ben99].
+Brooks’s The Mythical Man Month [Bro95] is another wonderful collection of
+war stories that, although focused more on software engineering than algorithm
+design, remain a source of considerable wisdom. Every programmer should read
+these books for pleasure as well as insight.
+
+Our solution to the lotto ticket set covering problem is presented in more
+
+detail in Younas and Skiena [YS96].
+
+1.10 Exercises
+
+Finding Counterexamples
+
+1-1. [3] Show that a + b can be less than min(a, b).
+1-2. [3] Show that a × b can be less than min(a, b).
+
+1-3. [5] Design/draw a road network with two points a and b such that the fastest
+
+route between a and b is not the shortest route.
+
+1-4. [5] Design/draw a road network with two points a and b such that the shortest
+
+route between a and b is not the route with the fewest turns.
+
+1-5. [4] The knapsack problem is as follows: given a set of integers S = {s1, s2, . . . , sn},
+and a target number T , ﬁnd a subset of S that adds up exactly to T . For ex-
+ample, there exists a subset within S = {1, 2, 5, 9, 10} that adds up to T = 22
+but not T = 23.
+Find counterexamples to each of the following algorithms for the knapsack prob-
+lem. That is, give an S and T where the algorithm does not ﬁnd a solution that
+leaves the knapsack completely full, even though a full-knapsack solution exists.
+
+(a) Put the elements of S in the knapsack in left to right order if they ﬁt, that
+
+is, the ﬁrst-ﬁt algorithm.
+
+(b) Put the elements of S in the knapsack from smallest to largest, that is, the
+
+best-ﬁt algorithm.
+
+(c) Put the elements of S in the knapsack from largest to smallest.
+
+1-6. [5] The set cover problem is as follows: given a set S of subsets S1, . . . , Sm of
+the universal set U = {1, ..., n}, ﬁnd the smallest subset of subsets T ⊆ S such
+that ∪ti∈T ti = U . For example, consider the subsets S1 = {1, 3, 5}, S2 = {2, 4},
+S3 = {1, 4}, and S4 = {2, 5}. The set cover of {1, . . . , 5} would then be S1 and
+S2.
+Find a counterexample for the following algorithm: Select the largest subset for
+the cover, and then delete all its elements from the universal set. Repeat by
+adding the subset containing the largest number of uncovered elements until all
+are covered.
+
+1-7. [5] The maximum clique problem in a graph G = (V, E) asks for the largest
+subset C of vertices V such that there is an edge in E between every pair of
+vertices in C. Find a counterexample for the following algorithm: Sort the
+vertices of G from highest to lowest degree. Considering the vertices in order
+
+28
+
+CHAPTER 1.
+
+INTRODUCTION TO ALGORITHM DESIGN
+
+of degree, for each vertex add it to the clique if it is a neighbor of all vertices
+currently in the clique. Repeat until all vertices have been considered.
+
+Proofs of Correctness
+
+1-8. [3] Prove the correctness of the following recursive algorithm to multiply two
+
+natural numbers, for all integer constants c ≥ 2.
+
+Multiply(y, z)
+
+if z = 0 then return(0) else
+return(Multiply(cy, (cid:5)z/c(cid:6)) + y · (z mod c))
+
+1-9. [3] Prove the correctness of the following algorithm for evaluating a polynomial
+
+anxn + an−1xn−1 + · · · + a1x + a0.
+
+Horner(a, x)
+p = an
+for i from n − 1 to 0
+
+p = p · x + ai
+
+return p
+
+1-10. [3] Prove the correctness of the following sorting algorithm.
+
+Bubblesort (A)
+
+for i from n to 1
+
+for j from 1 to i − 1
+
+if (A[j] > A[j + 1])
+
+swap the values of A[j] and A[j + 1]
+
+1-11. [5] The greatest common divisor of positive integers x and y is the largest integer
+d such that d divides x and d divides y. Euclid’s algorithm to compute gcd(x, y)
+where x > y reduces the task to a smaller problem:
+
+gcd(x, y) = gcd(y, x mod y)
+
+Prove that Euclid’s algorithm is correct.
+
+Induction
+
+1-12. [3] Prove that
+
+1-13. [3] Prove that
+
+1-14. [3] Prove that
+
+1-15. [3] Prove that
+
+(cid:2)n
+(cid:2)n
+(cid:2)n
+
+i=1 i = n(n + 1)/2 for n ≥ 0, by induction.
+i=1 i2 = n(n + 1)(2n + 1)/6 for n ≥ 0, by induction.
+i=1 i3 = n2(n + 1)2/4 for n ≥ 0, by induction.
+
+n(cid:3)
+
+i=1
+
+i(i + 1)(i + 2) = n(n + 1)(n + 2)(n + 3)/4
+
+1-16. [5] Prove by induction on n ≥ 1 that for every a (cid:7)= 1,
+
+n(cid:3)
+
+i=0
+
+ai =
+
+an+1 − 1
+a − 1
+
+1.10. EXERCISES
+
+29
+
+1-17. [3] Prove by induction that for n ≥ 1,
+
+n(cid:3)
+
+i=1
+
+1
+i(i + 1)
+
+=
+
+n
+n + 1
+
+1-18. [3] Prove by induction that n3 + 2n is divisible by 3 for all n ≥ 0.
+1-19. [3] Prove by induction that a tree with n vertices has exactly n − 1 edges.
+
+1-20. [3] Prove by induction that the sum of the cubes of the ﬁrst n positive integers
+
+is equal to the square of the sum of these integers, that is,
+
+n(cid:3)
+
+i=1
+
+i3 = (
+
+n(cid:3)
+
+i=1
+
+i)2
+
+Estimation
+
+1-21. [3] Do all the books you own total at least one million pages? How many total
+
+pages are stored in your school library?
+
+1-22. [3] How many words are there in this textbook?
+
+1-23. [3] How many hours are one million seconds? How many days? Answer these
+
+questions by doing all arithmetic in your head.
+
+1-24. [3] Estimate how many cities and towns there are in the United States.
+
+1-25. [3] Estimate how many cubic miles of water ﬂow out of the mouth of the
+Mississippi River each day. Do not look up any supplemental facts. Describe all
+assumptions you made in arriving at your answer.
+
+1-26. [3] How many Starbucks or McDonald’s locations are there in your country?
+
+1-27. [3] How long would it take to empty a bathtub with a drinking straw?
+
+1-28. [3] Is disk drive access time normally measured in milliseconds (thousandths of
+a second) or microseconds (millionths of a second)? Does your RAM memory
+access a word in more or less than a microsecond? How many instructions can
+your CPU execute in one year if the machine is left running all the time?
+
+1-29. [4] A sorting algorithm takes 1 second to sort 1,000 items on your machine.
+
+How long will it take to sort 10,000 items. . .
+
+(a) if you believe that the algorithm takes time proportional to n2, and
+
+(b) if you believe that the algorithm takes time roughly proportional to n log n?
+
+Implementation Projects
+
+1-30. [5] Implement the two TSP heuristics of Section 1.1 (page 5). Which of them
+gives better solutions in practice? Can you devise a heuristic that works better
+than both of them?
+
+1-31. [5] Describe how to test whether a given set of tickets establishes suﬃcient
+coverage in the Lotto problem of Section 1.8 (page 22). Write a program to ﬁnd
+good ticket sets.
+
+30
+
+CHAPTER 1.
+
+INTRODUCTION TO ALGORITHM DESIGN
+
+Interview Problems
+
+1-32. [5] Write a function to perform integer division without using either the / or *
+
+operators. Find a fast way to do it.
+
+1-33. [5] There are twenty-ﬁve horses. At most, ﬁve horses can race together at a
+time. You must determine the fastest, second fastest, and third fastest horses.
+Find the minimum number of races in which this can be done.
+
+1-34. [3] How many piano tuners are there in the entire world?
+
+1-35. [3] How many gas stations are there in the United States?
+
+1-36. [3] How much does the ice in a hockey rink weigh?
+
+1-37. [3] How many miles of road are there in the United States?
+
+1-38. [3] On average, how many times would you have to ﬂip open the Manhattan
+
+phone book at random in order to ﬁnd a speciﬁc name?
+
+LeetCode
+
+1-1. https://leetcode.com/problems/daily-temperatures/
+
+1-2. https://leetcode.com/problems/rotate-list/
+
+1-3. https://leetcode.com/problems/wiggle-sort-ii/
+
+HackerRank
+
+1-1. https://www.hackerrank.com/challenges/array-left-rotation/
+
+1-2. https://www.hackerrank.com/challenges/kangaroo/
+
+1-3. https://www.hackerrank.com/challenges/hackerland-radio-transmitters/
+
+Programming Challenges
+
+These programming challenge problems with robot judging are available at
+https://onlinejudge.org:
+
+1-1. “The 3n + 1 Problem”—Chapter 1, problem 100.
+
+1-2. “The Trip”—Chapter 1, problem 10137.
+
+1-3. “Australian Voting”—Chapter 1, problem 10142.
+
+Chapter 2
+
+Algorithm Analysis
+
+Algorithms are the most important and durable part of computer science be-
+cause they can be studied in a language- and machine-independent way. This
+means we need techniques that let us compare the eﬃciency of algorithms with-
+out implementing them. Our two most important tools are (1) the RAM model
+of computation and (2) the asymptotic analysis of computational complexity.
+
+Assessing algorithmic performance makes use of the “Big Oh” notation that
+proves essential to compare algorithms, and design better ones. This method
+of keeping score will be the most mathematically demanding part of this book.
+But once you understand the intuition behind this formalism it becomes a lot
+easier to deal with.
+
+2.1 The RAM Model of Computation
+
+Machine-independent algorithm design depends upon a hypothetical computer
+called the Random Access Machine, or RAM. Under this model of computation,
+we are confronted with a computer where:
+
+• Each simple operation (+, *, –, =, if, call) takes exactly one time step.
+
+• Loops and subroutines are not considered simple operations.
+Instead,
+It makes no
+they are the composition of many single-step operations.
+sense for sort to be a single-step operation, since sorting 1,000,000 items
+will certainly take much longer than sorting ten items. The time it takes
+to run through a loop or execute a subprogram depends upon the number
+of loop iterations or the speciﬁc nature of the subprogram.
+
+• Each memory access takes exactly one time step. Furthermore, we have
+as much memory as we need. The RAM model takes no notice of whether
+an item is in cache or on the disk.
+
+Under the RAM model, we measure run time by counting the number of
+steps an algorithm takes on a given problem instance. If we assume that our
+
+© The Editor(s) (if applicable) and The Author(s), under exclusive license to
+Springer Nature Switzerland AG 2020
+S. S. Skiena, The Algorithm Design Manual, Texts in Computer Science,
+https://doi.org/10.1007/978-3-030-54256-6_2
+
+31
+
+32
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+RAM executes a given number of steps per second, this operation count converts
+naturally to the actual running time.
+
+The RAM is a simple model of how computers perform. Perhaps it sounds
+too simple. After all, multiplying two numbers takes more time than adding two
+numbers on most processors, which violates the ﬁrst assumption of the model.
+Fancy compiler loop unrolling and hyperthreading may well violate the second
+assumption. And certainly memory-access times diﬀer greatly depending on
+where your data sits in the storage hierarchy. This makes us zero for three on
+the truth of our basic assumptions.
+
+And yet, despite these objections, the RAM proves an excellent model for
+understanding how an algorithm will perform on a real computer. It strikes a
+ﬁne balance by capturing the essential behavior of computers while being simple
+to work with. We use the RAM model because it is useful in practice.
+
+Every model in science has a size range over which it is useful. Take, for
+example, the model that the Earth is ﬂat. You might argue that this is a bad
+model, since it is quite well established that the Earth is round. But, when
+laying the foundation of a house, the ﬂat Earth model is suﬃciently accurate
+that it can be reliably used.
+It is so much easier to manipulate a ﬂat-Earth
+model that it is inconceivable that you would try to think spherically when you
+don’t have to.1
+
+The same situation is true with the RAM model of computation. We make
+an abstraction that is generally very useful. It is diﬃcult to design an algorithm
+where the RAM model gives you substantially misleading results. The robust-
+ness of this model enables us to analyze algorithms in a machine-independent
+way.
+
+Take-Home Lesson: Algorithms can be understood and studied in a language-
+and machine-independent manner.
+
+2.1.1 Best-Case, Worst-Case, and Average-Case Complex-
+
+ity
+
+Using the RAM model of computation, we can count how many steps our algo-
+rithm takes on any given input instance by executing it. However, to understand
+how good or bad an algorithm is in general, we must know how it works over
+all possible instances.
+
+To understand the notions of the best, worst, and average-case complexity,
+think about running an algorithm over all possible instances of data that can be
+fed to it. For the problem of sorting, the set of possible input instances includes
+every possible arrangement of n keys, for all possible values of n. We can
+represent each input instance as a point on a graph (shown in Figure 2.1) where
+the x-axis represents the size of the input problem (for sorting, the number of
+items to sort), and the y-axis denotes the number of steps taken by the algorithm
+in this instance.
+
+1The Earth is not completely spherical either, but a spherical Earth provides a useful model
+
+for such things as longitude and latitude.
+
+2.1. THE RAM MODEL OF COMPUTATION
+
+33
+
+Number 
+of Steps
+
+Worst Case
+
+Average Case
+
+Best Case
+
+1                     2                     3                    4     . . . . . .
+
+n
+
+Problem Size
+
+Figure 2.1: Best-case, worst-case, and average-case complexity.
+
+These points naturally align themselves into columns, because only integers
+represent possible input sizes (e.g., it makes no sense to sort 10.57 items). We
+can deﬁne three interesting functions over the plot of these points:
+
+• The worst-case complexity of the algorithm is the function deﬁned by the
+maximum number of steps taken in any instance of size n. This represents
+the curve passing through the highest point in each column.
+
+• The best-case complexity of the algorithm is the function deﬁned by the
+minimum number of steps taken in any instance of size n. This represents
+the curve passing through the lowest point of each column.
+
+• The average-case complexity or expected time of the algorithm, which is
+the function deﬁned by the average number of steps over all instances of
+size n.
+
+The worst-case complexity generally proves to be most useful of these three
+measures in practice. Many people ﬁnd this counterintuitive. To illustrate why,
+try to project what will happen if you bring $n into a casino to gamble. The
+best case, that you walk out owning the place, is so unlikely that you should not
+even think about it. The worst case, that you lose all $n, is easy to calculate
+and distressingly likely to happen.
+
+The average case, that the typical bettor loses 87.32% of the money that he
+or she brings to the casino, is both diﬃcult to establish and its meaning subject
+to debate. What exactly does average mean? Stupid people lose more than
+smart people, so are you smarter or stupider than the average person, and by
+how much? Card counters at blackjack do better on average than customers
+who accept three or more free drinks. We avoid all these complexities and obtain
+a very useful result by considering the worst case.
+
+That said, average-case analysis for expected running time will prove very
+important with respect to randomized algorithms, which use random numbers
+If you make n independent $1 red-
+to make decisions within the algorithm.
+black bets on roulette in the casino, your expected loss is indeed well deﬁned at
+
+34
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+$(2n/38), because American roulette wheels have eighteen red, eighteen black,
+and two green slots 0 and 00 where every bet loses.
+
+Take-Home Lesson: Each of these time complexities deﬁnes a numerical func-
+tion for any given algorithm, representing running time as a function of input
+size. These functions are just as well deﬁned as any other numerical function,
+be it y = x2 − 2x + 1 or the price of Alphabet stock as a function of time. But
+time complexities are such complicated functions that we must simplify them
+for analysis using the “Big Oh” notation.
+
+2.2 The Big Oh Notation
+
+The best-case, worst-case, and average-case time complexities for any given
+algorithm are numerical functions over the size of possible problem instances.
+However, it is very diﬃcult to work precisely with these functions, because they
+tend to:
+
+• Have too many bumps – An algorithm such as binary search typically runs
+a bit faster for arrays of size exactly n = 2k − 1 (where k is an integer),
+because the array partitions work out nicely. This detail is not particularly
+important, but it warns us that the exact time complexity function for any
+algorithm is liable to be very complicated, with lots of little up and down
+bumps as shown in Figure 2.2.
+
+• Require too much detail to specify precisely – Counting the exact number
+of RAM instructions executed in the worst case requires the algorithm be
+speciﬁed to the detail of a complete computer program. Furthermore, the
+precise answer depends upon uninteresting coding details (e.g. did the
+code use a case statement or nested ifs?). Performing a precise worst-case
+analysis like
+
+T (n) = 12754n2 + 4353n + 834 lg2 n + 13546
+
+would clearly be very diﬃcult work, but provides us little extra information
+than the observation that “the time grows quadratically with n.”
+
+It proves to be much easier to talk in terms of simple upper and lower bounds
+of time-complexity functions using the Big Oh notation. The Big Oh simpliﬁes
+our analysis by ignoring levels of detail that do not impact our comparison of
+algorithms.
+
+The Big Oh notation ignores the diﬀerence between multiplicative constants.
+The functions f (n) = 2n and g(n) = n are identical in Big Oh analysis. This
+makes sense given our application. Suppose a given algorithm in (say) C lan-
+guage ran twice as fast as one with the same algorithm written in Java. This
+multiplicative factor of two can tell us nothing about the algorithm itself, be-
+cause both programs implement exactly the same algorithm. We should ignore
+such constant factors when comparing two algorithms.
+
+The formal deﬁnitions associated with the Big Oh notation are as follows:
+
+2.2. THE BIG OH NOTATION
+
+35
+
+f(n)
+
+n0
+
+upper bound
+
+lower bound
+
+1
+
+2 3
+
+4
+
+.......
+
+n
+
+Figure 2.2: Upper and lower bounds valid for n > n0 smooth out the behavior
+of complex functions.
+
+c · g(n)
+
+f (n)
+
+f (n)
+c · g(n)
+
+c1 · g(n)
+
+f (n)
+c2 · g(n)
+
+n0
+
+(a)
+
+n0
+
+(b)
+
+n0
+
+(c)
+
+Figure 2.3: Illustrating notations: (a) f (n) = O(g(n)), (b) f (n) = Ω(g(n)), and
+(c) f (n) = Θ(g(n)).
+
+• f (n) = O(g(n)) means c · g(n) is an upper bound on f (n). Thus, there
+exists some constant c such that f (n) ≤ c · g(n) for every large enough n
+(that is, for all n ≥ n0, for some constant n0).
+
+• f (n) = Ω(g(n)) means c · g(n) is a lower bound on f (n). Thus, there exists
+
+some constant c such that f (n) ≥ c · g(n) for all n ≥ n0.
+
+• f (n) = Θ(g(n)) means c1 · g(n) is an upper bound on f (n) and c2 · g(n)
+is a lower bound on f (n), for all n ≥ n0. Thus, there exist constants c1
+and c2 such that f (n) ≤ c1 · g(n) and f (n) ≥ c2 · g(n) for all n ≥ n0. This
+means that g(n) provides a nice, tight bound on f (n).
+
+Got it? These deﬁnitions are illustrated in Figure 2.3. Each of these deﬁ-
+nitions assumes there is a constant n0 beyond which they are satisﬁed. We are
+not concerned about small values of n, anything to the left of n0. After all,
+we don’t really care whether one sorting algorithm sorts six items faster than
+
+36
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+another, but we do need to know which algorithm proves faster when sorting
+10,000 or 1,000,000 items. The Big Oh notation enables us to ignore details and
+focus on the big picture.
+
+Take-Home Lesson: The Big Oh notation and worst-case analysis are tools
+that greatly simplify our ability to compare the eﬃciency of algorithms.
+
+Make sure you understand this notation by working through the following
+examples. Certain constants (c and n0) are chosen in the explanations below
+because they work and make a point, but other pairs of constants will do exactly
+the same job. You are free to choose any constants that maintain the same
+inequality (ideally constants that make it obvious that the inequality holds):
+
+f (n) = 3n2 − 100n + 6 = O(n2), because for c = 3, 3n2 > f (n);
+f (n) = 3n2 − 100n + 6 = O(n3), because for c = 1, n3 > f (n) when n > 3;
+f (n) = 3n2 − 100n + 6 (cid:6)= O(n), because for any c > 0, cn < f (n) when n > (c + 100)/3,
+
+since n > (c + 100)/3 ⇒ 3n > c + 100 ⇒ 3n2 > cn + 100n > cn + 100n − 6
+⇒ 3n2 − 100n + 6 = f (n) > cn;
+
+f (n) = 3n2 − 100n + 6 = Ω(n2), because for c = 2, 2n2 < f (n) when n > 100;
+f (n) = 3n2 − 100n + 6 (cid:6)= Ω(n3), because for any c > 0, f (n) < c · n3 when n > 3/c + 3;
+f (n) = 3n2 − 100n + 6 = Ω(n), because for any c > 0, f (n) < 3n2 + 6n2 = 9n2,
+
+which is < cn3 when n > max(9/c, 1);
+
+f (n) = 3n2 − 100n + 6 = Θ(n2), because both O and Ω apply;
+f (n) = 3n2 − 100n + 6 (cid:6)= Θ(n3), because only O applies;
+f (n) = 3n2 − 100n + 6 (cid:6)= Θ(n), because only Ω applies.
+
+The Big Oh notation provides for a rough notion of equality when comparing
+functions. It is somewhat jarring to see an expression like n2 = O(n3), but its
+meaning can always be resolved by going back to the deﬁnitions in terms of
+upper and lower bounds. It is perhaps most instructive to read the “=” here as
+meaning one of the functions that are. Clearly, n2 is one of the functions that
+are O(n3).
+
+Stop and Think: Back to the Deﬁnition
+
+Problem: Is 2n+1 = Θ(2n)?
+
+2.3. GROWTH RATES AND DOMINANCE RELATIONS
+
+37
+
+Solution: Designing novel algorithms requires cleverness and inspiration. How-
+ever, applying the Big Oh notation is best done by swallowing any creative
+instincts you may have. All Big Oh problems can be correctly solved by going
+back to the deﬁnition and working with that.
+
+• Is 2n+1 = O(2n)? Well, f (n) = O(g(n)) iﬀ there exists a constant c such
+that for all suﬃciently large n, f (n) ≤ c · g(n). Is there? Yes, because
+2n+1 = 2 · 2n, and clearly 2 · 2n ≤ c · 2n for any c ≥ 2.
+
+• Is 2n+1 = Ω(2n)? Go back to the deﬁnition. f (n) = Ω(g(n)) iﬀ there
+exists a constant c > 0 such that for all suﬃciently large n f (n) ≥ c · g(n).
+This would be satisﬁed for any 0 < c ≤ 2. Together the Big Oh and Ω
+bounds imply 2n+1 = Θ(2n).
+
+Stop and Think: Hip to the Squares?
+
+Problem: Is (x + y)2 = O(x2 + y2)?
+
+Solution: Working with the Big Oh means going back to the deﬁnition at the
+slightest sign of confusion. By deﬁnition, this expression is valid iﬀ we can ﬁnd
+some c such that (x + y)2 ≤ c(x2 + y2) for all suﬃciently large x and y.
+
+My ﬁrst move would be to expand the left side of the equation, that is,
+(x + y)2 = x2 + 2xy + y2. If the middle 2xy term wasn’t there, the inequality
+would clearly hold for any c > 1. But it is there, so we need to relate 2xy to
+x2 + y2. What if x ≤ y? Then 2xy ≤ 2y2 ≤ 2(x2 + y2). What if x ≥ y? Then
+2xy ≤ 2x2 ≤ 2(x2 + y2). Either way, we now can bound 2xy by two times the
+right-side function x2 + y2. This means that (x + y)2 ≤ 3(x2 + y2), and so the
+result holds.
+
+2.3 Growth Rates and Dominance Relations
+
+With the Big Oh notation, we cavalierly discard the multiplicative constants.
+Thus, the functions f (n) = 0.001n2 and g(n) = 1000n2 are treated identically,
+even though g(n) is a million times larger than f (n) for all values of n.
+
+The reason why we are content with such coarse Big Oh analysis is provided
+by Figure 2.4, which shows the growth rate of several common time analysis
+functions. In particular, it shows how long algorithms that use f (n) operations
+take to run on a fast computer, where each operation costs one nanosecond
+(10−9 seconds). The following conclusions can be drawn from this table:
+
+• All such algorithms take roughly the same time for n = 10.
+
+• Any algorithm with n! running time becomes useless for n ≥ 20.
+
+38
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+n
+10
+20
+30
+40
+50
+100
+1,000
+10,000
+100,000
+1,000,000
+10,000,000
+100,000,000
+1,000,000,000
+
+lg n
+0.003 μs
+0.004 μs
+0.005 μs
+0.005 μs
+0.006 μs
+0.007 μs
+0.010 μs
+0.013 μs
+0.017 μs
+0.020 μs
+0.023 μs
+0.027 μs
+0.030 μs
+
+n
+0.01 μs
+0.02 μs
+0.03 μs
+0.04 μs
+0.05 μs
+0.1 μs
+1.00 μs
+10 μs
+0.10 ms
+1 ms
+0.01 sec
+0.10 sec
+1 sec
+
+n lg n
+0.033 μs
+0.086 μs
+0.147 μs
+0.213 μs
+0.282 μs
+0.644 μs
+9.966 μs
+130 μs
+1.67 ms
+19.93 ms
+0.23 sec
+2.66 sec
+29.90 sec
+
+n2
+0.1 μs
+0.4 μs
+0.9 μs
+1.6 μs
+2.5 μs
+10 μs
+1 ms
+100 ms
+10 sec
+16.7 min
+1.16 days
+115.7 days
+31.7 years
+
+n!
+3.63 ms
+77.1 years
+8.4 × 1015 yrs
+
+2n
+1 μs
+1 ms
+1 sec
+18.3 min
+13 days
+4 × 1013 yrs
+
+Figure 2.4: Running times of common functions measured in nanoseconds.
+The function lg n denotes the base-2 logarithm of n.
+
+• Algorithms whose running time is 2n have a greater operating range, but
+
+become impractical for n >40.
+
+• Quadratic-time algorithms, whose running time is n2, remain usable up
+to about n = 10, 000, but quickly deteriorate with larger inputs. They are
+likely to be hopeless for n > 1,000,000.
+
+• Linear-time and n lg n algorithms remain practical on inputs of one billion
+
+items.
+
+• An O(lg n) algorithm hardly sweats for any imaginable value of n.
+
+The bottom line is that even ignoring constant factors, we get an excellent
+idea of whether a given algorithm is appropriate for a problem of a given size.
+
+2.3.1 Dominance Relations
+
+The Big Oh notation groups functions into a set of classes, such that all the
+functions within a particular class are essentially equivalent. Functions f (n) =
+0.34n and g(n) = 234,234n belong in the same class, namely those that are order
+Θ(n). Furthermore, when two functions f and g belong to diﬀerent classes, they
+are diﬀerent with respect to our notation, meaning either f (n) = O(g(n)) or
+g(n) = O(f (n)), but not both.
+
+We say that a faster growing function dominates a slower growing one, just
+as a faster growing company eventually comes to dominate the laggard. When
+f and g belong to diﬀerent classes (i.e. f (n) (cid:6)= Θ(g(n))), we say g dominates f
+when f (n) = O(g(n)). This is sometimes written g (cid:12) f .
+
+The good news is that only a few diﬀerent function classes tend to occur
+in the course of basic algorithm analysis. These suﬃce to cover almost all the
+algorithms we will discuss in this text, and are listed in order of increasing
+dominance:
+
+2.4. WORKING WITH THE BIG OH
+
+39
+
+• Constant functions, f (n) = 1: Such functions might measure the cost
+of adding two numbers, printing out “The Star Spangled Banner,” or
+the growth realized by functions such as f (n) = min(n, 100). In the big
+picture, there is no dependence on the parameter n.
+
+• Logarithmic functions, f (n) = log n: Logarithmic time complexity shows
+up in algorithms such as binary search. Such functions grow quite slowly
+as n gets big, but faster than the constant function (which is standing
+still, after all). Logarithms will be discussed in more detail in Section 2.7
+(page 48).
+
+• Linear functions, f (n) = n: Such functions measure the cost of looking
+at each item once (or twice, or ten times) in an n-element array, say to
+identify the biggest item, the smallest item, or compute the average value.
+
+• Superlinear functions, f (n) = n lg n: This important class of functions
+arises in such algorithms as quicksort and mergesort. They grow just a
+little faster than linear (recall Figure 2.4), but enough so to rise to a higher
+dominance class.
+
+• Quadratic functions, f (n) = n2: Such functions measure the cost of look-
+ing at most or all pairs of items in an n-element universe. These arise in
+algorithms such as insertion sort and selection sort.
+
+• Cubic functions, f (n) = n3: Such functions enumerate all triples of items
+in an n-element universe. These also arise in certain dynamic program-
+ming algorithms, to be developed in Chapter 10.
+
+• Exponential functions, f (n) = cn for a given constant c > 1: Functions
+like 2n arise when enumerating all subsets of n items. As we have seen,
+exponential algorithms become useless fast, but not as fast as. . .
+
+• Factorial functions, f (n) = n!: Functions like n! arise when generating all
+
+permutations or orderings of n items.
+
+The intricacies of dominance relations will be further discussed in Section
+
+2.10.2 (page 58). However, all you really need to understand is that:
+
+n! (cid:12) 2n (cid:12) n3 (cid:12) n2 (cid:12) n log n (cid:12) n (cid:12) log n (cid:12) 1
+
+Take-Home Lesson: Although esoteric functions arise in advanced algorithm
+analysis, a small set of time complexities suﬃce for most algorithms we will see
+in this book.
+
+2.4 Working with the Big Oh
+
+You learned how to do simpliﬁcations of algebraic expressions back in high
+school. Working with the Big Oh requires dusting oﬀ these tools. Most of what
+you learned there still holds in working with the Big Oh, but not everything.
+
+40
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+2.4.1 Adding Functions
+
+The sum of two functions is governed by the dominant one, namely:
+
+f (n) + g(n) → Θ(max(f (n), g(n)))
+
+This is very useful in simplifying expressions: for example it gives us that
+n3 + n2 + n + 1 = Θ(n3). Everything else is small potatoes besides the dominant
+term.
+
+The intuition is as follows. At least half the bulk of f (n) + g(n) must come
+from the larger value. The dominant function will, by deﬁnition, provide the
+larger value as n → ∞. Thus, dropping the smaller function from consideration
+reduces the value by at most a factor of 1/2, which is just a multiplicative
+constant. For example, if f (n) = O(n2) and g(n) = O(n2), then f (n) + g(n) =
+O(n2) as well.
+
+2.4.2 Multiplying Functions
+
+Multiplication is like repeated addition. Consider multiplication by any constant
+c > 0, be it 1.02 or 1,000,000. Multiplying a function by a constant cannot aﬀect
+its asymptotic behavior, because we can multiply the bounding constants in the
+Big Oh analysis to account for it. Thus,
+
+O(c · f (n)) → O(f (n))
+Ω(c · f (n)) → Ω(f (n))
+Θ(c · f (n)) → Θ(f (n))
+
+Of course, c must be strictly positive (i.e. c > 0) to avoid any funny business,
+since we can wipe out even the fastest growing function by multiplying it by
+zero.
+
+On the other hand, when two functions in a product are increasing, both
+are important. An O(n! log n) function dominates n! by just as much as log n
+dominates 1. In general,
+
+O(f (n)) · O(g(n)) → O(f (n) · g(n))
+Ω(f (n)) · Ω(g(n)) → Ω(f (n) · g(n))
+Θ(f (n)) · Θ(g(n)) → Θ(f (n) · g(n))
+
+Stop and Think: Transitive Experience
+
+Problem:
+O(g(n)) and g(n) = O(h(n)), then f (n) = O(h(n)).
+
+Show that Big Oh relationships are transitive. That is, if f (n) =
+
+Solution: We always go back to the deﬁnition when working with the Big Oh.
+What we need to show here is that f (n) ≤ c3 · h(n) for n > n3 given that
+
+2.5. REASONING ABOUT EFFICIENCY
+
+41
+
+f (n) ≤ c1 · g(n) and g(n) ≤ c2 · h(n), for n > n1 and n > n2, respectively.
+Cascading these inequalities, we get that
+
+f (n) ≤ c1 · g(n) ≤ c1c2 · h(n)
+
+for n > n3 = max(n1, n2).
+
+2.5 Reasoning about Eﬃciency
+
+Coarse reasoning about an algorithm’s running time is usually easy, given a
+precise description of the algorithm. In this section, I will work through several
+examples, perhaps in greater detail than necessary.
+
+2.5.1 Selection Sort
+
+Here we’ll analyze the selection sort algorithm, which repeatedly identiﬁes the
+smallest remaining unsorted element and puts it at the end of the sorted portion
+of the array. An animation of selection sort in action appears in Figure 2.5, and
+the code is shown below:
+
+void selection_sort(item_type s[], int n) {
+
+int i, j;
+int min;
+
+/* counters */
+/* index of minimum */
+
+for (i = 0; i<
+
+n; i++) {
+
+min = i;
+for (j = i + 1; j<
+
+n; j++) {
+
+if (s[j] < s[min]) {
+
+min = j;
+
+}
+
+}
+swap(&s[i], &s[min]);
+
+}
+
+}
+
+The outer for loop goes around n times. The nested inner loop goes around
+n − (i + 1) times, where i is the index of the outer loop. The exact number of
+times the if statement is executed is given by:
+
+n−1
+
+n−1
+
+n−1
+
+T (n) =
+
+1 =
+
+n − i − 1
+
+i=0
+(cid:7)
+
+j=i+1
+(cid:7)
+
+i=0
+(cid:7)
+
+What this sum is doing is adding up the non-negative integers in decreasing
+order starting from n − 1, that is,
+
+T (n) = (n − 1) + (n − 2) + (n − 3) + . . . + 2 + 1
+
+42
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+C
+
+I
+L
+
+S  E  L  E       T  I  O  N  S  O  R  T
+EC
+L  E  S  T  I  O  N  S  O  R  T
+E
+C E
+L       S  T  I  O  N  S  O  R  T
+C E E
+L  S  T      O  N  S  O  R  T
+C E E I
+S  T      O  N  S  O  R  T
+C E E
+L
+T  S  O       S  O  R  T
+N
+I
+L N
+I
+E
+C E
+O
+S       T  S  O  R  T
+I
+O
+N
+E E
+L
+C
+S  T  S       R  T
+O
+N O
+O
+E
+I
+C
+L
+E
+T  S  S       T
+R
+O
+O
+R
+N
+I
+L
+S  T  T
+E
+C
+E
+T  T
+L
+O
+R
+S
+I
+N
+O
+C
+E
+E
+S
+L
+N
+OO
+R
+T
+T
+I
+E
+E
+C
+S
+T
+R
+T
+L N O
+O
+C
+E
+I
+E
+N
+O O
+S
+L
+R
+T
+T
+I
+E
+E
+C
+
+S
+S
+S
+S
+S
+
+Figure 2.5: Animation of selection sort in action.
+
+How can we reason about such a formula? We must solve the summation
+formula using the techniques of Section 2.6 (page 46) to get an exact value. But,
+with the Big Oh, we are only interested in the order of the expression. One way
+to think about it is that we are adding up n − 1 terms, whose average value is
+about n/2. This yields T (n) ≈ (n − 1)n/2 =O (n2).
+
+Proving the Theta
+
+Another way to think about this algorithm’s running time is in terms of upper
+and lower bounds. We have n terms at most, each of which is at most n − 1.
+Thus, T (n) ≤ n(n − 1) = O(n2). The Big Oh is an upper bound.
+
+The Big Ω is a lower bound. Looking at the sum again, we have n/2 terms
+each of which is bigger than n/2, followed by n/2 terms each greater than zero..
+Thus, T (n) ≥ (n/2) · (n/2) + (n/2) · 0 = Ω(n2). Together with the Big Oh
+result, this tells us that the running time is Θ(n2), meaning that selection sort
+is quadratic.
+
+Generally speaking, turning a Big Oh worst-case analysis into a Big Θ in-
+volves identifying a bad input instance that forces the algorithm to perform as
+poorly as possible. But selection sort is distinctive among sorting algorithms
+in that it takes exactly the same time on all n! possible input instances. Since
+T (n) = n(n − 1)/2 for all n ≥ 0, T (n) = Θ(n2).
+
+2.5.2
+
+Insertion Sort
+
+A basic rule of thumb in Big Oh analysis is that worst-case running time fol-
+lows from multiplying the largest number of times each nested loop can iterate.
+Consider the insertion sort algorithm presented on page 3, whose inner loops
+are repeated here:
+
+2.5. REASONING ABOUT EFFICIENCY
+
+43
+
+for (i = 1; i<
+j = i;
+while ((j > 0) && (s[j] < s[j - 1])) {
+
+n; i++) {
+
+swap(&s[j], &s[j - 1]);
+j = j-1;
+
+}
+
+}
+
+How often does the inner while loop iterate? This is tricky because there
+are two diﬀerent stopping conditions: one to prevent us from running oﬀ the
+bounds of the array (j > 0) and the other to mark when the element ﬁnds its
+proper place in sorted order (s[j] < s[j − 1]). Since worst-case analysis seeks an
+upper bound on the running time, we ignore the early termination and assume
+that this loop always goes around i times.
+In fact, we can simplify further
+and assume it always goes around n times since i < n. Since the outer loop
+goes around n times, insertion sort must be a quadratic-time algorithm, that is,
+O(n2).
+
+This crude “round it up” analysis always does the job, in that the Big Oh
+running time bound you get will always be correct. Occasionally, it might be
+too pessimistic, meaning the actual worst-case time might be of a lower order
+than implied by such analysis. Still, I strongly encourage this kind of reasoning
+as a basis for simple algorithm analysis.
+
+Proving the Theta
+
+The worst case for insertion sort occurs when each newly inserted element must
+slide all the way to the front of the sorted region. This happens if the input
+is given in reverse sorted order. Each of the last n/2 elements of the input
+must slide over at least n/2 elements to ﬁnd the correct position, taking at least
+(n/2)2 = Ω(n2) time.
+
+2.5.3 String Pattern Matching
+
+Pattern matching is the most fundamental algorithmic operation on text strings.
+This algorithm implements the ﬁnd command available in any web browser or
+text editor:
+
+Problem: Substring Pattern Matching
+Input: A text string t and a pattern string p.
+Output: Does t contain the pattern p as a substring, and if so, where?
+
+Perhaps you are interested in ﬁnding where “Skiena” appears in a given news
+article (well, I would be interested in such a thing). This is an instance of string
+pattern matching with t as the news article and p = “Skiena”.
+
+There is a fairly straightforward algorithm for string pattern matching that
+considers the possibility that p may start at each possible position in t and then
+tests if this is so.
+
+44
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+a   b b
+a
+
+a
+b   b   a
+ba
+
+a   b
+a
+
+b   a
+a
+b
+b   b   a
+a   b   b   a
+
+a   b   a   a   b   a   b   b   a   b   a
+
+Figure 2.6: Searching for the substring abba in the text abaababbaba. Blue
+characters represent pattern-text matches, with red characters mismatches. The
+search stops as soon as a match is found.
+
+int findmatch(char *p, char *t) {
+
+int i, j;
+int plen, tlen;
+
+/* counters */
+/* string lengths */
+
+plen = strlen(p);
+tlen = strlen(t);
+
+for (i = 0; i<=
+j = 0;
+while ((j < plen) && (t[i + j] == p[j])) {
+
+(tlen-plen); i = i + 1) {
+
+j = j + 1;
+
+}
+if (j == plen) {
+
+return(i);
+
+/* location of the first match */
+
+}
+
+}
+return(-1);
+
+}
+
+/* there is no match */
+
+What is the worst-case running time of these two nested loops? The inner
+while loop goes around at most m times, and potentially far less when the
+pattern match fails. This, plus two other statements, lies within the outer for
+loop. The outer loop goes around at most n − m times, since no complete
+alignment is possible once we get too far to the right of the text. The time
+complexity of nested loops multiplies, so this gives a worst-case running time of
+O((n − m)(m + 2)).
+
+We did not count the time it takes to compute the length of the strings using
+the function strlen. Since the implementation of strlen is not given, we must
+guess how long it should take. If it explicitly counts the number of characters
+until it hits the end of the string, this will take time linear in the length of the
+string. Thus, the total worst-case running time is O(n + m + (n − m)(m + 2)).
+Let’s use our knowledge of the Big Oh to simplify things. Since m + 2 =
+Θ(m), the “+2” isn’t interesting, so we are left with O(n + m + (n − m)m).
+
+2.5. REASONING ABOUT EFFICIENCY
+
+45
+
+Multiplying this out yields O(n + m + nm − m2), which still seems kind of ugly.
+However, in any interesting problem we know that n ≥ m, since p can’t be a
+substring of t when the pattern is longer than the text itself. One consequence
+of this is that n + m ≤ 2n = Θ(n). Thus, our worst-case running time simpliﬁes
+further to O(n + nm − m2).
+
+Two more observations and we are done. First, note that n ≤ nm, since
+m ≥ 1 in any interesting pattern. Thus, n + nm = Θ(nm), and we can drop the
+additive n, simplifying our analysis to O(nm − m2).
+
+Finally, observe that the −m2 term is negative, and thus only serves to
+lower the value within. Since the Big Oh gives an upper bound, we can drop
+any negative term without invalidating the upper bound. The inequality n ≥ m
+implies that mn ≥ m2, so the negative term is not big enough to cancel the term
+that is left. Thus, we can express the worst-case running time of this algorithm
+simply as O(nm).
+
+After you get enough experience, you will be able to do such an algorithm
+analysis in your head without even writing the algorithm down. After all, algo-
+rithm design for a given task involves mentally riﬂing through diﬀerent possibil-
+ities and selecting the best approach. This kind of ﬂuency comes with practice,
+but if you are confused about why a given algorithm runs in O(f (n)) time, start
+by writing the algorithm out carefully and then employ the kind of reasoning
+we used in this section.
+
+Proving the Theta
+
+The analysis above gives a quadratic-time upper bound on the running time of
+this simple pattern matching algorithm. To prove the theta, we must show an
+example where it actually does take Ω(mn) time.
+
+Consider what happens when the text t = “aaaa . . . aaaa” is a string of n
+a’s, and the pattern p = “aaaa . . . aaab” is a string of m − 1 a’s followed by a b.
+Wherever the pattern is positioned on the text, the while loop will successfully
+match the ﬁrst m − 1 characters before failing on the last one. There are
+n − m + 1 possible positions where p can sit on t without overhanging the end,
+so the running time is:
+
+(n − m + 1)(m) = mn − m2 + m = Ω(mn)
+
+Thus, this string matching algorithm runs in worst-case Θ(nm) time. Faster
+indeed we will see an expected linear-time algorithm for
+
+algorithms do exist:
+this problem in Section 6.7.
+
+2.5.4 Matrix Multiplication
+
+Nested summations often arise in the analysis of algorithms with nested loops.
+Consider the problem of matrix multiplication:
+
+46
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+Problem: Matrix Multiplication
+Input: Two matrices, A (of dimension x × y) and B (dimension y × z).
+Output: An x × z matrix C where C[i][j] is the dot product of the ith row of A
+and the jth column of B.
+
+Matrix multiplication is a fundamental operation in linear algebra, presented
+with an entry in the catalog in Section 16.3 (page 472). That said, the elemen-
+tary algorithm for matrix multiplication is implemented as three nested loops:
+
+for (i = 1; i<=
+
+a->rows; i++) {
+
+for (j = 1; j<=
+
+b->columns; j++) {
+
+c->m[i][j] = 0;
+for (k = 1; k<=
+
+b->rows; k++) {
+
+c->m[i][j] += a->m[i][k] * b->m[k][j];
+
+}
+
+}
+
+}
+
+How can we analyze the time complexity of this algorithm? Three nested
+loops should smell O(n3) to you by this point, but let’s be precise. The number
+of multiplications M (x, y, z) is given by the following summation:
+
+x
+
+y
+
+z
+
+M (x, y, z) =
+
+1
+
+i=1
+(cid:7)
+
+j=1
+(cid:7)
+
+k=1
+(cid:7)
+
+Sums get evaluated from the right inward. The sum of z ones is z, so
+
+x
+
+y
+
+M (x, y, z) =
+
+z
+
+The sum of y z’s is just as simple, yz, so
+
+i=1
+(cid:7)
+
+j=1
+(cid:7)
+
+x
+
+Finally, the sum of x yz’s is xyz.
+
+i=1
+(cid:7)
+
+M (x, y, z) =
+
+yz
+
+Thus, the running of this matrix multiplication algorithm is O(xyz). If we
+consider the common case where all three dimensions are the same, this becomes
+O(n3). The same analysis holds for an Ω(n3) lower bound, because the matrix
+dimensions govern the number of iterations of the for loops. Simple matrix
+multiplication is a cubic algorithm that runs in Θ(n3) time. Faster algorithms
+exist: see Section 16.3.
+
+2.6 Summations
+
+Mathematical summation formulae are important to us for two reasons. First,
+they often arise in algorithm analysis. Second, proving the correctness of such
+
+2.6. SUMMATIONS
+
+47
+
+formulae is a classic application of mathematical induction. Several exercises on
+inductive proofs of summations appear as exercises at the end of this chapter.
+To make them more accessible, I review the basics of summations here.
+
+Summation formulae are concise expressions describing the addition of an
+
+arbitrarily large set of numbers, in particular the formula
+
+f (i) = f (1) + f (2) + . . . + f (n)
+
+n
+
+i=1
+(cid:7)
+
+Simple closed forms exist for summations of many algebraic functions. For
+
+example, since the sum of n ones is n,
+
+1 =n
+
+n
+
+i=1
+(cid:7)
+
+When n is even, the sum of the ﬁrst n = 2k integers can be seen by pairing up
+the ith and (n − i + 1)th integers:
+
+n
+
+k
+
+i =
+
+(i + (2k − i + 1)) = k(2k + 1) = n(n + 1)/2
+
+i=1
+(cid:7)
+
+i=1
+(cid:7)
+
+The same result holds for odd n with slightly more careful analysis.
+
+Recognizing two basic classes of summation formulae will get you a long way
+
+in algorithm analysis:
+
+• Sum of a power of integers – We encountered the sum of the ﬁrst n positive
+n
+i=1 i = n(n + 1)/2 in the analysis of selection sort.
+integers S(n) =
+From the big picture perspective, the important thing is that the sum is
+quadratic, not that the constant is 1/2. In general,
+
+(cid:3)
+
+n
+
+S(n, p) =
+
+ip = Θ(np+1)
+
+i=1
+(cid:7)
+
+for p ≥ 0. Thus, the sum of squares is cubic, and the sum of cubes is
+quartic (if you use such a word).
+For p < −1, this sum S(n, p) always converges to a constant as n → ∞,
+while for p ≥ 0 it diverges. The interesting case between these is the
+Harmonic numbers, H(n) =
+
+n
+i=1 1/i = Θ(log n).
+
+• Sum of a geometric progression – In geometric progressions, the index of
+
+(cid:3)
+
+the loop aﬀects the exponent, that is,
+
+n
+
+G(n, a) =
+
+ai = (an+1 − 1)/(a − 1)
+
+i=0
+(cid:7)
+
+How we interpret this sum depends upon the base of the progression, in
+this case a. When |a| < 1, G(n, a) converges to a constant as n → ∞.
+
+48
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+This series convergence proves to be the great “free lunch” of algorithm
+analysis.
+It means that the sum of a linear number of things can be
+constant, not linear. For example, 1 + 1/2 + 1/4 + 1/8 +. . . ≤ 2 no matter
+how many terms we add up.
+When a > 1, the sum grows rapidly with each new term, as in 1 + 2 + 4 +
+8 + 16 + 32 = 63. Indeed, G(n, a) = Θ(an+1) for a > 1.
+
+Stop and Think: Factorial Formulae
+
+Problem: Prove that
+
+n
+
+i=1 i × i! = (n + 1)! − 1 by induction.
+
+(cid:3)
+
+Solution: The inductive paradigm is straightforward. First verify the basis
+case. The case n = 0 gives an empty sum, which by deﬁnition evaluates to 0.
+Alternately we can do n = 1:
+
+i × i! = 1 and (1 + 1)! − 1 = 2 − 1 = 1
+
+1
+
+i=1
+(cid:7)
+
+Now assume the statement is true up to n. To prove the general case of
+
+n + 1, observe that separating out the largest term
+
+n+1
+
+i=1
+(cid:7)
+
+i × i! = (n + 1) × (n + 1)! +
+
+i × i!
+
+n
+
+i=1
+(cid:7)
+
+reveals the left side of our inductive assumption. Substituting the right side
+gives us
+
+n+1
+
+i=1
+(cid:7)
+
+i × i! = (n + 1) × (n + 1)! + (n + 1)! − 1
+
+= (n + 1)! × ((n + 1) + 1) − 1
+= (n + 2)! − 1
+
+This general trick of separating out the largest term from the summation
+to reveal an instance of the inductive assumption lies at the heart of all such
+proofs.
+
+2.7 Logarithms and Their Applications
+
+Logarithm is an anagram of algorithm, but that’s not why we need to know
+what logarithms are. You’ve seen the button on your calculator, but may have
+forgotten why it is there. A logarithm is simply an inverse exponential function.
+Saying bx = y is equivalent to saying that x = logb y. Further, this equivalence
+is the same as saying blogb y = y.
+
+2.7. LOGARITHMS AND THEIR APPLICATIONS
+
+49
+
+0
+0
+0
+0
+1
+0
+0
+1
+1
+0
+1   
+0
+1   
+1
+1  
+1
+
+0
+1
+0
+1
+0
+1
+0
+1
+
+Figure 2.7: A height h tree with d children per node has dh leaves. Here h = 3
+and d = 3 (left). The number of bit patterns grows exponentially with pattern
+length (right). These would be described by the root-to-leaf paths of a binary
+tree of height h = 3.
+
+Exponential functions grow at a distressingly fast rate, as anyone who has
+ever tried to pay oﬀ a credit card balance understands. Thus, inverse exponential
+functions (logarithms) grow refreshingly slowly. Logarithms arise in any process
+where things are repeatedly halved. We’ll now look at several examples.
+
+2.7.1 Logarithms and Binary Search
+
+Binary search is a good example of an O(log n) algorithm. To locate a particular
+person p in a telephone book2 containing n names, you start by comparing
+p against the middle, or (n/2)nd name, say Monroe, Marilyn. Regardless of
+whether p belongs before this middle name (Dean, James) or after it (Presley,
+Elvis), after just one comparison you can discard one half of all the names
+in the book. The number of steps the algorithm takes equals the number of
+times we can halve n until only one name is left. By deﬁnition, this is exactly
+log2 n. Thus, twenty comparisons suﬃce to ﬁnd any name in the million-name
+Manhattan phone book!
+
+Binary search is one of the most powerful ideas in algorithm design. This
+power becomes apparent if we imagine trying to ﬁnd a name in an unsorted
+telephone book.
+
+2.7.2 Logarithms and Trees
+
+A binary tree of height 1 can have up to 2 leaf nodes, while a tree of height 2
+can have up to 4 leaves. What is the height h of a rooted binary tree with n
+leaf nodes? Note that the number of leaves doubles every time we increase the
+height by 1. To account for n leaves, n = 2h, which implies that h = log2 n.
+
+What if we generalize to trees that have d children, where d = 2 for the case
+of binary trees? A tree of height 1 can have up to d leaf nodes, while one of
+height 2 can have up to d2 leaves. The number of possible leaves multiplies by
+d every time we increase the height by 1, so to account for n leaves, n = dh,
+which implies that h = logd n, as shown in Figure 2.7.
+
+2If necessary, ask your grandmother what telephone books were.
+
+50
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+The punch line here is that short trees can have very many leaves, which is
+the main reason why binary trees prove fundamental to the design of fast data
+structures.
+
+2.7.3 Logarithms and Bits
+
+There are two bit patterns of length 1 (0 and 1), four of length 2 (00, 01, 10,
+and 11), and eight of length 3 (see Figure 2.7 (right)). How many bits w do we
+need to represent any one of n diﬀerent possibilities, be it one of n items or the
+integers from 0 to n − 1?
+
+The key observation is that there must be at least n diﬀerent bit patterns
+of length w. Since the number of diﬀerent bit patterns doubles as you add each
+bit, we need at least w bits where 2w = n. In other words, we need w = log2 n
+bits.
+
+2.7.4 Logarithms and Multiplication
+
+Logarithms were particularly important in the days before pocket calculators.
+They provided the easiest way to multiply big numbers by hand, either implicitly
+using a slide rule or explicitly by using a book of logarithms.
+
+Logarithms are still useful for multiplication, particularly for exponentiation.
+Recall that loga(xy) = loga(x) + loga(y); that is, the log of a product is the sum
+of the logs. A direct consequence of this is
+
+loga nb = b · loga n
+
+How can we compute ab for any a and b using the exp(x) and ln(x) functions
+on your calculator, where exp(x) = ex and ln(x) = loge(x)? We know
+
+ab = exp(ln(ab)) = exp(b ln(a))
+
+so the problem is reduced to one multiplication plus one call to each of these
+functions.
+
+2.7.5 Fast Exponentiation
+
+Suppose that we need to exactly compute the value of an for some reasonably
+large n. Such problems occur in primality testing for cryptography, as dis-
+cussed in Section 16.8 (page 490). Issues of numerical precision prevent us from
+applying the formula above.
+
+The simplest algorithm performs n − 1 multiplications, by computing a × a ×
+. . . × a. However, we can do better by observing that n = (cid:8)n/2(cid:9) + (cid:13)n/2(cid:14). If n
+is even, then an = (an/2)2. If n is odd, then an = a(a(cid:3)n/2(cid:4))2. In either case, we
+have halved the size of our exponent at the cost of, at most, two multiplications,
+so O(lg n) multiplications suﬃce to compute the ﬁnal value.
+
+2.7. LOGARITHMS AND THEIR APPLICATIONS
+
+51
+
+function power(a, n)
+
+if (n = 0) return(1)
+x = power(a, (cid:8)n/2(cid:9))
+if (n is even) then return(x2)
+else return(a × x2)
+
+This simple algorithm illustrates an important principle of divide and con-
+quer. It always pays to divide a job as evenly as possible. When n is not a power
+of two, the problem cannot always be divided perfectly evenly, but a diﬀerence
+of one element between the two sides as shown here cannot cause any serious
+imbalance.
+
+2.7.6 Logarithms and Summations
+
+The Harmonic numbers arise as a special case of a sum of a power of inte-
+gers, namely H(n) = S(n, −1). They are the sum of the progression of simple
+reciprocals, namely,
+
+n
+
+H(n) =
+
+1/i = Θ(log n)
+
+i=1
+(cid:7)
+
+The Harmonic numbers prove important, because they usually explain “where
+the log comes from” when one magically pops out from algebraic manipulation.
+For example, the key to analyzing the average-case complexity of quicksort is
+n
+i=1 1/i. Employing the Harmonic number’s Θ bound imme-
+the summation n
+diately reduces this to Θ(n log n).
+
+(cid:3)
+
+2.7.7 Logarithms and Criminal Justice
+
+Figure 2.8 will be our ﬁnal example of logarithms in action. This table appears
+in the Federal Sentencing Guidelines, used by courts throughout the United
+States. These guidelines are an attempt to standardize criminal sentences, so
+that a felon convicted of a crime before one judge receives the same sentence
+that they would before a diﬀerent judge. To accomplish this, the judges have
+prepared an intricate point function to score the depravity of each crime and
+map it to time-to-serve.
+
+Figure 2.8 gives the actual point function for fraud—a table mapping dollars
+stolen to points. Notice that the punishment increases by one level each time
+the amount of money stolen roughly doubles. That means that the level of
+punishment (which maps roughly linearly to the amount of time served) grows
+logarithmically with the amount of money stolen.
+
+Think for a moment about the consequences of this. Many a corrupt CEO
+certainly has. It means that your total sentence grows extremely slowly with
+the amount of money you steal. Embezzling an additional $100,000 gets you
+3 additional punishment levels if you’ve already stolen $10,000, adds only 1
+level if you’ve stolen $50,000, and has no eﬀect if you’ve stolen a million. The
+corresponding beneﬁt of stealing really large amounts of money becomes even
+
+52
+
+CHAPTER 2. ALGORITHM ANALYSIS
+
+Loss (apply the greatest)
+(A) $2,000 or less
+(B) More than $2,000
+(C) More than $5,000
+(D) More than $10,000
+(E) More than $20,000
+(F) More than $40,000
+(G) More than $70,000
+(H) More than $120,000
+(I) More than $200,000
+(J) More than $350,000
+(K) More than $500,000
+(L) More than $800,000
+(M) More than $1,500,000
+(N) More than $2,500,000
+(O) More than $5,000,000
+(P) More than $10,000,000
+(Q) More than $20,000,000
+(R) More than $40,000,000
+(S) More than $80,000,000
+
+Increase in level
+no increase
+add 1
+add 2
+add 3
+add 4
+add 5
+add 6
+add 7
+add 8
+add 9
+add 10
+add 11
+add 12
+add 13
+add 14
+add 15
+add 16
+add 17
+add 18
+
+Figure 2.8: The Federal Sentencing Guidelines for fraud
+
+greater. The moral of logarithmic growth is clear: If you’re gonna do the crime,
+make it worth the time!3
+
+Take-Home Lesson: Logarithms arise whenever things are repeatedly halved
+or doubled.
+
+2.8 Properties of Logarithms
+
+As we have seen, stating bx = y is equivalent to saying that x = logb y. The
+b term is known as the base of the logarithm. Three bases are of particular
+importance for mathematical and historical reasons:
+
+• Base b = 2: The binary logarithm, usually denoted lg x, is a base 2 loga-
+rithm. We have seen how this base arises whenever repeated halving (i.e.,
+binary search) or doubling (i.e., nodes in trees) occurs. Most algorithmic
+applications of logarithms imply binary logarithms.
+
+• Base b = e: The natural logarithm, usually denoted ln x, is a base e =
+2.71828 . . . logarithm. The inverse of ln x is the exponential function
+exp(x) = ex on your calculator. Thus, composing these functions gives us
+the identity function,
+
+3Life imitates art. After publishing this example in the previous edition, I was approached
+
+by the U.S. Sentencing Commission seeking insights to improve these guidelines.
+
+exp(ln x) = x and ln(exp x) = x
+
+2.8. PROPERTIES OF LOGARITHMS
+
+53
+
+• Base b = 10: Less common today is the base-10 or common logarithm, usu-
+ally denoted as log x. This base was employed in slide rules and logarithm
+books in the days before pocket calculators.
+
+We have already seen one important property of logarithms, namely that
+
+loga(xy) = loga(x) + loga(y)
+
+The other important fact to remember is that it is easy to convert a logarithm
+from one base to another. This is a consequence of the following formula:
+
+loga b =
+
+logc b
+logc a
+
+Thus, changing the base of log b from base-a to base-c simply involves multi-
+plying by logc a. It is easy to convert a common log function to a natural log
+function, and vice versa.
+
+Two implications of these properties of logarithms are important to appre-
+
+ciate from an algorithmic perspective:
+
+• The base of the logarithm has no real impact on the growth rate: Compare
+the following three values: log2(1, 000, 000) = 19.9316, log3(1, 000, 000) =
+12.5754, and log100(1, 000, 000) = 3. A big change in the base of the
+logarithm produces little diﬀerence in the value of the log. Changing the
+base of the log from a to c involves multiplying by logc a. This conversion
+factor is absorbed in the Big Oh notation whenever a and c are constants.
+Thus, we are usually justiﬁed in ignoring the base of the logarithm when
+analyzing algorithms.
+
+• Logarithms cut any function down to size: The growth rate of the loga-
+
+rithm of any polynomial function is O(lg n). This follows because
+
+loga nb = b · loga n
+
+The eﬀectiveness of binary search on a wide range of problems is a con-
+sequence of this observation. Note that performing a binary search on a
+sorted array of n2 things requires only twice as many comparisons as a
+binary search on n things.
+
+Logarithms eﬃciently cut any function down to size.
+arithmetic on factorials except after taking logarithms, since
+
+It is hard to do
+
+n
+
+n! =
+
+i → log n! =
+
+i=1
+(cid:4)
+
+n
+
+i=1
+(cid:7)
+
+log i = Θ(n log n)
+
+provides another way logarithms pop up in algorithm analysis.
+
+

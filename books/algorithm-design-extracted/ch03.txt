@@ -1,0 +1,3659 @@
+104
+
+CHAPTER 3. DATA STRUCTURES
+
+3-10. [3] Two strings X and Y are anagrams if the letters of X can be rearranged
+to form Y . For example, silent/listen, and incest/insect are anagrams. Give an
+eﬃcient algorithm to determine whether strings X and Y are anagrams.
+
+Trees and Other Dictionary Structures
+
+3-11. [3] Design a dictionary data structure in which search, insertion, and deletion
+can all be processed in O(1) time in the worst case. You may assume the set
+elements are integers drawn from a ﬁnite set 1, 2, .., n, and initialization can take
+O(n) time.
+
+3-12. [3] The maximum depth of a binary tree is the number of nodes on the path
+from the root down to the most distant leaf node. Give an O(n) algorithm to
+ﬁnd the maximum depth of a binary tree with n nodes.
+
+3-13. [5] Two elements of a binary search tree have been swapped by mistake. Give
+
+an O(n) algorithm to identify these two elements so they can be swapped back.
+
+3-14. [5] Given two binary search trees, merge them into a doubly linked list in sorted
+
+order.
+
+3-15. [5] Describe an O(n)-time algorithm that takes an n-node binary search tree
+and constructs an equivalent height-balanced binary search tree. In a height-
+balanced binary search tree, the diﬀerence between the height of the left and
+right subtrees of every node is never more than 1.
+
+3-16. [3] Find the storage eﬃciency ratio (the ratio of data space over total space)
+
+for each of the following binary tree implementations on n nodes:
+
+(a) All nodes store data, two child pointers, and a parent pointer. The data
+
+ﬁeld requires 4 bytes and each pointer requires 4 bytes.
+
+(b) Only leaf nodes store data; internal nodes store two child pointers. The
+
+data ﬁeld requires four bytes and each pointer requires two bytes.
+
+3-17. [5] Give an O(n) algorithm that determines whether a given n-node binary tree
+
+is height-balanced (see Problem 3-15).
+
+3-18. [5] Describe how to modify any balanced tree data structure such that search,
+insert, delete, minimum, and maximum still take O(log n) time each, but suc-
+cessor and predecessor now take O(1) time each. Which operations have to be
+modiﬁed to support this?
+
+3-19. [5] Suppose you have access to a balanced dictionary data structure that sup-
+ports each of the operations search, insert, delete, minimum, maximum, suc-
+cessor, and predecessor in O(log n) time. Explain how to modify the insert
+and delete operations so they still take O(log n) but now minimum and max-
+imum take O(1) time. (Hint: think in terms of using the abstract dictionary
+operations, instead of mucking about with pointers and the like.)
+
+3-20. [5] Design a data structure to support the following operations:
+
+• insert(x,T) – Insert item x into the set T .
+• delete(k,T) – Delete the kth smallest element from T .
+• member(x,T) – Return true iﬀ x ∈ T .
+
+All operations must take O(log n) time on an n-element set.
+
+3.10. EXERCISES
+
+105
+
+3-21. [8] A concatenate operation takes two sets S1 and S2, where every key in S1 is
+smaller than any key in S2, and merges them. Give an algorithm to concatenate
+two binary search trees into one binary search tree. The worst-case running
+time should be O(h), where h is the maximal height of the two trees.
+
+Applications of Tree Structures
+
+3-22. [5] Design a data structure that supports the following two operations:
+
+• insert(x) – Insert item x from the data stream to the data structure.
+• median() – Return the median of all elements so far.
+
+All operations must take O(log n) time on an n-element set.
+
+3-23. [5] Assume we are given a standard dictionary (balanced binary search tree)
+deﬁned on a set of n strings, each of length at most l. We seek to print out all
+strings beginning with a particular preﬁx p. Show how to do this in O(ml log n)
+time, where m is the number of strings.
+
+3-24. [5] An array A is called k-unique if it does not contain a pair of duplicate
+elements within k positions of each other, that is, there is no i and j such that
+A[i] = A[j] and |j − i| ≤ k. Design a worst-case O(n log k) algorithm to test if
+A is k-unique.
+
+3-25. [5]
+
+In the bin-packing problem, we are given n objects, each weighing at most
+1 kilogram. Our goal is to ﬁnd the smallest number of bins that will hold the n
+objects, with each bin holding 1 kilogram at most.
+
+• The best-ﬁt heuristic for bin packing is as follows. Consider the objects
+in the order in which they are given. For each object, place it into the
+partially ﬁlled bin with the smallest amount of extra room after the ob-
+ject is inserted. If no such bin exists, start a new bin. Design an algo-
+rithm that implements the best-ﬁt heuristic (taking as input the n weights
+w1, w2, ..., wn and outputting the number of bins used) in O(n log n) time.
+• Repeat the above using the worst-ﬁt heuristic, where we put the next
+object into the partially ﬁlled bin with the largest amount of extra room
+after the object is inserted.
+
+3-26. [5] Suppose that we are given a sequence of n values x1, x2, ..., xn and seek to
+quickly answer repeated queries of the form: given i and j, ﬁnd the smallest
+value in xi, . . . , xj.
+
+(a) Design a data structure that uses O(n2) space and answers queries in O(1)
+
+time.
+
+(b) Design a data structure that uses O(n) space and answers queries in
+O(log n) time. For partial credit, your data structure can use O(n log n)
+space and have O(log n) query time.
+
+3-27. [5] Suppose you are given an input set S of n integers, and a black box that if
+given any sequence of integers and an integer k instantly and correctly answers
+whether there is a subset of the input sequence whose sum is exactly k. Show
+how to use the black box O(n) times to ﬁnd a subset of S that adds up to k.
+
+3-28. [5] Let A[1..n] be an array of real numbers. Design an algorithm to perform
+
+any sequence of the following operations:
+
+106
+
+CHAPTER 3. DATA STRUCTURES
+
+• Add(i,y) – Add the value y to the ith number.
+• Partial-sum(i) – Return the sum of the ﬁrst i numbers, that is,
+
+(cid:2)i
+
+j=1 A[j].
+
+There are no insertions or deletions; the only change is to the values of the num-
+bers. Each operation should take O(log n) steps. You may use one additional
+array of size n as a work space.
+
+3-29. [8] Extend the data structure of the previous problem to support insertions and
+deletions. Each element now has both a key and a value. An element is accessed
+by its key, but the addition operation is applied to the values. The Partial sum
+operation is diﬀerent.
+
+• Add(k,y) – Add the value y to the item with key k.
+• Insert(k,y) – Insert a new item with key k and value y.
+• Delete(k) – Delete the item with key k.
+• Partial-sum(k) – Return the sum of all the elements currently in the set
+(cid:2)
+
+whose key is less than k, that is,
+
+i<k xi.
+
+The worst-case running time should still be O(n log n) for any sequence of O(n)
+operations.
+
+3-30. [8] You are consulting for a hotel that has n one-bed rooms. When a guest
+checks in, they ask for a room whose number is in the range [l, h]. Propose a
+data structure that supports the following data operations in the allotted time:
+
+(a) Initialize(n):
+
+Initialize the data structure for empty rooms numbered
+
+1, 2, . . . , n, in polynomial time.
+
+(b) Count(l, h): Return the number of available rooms in [l, h], in O(log n)
+
+time.
+
+(c) Checkin(l, h):
+
+In O(log n) time, return the ﬁrst empty room in [l, h] and
+
+mark it occupied, or return NIL if all the rooms in [l, h] are occupied.
+
+(d) Checkout(x): Mark room x as unoccupied, in O(log n) time.
+
+3-31. [8] Design a data structure that allows one to search, insert, and delete an
+integer X in O(1) time (i.e., constant time, independent of the total number of
+integers stored). Assume that 1 ≤ X ≤ n and that there are m + n units of
+space available, where m is the maximum number of integers that can be in the
+table at any one time. (Hint: use two arrays A[1..n] and B[1..m].) You are not
+allowed to initialize either A or B, as that would take O(m) or O(n) operations.
+This means the arrays are full of random garbage to begin with, so you must be
+very careful.
+
+Implementation Projects
+
+3-32. [5] Implement versions of several diﬀerent dictionary data structures, such as
+linked lists, binary trees, balanced binary search trees, and hash tables. Con-
+duct experiments to assess the relative performance of these data structures in
+a simple application that reads a large text ﬁle and reports exactly one instance
+of each word that appears within it. This application can be eﬃciently imple-
+mented by maintaining a dictionary of all distinct words that have appeared
+thus far in the text and inserting/reporting each new word that appears in the
+stream. Write a brief report with your conclusions.
+
+3.10. EXERCISES
+
+107
+
+3-33. [5] A Caesar shift (see Section 21.6 (page 697)) is a very simple class of ciphers for
+secret messages. Unfortunately, they can be broken using statistical properties
+of English. Develop a program capable of decrypting Caesar shifts of suﬃciently
+long texts.
+
+Interview Problems
+3-34. [3] What method would you use to look up a word in a dictionary?
+3-35. [3] Imagine you have a closet full of shirts. What can you do to organize your
+
+shirts for easy retrieval?
+
+3-36. [4] Write a function to ﬁnd the middle node of a singly linked list.
+3-37. [4] Write a function to determine whether two binary trees are identical. Iden-
+
+tical trees have the same key value at each position and the same structure.
+
+3-38. [4] Write a program to convert a binary search tree into a linked list.
+3-39. [4] Implement an algorithm to reverse a linked list. Now do it without recur-
+
+sion.
+
+3-40. [5] What is the best data structure for maintaining URLs that have been visited
+by a web crawler? Give an algorithm to test whether a given URL has already
+been visited, optimizing both space and time.
+
+3-41. [4] You are given a search string and a magazine. You seek to generate all the
+characters in the search string by cutting them out from the magazine. Give an
+algorithm to eﬃciently determine whether the magazine contains all the letters
+in the search string.
+
+3-42. [4] Reverse the words in a sentence—that is, “My name is Chris” becomes “Chris
+
+is name My.” Optimize for time and space.
+
+3-43. [5] Determine whether a linked list contains a loop as quickly as possible without
+
+using any extra storage. Also, identify the location of the loop.
+
+3-44. [5] You have an unordered array X of n integers. Find the array M containing
+n elements where Mi is the product of all integers in X except for Xi. You may
+not use division. You can use extra memory. (Hint: there are solutions faster
+than O(n2).)
+
+3-45. [6] Give an algorithm for ﬁnding an ordered word pair (e.g. “New York”) oc-
+curring with the greatest frequency in a given webpage. Which data structures
+would you use? Optimize both time and space.
+
+LeetCode
+
+3-1. https://leetcode.com/problems/validate-binary-search-tree/
+3-2. https://leetcode.com/problems/count-of-smaller-numbers-after-self/
+3-3. https://leetcode.com/problems/construct-binary-tree-from-preorder-and-
+
+inorder-traversal/
+
+HackerRank
+
+3-1. https://www.hackerrank.com/challenges/is-binary-search-tree/
+3-2. https://www.hackerrank.com/challenges/queue-using-two-stacks/
+3-3. https://www.hackerrank.com/challenges/detect-whether-a-linked-list-contains-
+
+a-cycle/problem
+
+108
+
+CHAPTER 3. DATA STRUCTURES
+
+Programming Challenges
+
+These programming challenge problems with robot judging are available at
+https://onlinejudge.org:
+
+3-1. “Jolly Jumpers”—Chapter 2, problem 10038.
+
+3-2. “Crypt Kicker”—Chapter 2, problem 843.
+
+3-3. “Where’s Waldorf?”—Chapter 3, problem 10010.
+
+3-4. “Crypt Kicker II”—Chapter 3, problem 850.
+
+Chapter 4
+
+Sorting
+
+Typical computer science students study the basic sorting algorithms at least
+three times before they graduate: ﬁrst in introductory programming, then in
+data structures, and ﬁnally in their algorithms course. Why is sorting worth so
+much attention? There are several reasons:
+
+• Sorting is the basic building block that many other algorithms are built
+around. By understanding sorting, we obtain an amazing amount of power
+to solve other problems.
+
+• Most of the interesting ideas used in the design of algorithms appear in
+the context of sorting, such as divide-and-conquer, data structures, and
+randomized algorithms.
+
+• Sorting is the most thoroughly studied problem in computer science. Lit-
+erally dozens of diﬀerent algorithms are known, most of which possess
+some particular advantage over all other algorithms in certain situations.
+
+This chapter will discuss sorting, stressing how sorting can be applied to
+solving other problems. In this sense, sorting behaves more like a data structure
+than a problem in its own right. I then give detailed presentations of several
+fundamental algorithms: heapsort, mergesort, quicksort, and distribution sort as
+examples of important algorithm design paradigms. Sorting is also represented
+by Section 17.1 (page 506) in the problem catalog.
+
+4.1 Applications of Sorting
+
+I will review several sorting algorithms and their complexities over the course of
+this chapter. But the punch line is this: clever sorting algorithms exist that run
+in O(n log n). This is a big improvement over naive O(n2) sorting algorithms,
+for large values of n. Consider the number of steps done by two diﬀerent sorting
+algorithms for reasonable values of n:
+
+© The Editor(s) (if applicable) and The Author(s), under exclusive license to
+Springer Nature Switzerland AG 2020
+S. S. Skiena, The Algorithm Design Manual, Texts in Computer Science,
+https://doi.org/10.1007/978-3-030-54256-6_4
+
+109
+
+110
+
+CHAPTER 4. SORTING
+
+n
+10
+100
+1,000
+10,000
+100,000
+
+n2/4
+25
+2,500
+250,000
+25,000,000
+2,500,000,000
+
+n lg n
+33
+664
+9,965
+132,877
+1,660,960
+
+You might survive using a quadratic-time algorithm even if n = 10,000, but the
+slow algorithm clearly gets ridiculous once n ≥ 100,000.
+
+Many important problems can be reduced to sorting, so we can use our
+clever O(n log n) algorithms to do work that might otherwise seem to require a
+quadratic algorithm. An important algorithm design technique is to use sorting
+as a basic building block, because many other problems become easy once a set
+of items is sorted.
+
+Consider the following applications:
+
+• Searching – Binary search tests whether an item is in a dictionary in
+O(log n) time, provided the keys are all sorted. Search preprocessing is
+perhaps the single most important application of sorting.
+
+• Closest pair – Given a set of n numbers, how do you ﬁnd the pair of num-
+bers that have the smallest diﬀerence between them? Once the numbers
+are sorted, the closest pair of numbers must lie next to each other some-
+where in sorted order. Thus, a linear-time scan through the sorted list
+completes the job, for a total of O(n log n) time including the sorting.
+
+• Element uniqueness – Are there any duplicates in a given set of n items?
+This is a special case of the closest-pair problem, where now we ask if
+there is a pair separated by a gap of zero. An eﬃcient algorithm sorts the
+numbers and then does a linear scan checking all adjacent pairs.
+
+• Finding the mode – Given a set of n items, which element occurs the
+largest number of times in the set? If the items are sorted, we can sweep
+from left to right and count the number of occurrences of each element,
+since all identical items will be lumped together after sorting.
+
+To ﬁnd out how often an arbitrary element k occurs, look up k using binary
+search in a sorted array of keys. By walking to the left of this point until
+the ﬁrst element is not k and then doing the same to the right, we can
+ﬁnd this count in O(log n + c) time, where c is the number of occurrences
+of k. Even better, the number of instances of k can be found in O(log n)
+time by using binary search to look for the positions of both k − (cid:2) and
+k + (cid:2) (where (cid:2) is suitably small) and then taking the diﬀerence of these
+positions.
+
+• Selection – What is the kth largest item in an array? If the keys are
+placed in sorted order, the kth largest item can be found in constant
+time because it must sit in the kth position of the array. In particular,
+
+4.1. APPLICATIONS OF SORTING
+
+111
+
+Figure 4.1: The convex hull of a set of points (left), constructed by left-to-right
+insertion (right).
+
+the median element (see Section 17.3 (page 514)) appears in the (n/2)nd
+position in sorted order.
+
+• Convex hulls – What is the polygon of smallest perimeter that contains a
+given set of n points in two dimensions? The convex hull is like a rubber
+band stretched around the points in the plane and then released. It shrinks
+to just enclose the points, as shown in Figure 4.1(l). The convex hull gives
+a nice representation of the shape of the point set and is an important
+building block for more sophisticated geometric algorithms, as discussed
+in the catalog in Section 20.2 (page 626).
+
+But how can we use sorting to construct the convex hull? Once you have
+the points sorted by x-coordinate, the points can be inserted from left to
+right into the hull. Since the right-most point is always on the boundary,
+we know that it must appear in the hull. Adding this new right-most
+point may cause others to be deleted, but we can quickly identify these
+points because they lie inside the polygon formed by adding the new point.
+See the example in Figure 4.1(r). These points will be neighbors of the
+previous point we inserted, so they will be easy to ﬁnd and delete. The
+total time is linear after the sorting has been done.
+
+While a few of these problems (namely median and selection) can be solved
+in linear time using more sophisticated algorithms, sorting provides quick and
+easy solutions to all of these problems. It is a rare application where the running
+time of sorting proves to be the bottleneck, especially a bottleneck that could
+have otherwise been removed using more clever algorithmics. Never be afraid
+to spend time sorting, provided you use an eﬃcient sorting routine.
+
+Take-Home Lesson: Sorting lies at the heart of many algorithms. Sorting the
+data is one of the ﬁrst things any algorithm designer should try in the quest
+for eﬃciency.
+
+112
+
+CHAPTER 4. SORTING
+
+Stop and Think: Finding the Intersection
+
+Problem: Give an eﬃcient algorithm to determine whether two sets (of size m
+and n, respectively) are disjoint. Analyze the worst-case complexity in terms of
+m and n, considering the case where m (cid:17) n.
+
+Solution: At least three algorithms come to mind, all of which are variants of
+sorting and searching:
+
+• First sort the big set – The big set can be sorted in O(n log n) time. We can
+now do a binary search with each of the m elements in the second, looking
+to see if it exists in the big set. The total time will be O((n + m) log n).
+
+• First sort the small set – The small set can be sorted in O(m log m) time.
+We can now do a binary search with each of the n elements in the big
+set, looking to see if it exists in the small one. The total time will be
+O((n + m) log m).
+
+• Sort both sets – Observe that once the two sets are sorted, we no longer
+have to do binary search to detect a common element. We can compare
+the smallest elements of the two sorted sets, and discard the smaller one
+if they are not identical. By repeating this idea recursively on the now
+smaller sets, we can test for duplication in linear time after sorting. The
+total cost is O(n log n + m log m + n + m).
+
+So, which of these is the fastest method? Clearly small-set sorting trumps
+big-set sorting, since log m <log n when m < n. Similarly, (n + m) log m must
+be asymptotically smaller than n log n, since n + m < 2n when m < n. Thus,
+sorting the small set is the best of these options. Note that this is linear when
+m is constant in size.
+
+Note that expected linear time can be achieved by hashing. Build a hash
+table containing the elements of both sets, and then explicitly check whether
+collisions in the same bucket are in fact identical elements. In practice, this may
+be the best solution.
+
+Stop and Think: Making a Hash of the Problem?
+
+Problem: Fast sorting is a wonderful thing. But which of these tasks can be
+done as fast or faster (in expected time) using hashing instead of sorting?
+
+• Searching?
+
+• Closest pair?
+
+• Element uniqueness?
+
+• Finding the mode?
+
+4.2. PRAGMATICS OF SORTING
+
+113
+
+• Finding the median?
+
+• Convex hull?
+
+Solution: Hashing can solve some these problems eﬃciently, but is inappropri-
+ate for others. Let’s consider them one by one:
+
+• Searching – Hash tables are a great answer here, enabling you to search
+for items in constant expected time, as opposed to O(log n) with binary
+search.
+
+• Closest pair – Hash tables as so far deﬁned cannot help at all. Normal
+hash functions scatter keys around the table, so a pair of similar numerical
+values are unlikely to end up in the same bucket for comparison. Bucketing
+values by numerical ranges will ensure that the closest pair lie within the
+same bucket, or at worst neighboring buckets. But we cannot also force
+only a small number of items to lie in this bucket, as will be discussed
+with respect to bucketsort in Section 4.7.
+
+• Element uniqueness – Hashing is even faster than sorting for this problem.
+Build a hash table using chaining, and then compare each of the (expected
+constant) pairs of items within a bucket. If no bucket contains a duplicate
+pair, then all the elements must be unique. The table construction and
+sweeping can be completed in linear expected time.
+
+• Finding the mode – Hashing leads to a linear expected-time algorithm here.
+Each bucket should contain a small number of distinct elements, but may
+have many duplicates. We start from the ﬁrst element in a bucket and
+count/delete all copies of it, repeating this sweep the expected constant
+number of passes until the bucket is empty.
+
+• Finding the median – Hashing does not help us, I am afraid. The median
+might be in any bucket of our table, and we have no way to judge how
+many items lie before or after it in sorted order.
+
+• Convex hull – Sure, we can build a hash table on points just as well as
+any other data type. But it isn’t clear what good that does us for this
+problem: certainly it can’t help us order the points by x-coordinate.
+
+4.2 Pragmatics of Sorting
+
+We have seen many algorithmic applications of sorting, and we will see several
+eﬃcient sorting algorithms. One issue stands between them: in what order do
+we want our items sorted? The answer to this basic question is application
+speciﬁc. Consider the following issues:
+
+114
+
+CHAPTER 4. SORTING
+
+• Increasing or decreasing order? – A set of keys S are sorted in ascending
+order when Si ≤ Si+1 for all 1 ≤ i < n. They are in descending order
+when Si ≥ Si+1 for all 1 ≤ i < n. Diﬀerent applications call for diﬀerent
+orders.
+
+• Sorting just the key or an entire record? – Sorting a data set requires
+maintaining the integrity of complex data records. A mailing list of names,
+addresses, and phone numbers may be sorted by names as the key ﬁeld,
+but it had better retain the linkage between names and addresses. Thus,
+we need to specify which is the key ﬁeld in any complex record, and
+understand the full extent of each record.
+
+• What should we do with equal keys? – Elements with equal key values all
+bunch together in any total order, but sometimes the relative order among
+these keys matters. Suppose an encyclopedia contains articles on both
+Michael Jordan (the basketball player) and Michael Jordan (the actor).1
+Which entry should appear ﬁrst? You may need to resort to secondary
+keys, such as article size, to resolve ties in a meaningful way.
+
+Sometimes it is required to leave the items in the same relative order as in
+the original permutation. Sorting algorithms that automatically enforce
+this requirement are called stable. Few fast algorithms are naturally stable.
+Stability can be achieved for any sorting algorithm by adding the initial
+position as a secondary key.
+
+Of course we could make no decision about equal key order and let the ties
+fall where they may. But beware, certain eﬃcient sort algorithms (such
+as quicksort) can run into quadratic performance trouble unless explicitly
+engineered to deal with large numbers of ties.
+
+• What about non-numerical data? – Alphabetizing deﬁnes the sorting of
+text strings. Libraries have very complete and complicated rules con-
+cerning the relative collating sequence of characters and punctuation. Is
+Skiena the same key as skiena? Is Brown-Williams before or after Brown
+America, and before or after Brown, John?
+
+The right way to specify such details to your sorting algorithm is with an
+application-speciﬁc pairwise-element comparison function. Such a comparison
+function takes pointers to record items a and b and returns “<” if a < b, “>” if
+a > b, or “=” if a = b.
+
+By abstracting the pairwise ordering decision to such a comparison function,
+we can implement sorting algorithms independently of such criteria. We simply
+pass the comparison function in as an argument to the sort procedure. Any
+reasonable programming language has a built-in sort routine as a library func-
+tion. You are usually better oﬀ using this than writing your own routine. For
+example, the standard library for C contains the qsort function for sorting:
+
+1Not to mention Michael Jordan (the statistician).
+
+4.3. HEAPSORT: FAST SORTING VIA DATA STRUCTURES
+
+115
+
+#include <stdlib.h>
+
+void qsort(void *base, size_t nel, size_t width,
+
+int (*compare) (const void *, const void *));
+
+The key to using qsort is realizing what its arguments do. It sorts the ﬁrst
+nel elements of an array (pointed to by base), where each element is width-
+bytes long. We can thus sort arrays of 1-byte characters, 4-byte integers, or
+100-byte records, all by changing the value of width.
+
+The desired output order is determined by the compare function. It takes as
+arguments pointers to two width-byte elements, and returns a negative number
+if the ﬁrst belongs before the second in sorted order, a positive number if the
+second belongs before the ﬁrst, or zero if they are the same. Here is a comparison
+function to sort integers in increasing order:
+
+int intcompare(int *i, int *j)
+{
+
+if (*i > *j) return (1);
+if (*i < *j) return (-1);
+return (0);
+
+}
+
+This comparison function can be used to sort an array a, of which the ﬁrst
+
+n elements are occupied, as follows:
+
+qsort(a, n, sizeof(int), intcompare);
+
+The name qsort suggests that quicksort is the algorithm implemented in
+
+this library function, although this is usually irrelevant to the user.
+
+4.3 Heapsort: Fast Sorting via Data Structures
+
+Sorting is a natural laboratory for studying algorithm design paradigms, since
+many useful techniques lead to interesting sorting algorithms. The next several
+sections will introduce algorithmic design techniques motivated by particular
+sorting algorithms.
+
+The alert reader may ask why I review all the standard sorting algorithms
+after saying that you are usually better oﬀ not implementing them, and using
+library functions instead. The answer is that the underlying design techniques
+are very important for other algorithmic problems you are likely to encounter.
+We start with data structure design, because one of the most dramatic al-
+gorithmic improvements via appropriate data structures occurs in sorting. Se-
+lection sort is a simple-to-code algorithm that repeatedly extracts the smallest
+remaining element from the unsorted part of the set:
+
+116
+
+CHAPTER 4. SORTING
+
+SelectionSort(A)
+
+For i = 1 to n do
+
+Sort[i] = Find-Minimum from A
+Delete-Minimum from A
+
+Return(Sort)
+
+A C language implementation of selection sort appeared back in Section
+2.5.1 (page 41). There we partitioned the input array into sorted and unsorted
+regions. To ﬁnd the smallest item, we performed a linear sweep through the
+unsorted portion of the array. The smallest item is then swapped with the ith
+item in the array before moving on to the next iteration. Selection sort performs
+n iterations, where the average iteration takes n/2 steps, for a total of O(n2)
+time.
+
+But what if we improve the data structure? It takes O(1) time to remove
+a particular item from an unsorted array after it has been located, but O(n)
+time to ﬁnd the smallest item. These are exactly the operations supported by
+priority queues. So what happens if we replace the data structure with a better
+priority queue implementation, either a heap or a balanced binary tree? The
+operations within the loop now take O(log n) time each, instead of O(n). Using
+such a priority queue implementation speeds up selection sort from O(n2) to
+O(n log n).
+
+The name typically given to this algorithm, heapsort, obscures the fact that
+the algorithm is nothing but an implementation of selection sort using the right
+data structure.
+
+4.3.1 Heaps
+
+Heaps are a simple and elegant data structure for eﬃciently supporting the
+priority queue operations insert and extract-min. Heaps work by maintaining a
+partial order on the set of elements that is weaker than the sorted order (so it
+can be eﬃcient to maintain) yet stronger than random order (so the minimum
+element can be quickly identiﬁed).
+
+Power in any hierarchically structured organization is reﬂected by a tree,
+where each node in the tree represents a person, and edge (x, y) implies that x
+directly supervises (or dominates) y. The person at the root sits at the “top of
+the heap.”
+
+In this spirit, a heap-labeled tree is deﬁned to be a binary tree such that
+the key of each node dominates the keys of its children. In a min-heap, a node
+dominates its children by having a smaller key than they do, while in a max-
+heap parent nodes dominate by being bigger. Figure 4.2(l) presents a min-heap
+ordered tree of noteworthy years in American history.
+
+The most natural implementation of this binary tree would store each key
+in a node with pointers to its two children. But as with binary search trees, the
+memory used by the pointers can easily outweigh the size of keys, which is the
+data we are really interested in. The heap is a slick data structure that enables
+us to represent binary trees without using any pointers. We store data as an
+
+4.3. HEAPSORT: FAST SORTING VIA DATA STRUCTURES
+
+117
+
+1492
+
+1783
+
+1776
+
+1804
+
+1865
+
+1945
+
+1963
+
+1918
+
+2001
+
+1941
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+8
+9
+10
+
+1492
+
+1783
+
+1776
+
+1804
+
+1865
+
+1945
+
+1963
+1918
+2001
+1941
+
+Figure 4.2: A heap-labeled tree of important years from American history (left),
+with the corresponding implicit heap representation (right).
+
+array of keys, and use the position of the keys to implicitly play the role of the
+pointers.
+
+We store the root of the tree in the ﬁrst position of the array, and its left
+and right children in the second and third positions, respectively. In general, we
+store the 2l−1 keys of the lth level of a complete binary tree from left to right
+in positions 2l−1 to 2l − 1, as shown in Figure 4.2(right). We assume that the
+array starts with index 1 to simplify matters.
+
+typedef struct {
+
+item_type q[PQ_SIZE+1];
+int n;
+
+/* body of queue */
+/* number of queue elements */
+
+} priority_queue;
+
+What is especially nice about this representation is that the positions of the
+parent and children of the key at position k are readily determined. The left
+child of k sits in position 2k and the right child in 2k + 1, while the parent of k
+holds court in position (cid:8)k/2(cid:9). Thus, we can move around the tree without any
+pointers.
+
+int pq_parent(int n) {
+if (n == 1) {
+
+return(-1);
+
+}
+return((int) n/2);
+
+}
+
+int pq_young_child(int n) {
+
+return(2 *n);
+
+}
+
+/* implicitly take floor(n/2) */
+
+118
+
+CHAPTER 4. SORTING
+
+This approach means that we can store any binary tree in an array without
+pointers. What is the catch? Suppose our height h tree was sparse, meaning
+that the number of nodes n (cid:17) 2h − 1. All missing internal nodes still take up
+space in our structure, since we must represent a full binary tree to maintain
+the positional mapping between parents and children.
+
+Space eﬃciency thus demands that we not allow holes in our tree—meaning
+that each level be packed as much as it can be. Then only the last level may be
+incomplete. By packing the elements of the last level as far left as possible, we
+can represent an n-key tree using the ﬁrst n elements of the array. If we did not
+enforce these structural constraints, we might need an array of size 2n − 1 to
+store n elements: consider a right-going twig using positions 1, 3, 7, 15, 31. . . .
+With heaps all but the last level are ﬁlled, so the height h of an n element heap
+is logarithmic because:
+
+h−1
+
+2i = 2h − 1 ≥ n
+
+implying that h = (cid:13)lg(n + 1)(cid:14).
+
+i=0
+(cid:7)
+
+This implicit representation of binary trees saves memory, but is less ﬂexible
+than using pointers. We cannot store arbitrary tree topologies without wasting
+large amounts of space. We cannot move subtrees around by just changing a
+single pointer, only by explicitly moving all the elements in the subtree. This
+loss of ﬂexibility explains why we cannot use this idea to represent binary search
+trees, but it works just ﬁne for heaps.
+
+Stop and Think: Who’s Where in the Heap?
+
+Problem: How can we eﬃciently search for a particular key k in a heap?
+
+Solution: We can’t. Binary search does not work because a heap is not a
+binary search tree. We know almost nothing about the relative order of the n/2
+leaf elements in a heap—certainly nothing that lets us avoid doing linear search
+through them.
+
+4.3.2 Constructing Heaps
+
+Heaps can be constructed incrementally, by inserting each new element into the
+left-most open spot in the array, namely the (n + 1)st position of a previously
+n-element heap. This ensures the desired balanced shape of the heap-labeled
+tree, but does not maintain the dominance ordering of the keys. The new key
+might be less than its parent in a min-heap, or greater than its parent in a
+max-heap.
+
+The solution is to swap any such dissatisﬁed element with its parent. The old
+parent is now happy, because it is properly dominated. The other child of the
+old parent is still happy, because it is now dominated by an element even more
+
+4.3. HEAPSORT: FAST SORTING VIA DATA STRUCTURES
+
+119
+
+extreme than before. The new element is now happier, but may still dominate
+its new parent. So we recur at a higher level, bubbling up the new key to its
+proper position in the hierarchy. Since we replace the root of a subtree by a
+larger one at each step, we preserve the heap order elsewhere.
+
+void pq_insert(priority_queue *q, item_type x) {
+
+if (q->n >= PQ_SIZE) {
+
+printf("Warning: priority queue overflow! \n");
+
+} else {
+
+q->n = (q->n) + 1;
+q->q[q->n] = x;
+bubble_up(q, q->n);
+
+}
+
+}
+
+void bubble_up(priority_queue *q, int p) {
+
+if (pq_parent(p) == -1) {
+
+return;
+
+/* at root of heap, no parent */
+
+}
+
+if (q->q[pq_parent(p)] > q->q[p]) {
+pq_swap(q, p, pq_parent(p));
+bubble_up(q, pq_parent(p));
+
+}
+
+}
+
+This swap process takes constant time at each level. Since the height of an
+n-element heap is (cid:8)lg n(cid:9), each insertion takes at most O(log n) time. A heap of
+n elements can thus be constructed in O(n log n) time through n such insertions:
+
+void pq_init(priority_queue *q) {
+
+q->n = 0;
+
+}
+
+void make_heap(priority_queue *q, item_type s[], int n) {
+
+int i;
+
+/* counter */
+
+pq_init(q);
+for (i = 0; i<
+
+n; i++) {
+
+pq_insert(q, s[i]);
+
+}
+
+}
+
+120
+
+CHAPTER 4. SORTING
+
+4.3.3 Extracting the Minimum
+
+The remaining priority queue operations are identifying and deleting the dom-
+inant element. Identiﬁcation is easy, since the top of the heap sits in the ﬁrst
+position of the array.
+
+Removing the top element leaves a hole in the array. This can be ﬁlled by
+moving the element from the right-most leaf (sitting in the nth position of the
+array) into the ﬁrst position.
+
+The shape of the tree has been restored but (as after insertion) the labeling
+of the root may no longer satisfy the heap property. Indeed, this new root may
+be dominated by both of its children. The root of this min-heap should be
+the smallest of three elements, namely the current root and its two children.
+If the current root is dominant, the heap order has been restored. If not, the
+dominant child should be swapped with the root and the problem pushed down
+to the next level.
+
+This dissatisﬁed element bubbles down the heap until it dominates all its chil-
+dren, perhaps by becoming a leaf node and ceasing to have any. This percolate-
+down operation is also called heapify, because it merges two heaps (the subtrees
+below the original root) with a new key.
+
+item_type extract_min(priority_queue *q) {
+
+int min = -1;
+
+/* minimum value */
+
+if (q->n <= 0) {
+
+printf("Warning: empty priority queue.\n");
+
+} else {
+
+min = q->q[1];
+
+q->q[1] = q->q[q->n];
+q->n = q->n - 1;
+bubble_down(q, 1);
+
+}
+return(min);
+
+}
+
+void bubble_down(priority_queue *q, int p) {
+
+int c;
+int i;
+int min_index;
+
+/* child index */
+/* counter */
+/* index of lightest child */
+
+c = pq_young_child(p);
+min_index = p;
+
+for (i = 0; i<=
+
+1; i++) {
+
+4.3. HEAPSORT: FAST SORTING VIA DATA STRUCTURES
+
+121
+
+if ((c + i) <= q->n) {
+
+if (q->q[min_index] > q->q[c + i]) {
+
+min_index = c + i;
+
+}
+
+}
+
+}
+
+if (min_index != p) {
+
+pq_swap(q, p, min_index);
+bubble_down(q, min_index);
+
+}
+
+}
+
+We will reach a leaf after (cid:8)lg n(cid:9) bubble down steps, each constant time.
+
+Thus, root deletion is completed in O(log n) time.
+
+Repeatedly exchanging the maximum element with the last element and
+
+calling heapify yields an O(n log n) sorting algorithm, named heapsort.
+
+void heapsort_(item_type s[], int n) {
+
+int i;
+priority_queue q;
+
+/* counters */
+/* heap for heapsort */
+
+make_heap(&q, s, n);
+
+for (i = 0; i<
+
+n; i++) {
+
+s[i] = extract_min(&q);
+
+}
+
+}
+
+It is simple to program;
+
+Heapsort is a great sorting algorithm.
+
+indeed,
+the complete implementation has been presented above. It runs in worst-case
+O(n log n) time, which is the best that can be expected from any sorting algo-
+rithm. It is an in-place sort, meaning it uses no extra memory over the array
+containing the elements to be sorted. Admittedly, as implemented here, my
+heapsort is not in-place because it creates the priority queue in q, not s. But
+each newly extracted element ﬁts perfectly in the slot freed up by the shrinking
+heap, leaving behind a sorted array. Although other algorithms prove slightly
+faster in practice, you won’t go wrong using heapsort for sorting data that sits
+in the computer’s main memory.
+
+Priority queues are very useful data structures. Recall they were the hero
+of the war story described in Section 3.6 (page 89). A complete set of priority
+queue implementations is presented in the catalog, in Section 15.2 (page 445).
+
+122
+
+CHAPTER 4. SORTING
+
+4.3.4 Faster Heap Construction (*)
+
+As we have seen, a heap can be constructed on n elements by incremental
+insertion in O(n log n) time. Surprisingly, heaps can be constructed even faster,
+by using our bubble down procedure and some clever analysis.
+
+Suppose we pack the n keys destined for our heap into the ﬁrst n elements of
+our priority-queue array. The shape of our heap will be right, but the dominance
+order will be all messed up. How can we restore it?
+
+Consider the array in reverse order, starting from the last (nth) position.
+It represents a leaf of the tree and so dominates its non-existent children. The
+same is the case for the last n/2 positions in the array, because all are leaves. If
+we continue to walk backwards through the array we will eventually encounter
+an internal node with children. This element may not dominate its children,
+but its children represent well-formed (if small) heaps.
+
+This is exactly the situation the bubble down procedure was designed to
+handle, restoring the heap order of an arbitrary root element sitting on top of
+two sub-heaps. Thus, we can create a heap by performing n/2 non-trivial calls
+to the bubble down procedure:
+
+void make_heap_fast(priority_queue *q, item_type s[], int n) {
+
+int i;
+
+/* counter */
+
+q->n = n;
+for (i = 0; i<
+
+n; i++) {
+
+q->q[i + 1] = s[i];
+
+}
+
+for (i = q->n/2; i>= 1; i --) {
+
+bubble_down(q, i);
+
+}
+
+}
+
+Multiplying the number of calls to bubble down (n) times an upper bound
+on the cost of each operation (O(log n)) gives us a running time analysis of
+O(n log n). This would make it no faster than the incremental insertion algo-
+rithm described above.
+
+But note that it is indeed an upper bound, because only the last insertion
+will actually take (cid:8)lg n(cid:9) steps. Recall that bubble down takes time proportional
+to the height of the heaps it is merging. Most of these heaps are extremely
+small. In a full binary tree on n nodes, there are n/2 nodes that are leaves (i.e.
+height 0), n/4 nodes that are height 1, n/8 nodes that are height 2, and so on.
+In general, there are at most (cid:13)n/2h+1(cid:14) nodes of height h, so the cost of building
+a heap is:
+
+(cid:3)lg n(cid:4)
+
+h=0
+(cid:7)
+
+(cid:3)lg n(cid:4)
+
+(cid:13)n/2h+1(cid:14)h ≤ n
+
+h/2h ≤ 2n
+
+h=0
+(cid:7)
+
+4.3. HEAPSORT: FAST SORTING VIA DATA STRUCTURES
+
+123
+
+Since this sum is not quite a geometric series, we can’t apply the usual
+identity to get the sum, but rest assured that the puny contribution of the
+numerator (h) is crushed by the denominator (2h). The series quickly converges
+to linear.
+
+Does it matter that we can construct heaps in linear time instead of O(n log n)?
+
+Not really. The construction time did not dominate the complexity of heapsort,
+so improving the construction time does not improve its worst-case performance.
+Still, it is an impressive display of the power of careful analysis, and the free
+lunch that geometric series convergence can sometimes provide.
+
+Stop and Think: Where in the Heap?
+
+Problem: Given an array-based heap on n elements and a real number x,
+eﬃciently determine whether the kth smallest element in the heap is greater than
+or equal to x. Your algorithm should be O(k) in the worst case, independent of
+the size of the heap. (Hint: you do not have to ﬁnd the kth smallest element;
+you need only to determine its relationship to x.)
+
+Solution: There are at least two diﬀerent ideas that lead to correct but ineﬃcient
+algorithms for this problem:
+
+• Call extract-min k times, and test whether all of these are less than x.
+This explicitly sorts the ﬁrst k elements and so gives us more information
+than the desired answer, but it takes O(k log n) time to do so.
+
+• The kth smallest element cannot be deeper than the kth level of the heap,
+since the path from it to the root must go through elements of decreasing
+value. We can thus look at all the elements on the ﬁrst k levels of the
+heap, and count how many of them are less than x, stopping when we
+either ﬁnd k of them or run out of elements. This is correct, but takes
+O(min(n, 2k)) time, since the top k elements have 2k − 1 elements.
+
+An O(k) solution can look at only k elements smaller than x, plus at most
+O(k) elements greater than x. Consider the following recursive procedure, called
+at the root with i = 1 and count = k:
+
+124
+
+CHAPTER 4. SORTING
+
+int heap_compare(priority_queue *q, int i, int count, int x) {
+
+if ((count <= 0) || (i > q->n)) {
+
+return(count);
+
+}
+
+if (q->q[i] < x) {
+
+count = heap_compare(q, pq_young_child(i), count-1, x);
+count = heap_compare(q, pq_young_child(i)+1, count, x);
+
+}
+
+return(count);
+
+}
+
+If the root of the min-heap is ≥ x, then no elements in the heap can be less
+than x, as by deﬁnition the root must be the smallest element. This procedure
+searches the children of all nodes of weight smaller than x until either (a) we
+have found k of them, when it returns 0, or (b) they are exhausted, when it
+returns a value greater than zero. Thus, it will ﬁnd enough small elements if
+they exist.
+
+But how long does it take? The only nodes whose children we look at are
+those < x, and there are at most k of these in total. Each have visited at most
+two children, so we visit at most 2k + 1 nodes, for a total time of O(k).
+
+4.3.5 Sorting by Incremental Insertion
+
+Now consider a diﬀerent approach to sorting via eﬃcient data structures. Select
+the next element from the unsorted set, and put it into it’s proper position in
+the sorted set:
+
+for (i = 1; i<
+j = i;
+while ((j > 0) && (s[j] < s[j - 1])) {
+
+n; i++) {
+
+swap(&s[j], &s[j - 1]);
+j = j-1;
+
+}
+
+}
+
+Although insertion sort takes O(n2) in the worst case, it performs consider-
+ably better if the data is almost sorted, since few iterations of the inner loop
+suﬃce to sift it into the proper position.
+
+Insertion sort is perhaps the simplest example of the incremental insertion
+technique, where we build up a complicated structure on n items by ﬁrst building
+it on n − 1 items and then making the necessary changes to add the last item.
+Note that faster sorting algorithms based on incremental insertion follow
+from more eﬃcient data structures. Insertion into a balanced search tree takes
+
+4.4. WAR STORY: GIVE ME A TICKET ON AN AIRPLANE
+
+125
+
+O(log n) per operation, or a total of O(n log n) to construct the tree. An in-
+order traversal reads through the elements in sorted order to complete the job
+in linear time.
+
+4.4 War Story: Give me a Ticket on an Airplane
+
+I came into this particular job seeking justice. I’d been retained by an air travel
+company to help design an algorithm to ﬁnd the cheapest available airfare from
+city x to city y. Like most of you, I suspect, I’d been baﬄed at the crazy
+price ﬂuctuations of ticket prices under modern “yield management.” The price
+of ﬂights seems to soar far more eﬃciently than the planes themselves. The
+problem, it seemed to me, was that airlines never wanted to show the true
+cheapest price. If I did my job right, I could make damned sure they would
+show it to me next time.
+
+“Look,” I said at the start of the ﬁrst meeting. “This can’t be so hard.
+Construct a graph with vertices corresponding to airports, and add an edge
+between each airport pair (u, v) that shows a direct ﬂight from u to v. Set the
+weight of this edge equal to the cost of the cheapest available ticket from u to
+v. Now the cheapest fair from x to y is given by the shortest x–y path in this
+graph. This path/fare can be found using Dijkstra’s shortest path algorithm.
+Problem solved!” I announced, waving my hand with a ﬂourish.
+
+The assembled cast of the meeting nodded thoughtfully, then burst out
+laughing.
+It was I who needed to learn something about the overwhelming
+complexity of air travel pricing. There are literally millions of diﬀerent fares
+available at any time, with prices changing several times daily. Restrictions on
+the availability of a particular fare in a particular context are enforced by a vast
+set of pricing rules. These rules are an industry-wide kludge—a complicated
+structure with little in the way of consistent logical principles. My favorite rule
+exceptions applied only to the country of Malawi. With a population of only 18
+million and per-capita income of $1,234 (180th in the world), they prove to be
+an unexpected powerhouse shaping world aviation price policy. Accurately pric-
+ing any air itinerary requires at least implicit checks to ensure the trip doesn’t
+take us through Malawi.
+
+The real problem is that there can easily be 100 diﬀerent fares for the ﬁrst
+ﬂight leg, say from Los Angeles (LAX) to Chicago (ORD), and a similar number
+for each subsequent leg, say from Chicago to New York (JFK). The cheapest
+possible LAX–ORD fare (maybe an AARP children’s price) might not be com-
+binable with the cheapest ORD–JFK fare (perhaps a pre-Ramadan special that
+can only be used with subsequent connections to Mecca).
+
+After being properly chastised for oversimplifying the problem, I got down
+I started by reducing the problem to the simplest interesting case.
+to work.
+“So, you need to ﬁnd the cheapest two-hop fare that passes your rule tests. Is
+there a way to decide in advance which pairs will pass without explicitly testing
+them?”
+
+“No, there is no way to tell,” they assured me. “We can only consult a
+
+126
+
+CHAPTER 4. SORTING
+
+X
+$100
+
+$110
+
+$130
+
+Y
+$50
+
+$75
+
+$125
+
+X+Y
+
+$150 
+$160 
+$175   
+$180  
+$185  
+$205   
+$225   
+$235   
+$255   
+
+1(  ,  )1
+(  ,  )
+2 1
+(  ,  )
+1 2
+(  ,  )3
+1
+(  ,  )
+2 2
+(  ,  )2
+3
+(  ,  )1 3
+(  ,  )2 3
+(  ,  )3
+3
+
+Figure 4.3: Sorting the pairwise sums of lists X and Y .
+
+black box routine to decide whether a particular price is available for the given
+itinerary/travelers.”
+
+“So our goal is to call this black box on the fewest number of combinations.
+This means evaluating all possible fare combinations in order from cheapest to
+most expensive, and stopping as soon as we encounter the ﬁrst legal combina-
+tion.”
+
+“Right.”
+“Why not construct the m×n possible price pairs, sort them in terms of cost,
+and evaluate them in sorted order? Clearly this can be done in O(nm log(nm))
+time.”2
+
+“That is basically what we do now, but it is quite expensive to construct the
+
+full set of m × n pairs, since the ﬁrst one might be all we need.”
+
+I caught a whiﬀ of an interesting problem. “So what you really want is
+an eﬃcient data structure to repeatedly return the next most expensive pair
+without constructing all the pairs in advance.”
+
+This was indeed an interesting problem. Finding the largest element in a
+set under insertion and deletion is exactly what priority queues are good for.
+The catch here is that we could not seed the priority queue with all values in
+advance. We had to insert new pairs into the queue after each evaluation.
+
+I constructed some examples, like the one in Figure 4.3. We could represent
+each fare by the list indexes of its two components. The cheapest single fare
+will certainly be constructed by adding up the cheapest component from both
+lists, described (1, 1). The second cheapest fare would be made from the head
+of one list and the second element of another, and hence would be either (1, 2)
+or (2, 1). Then it gets more complicated. The third cheapest could either be
+the unused pair above or (1, 3) or (3, 1). Indeed it would have been (3, 1) in the
+example above if the third fare of X had been $120.
+
+“Tell me,” I asked. “Do we have time to sort the two respective lists of fares
+
+2The question of whether all such sums can be sorted faster than nm arbitrary integers is
+a notorious open problem in algorithm theory. See [Fre76, Lam92] for more on X + Y sorting,
+as the problem is known.
+
+4.5. MERGESORT: SORTING BY DIVIDE AND CONQUER
+
+127
+
+in increasing order?”
+
+“Don’t have to,” the leader replied. “They come out in sorted order from
+
+the database.”
+
+That was good news! It meant there was a natural order to the pair values.
+We never need to evaluate the pairs (i + 1, j) or (i, j + 1) before (i, j), because
+they clearly deﬁned more expensive fares.
+
+“Got it!,” I said. “We will keep track of index pairs in a priority queue,
+Initially we put only
+with the sum of the fare costs as the key for the pair.
+the pair (1, 1) in the queue. If it proves not to be feasible, we put in its two
+successors—namely (1, 2) and (2, 1). In general, we enqueue pairs (i + 1, j) and
+(i, j + 1) after evaluating/rejecting pair (i, j). We will get through all the pairs
+in the right order if we do so.”
+
+The gang caught on quickly. “Sure. But what about duplicates? We will
+construct pair (x, y) two diﬀerent ways, both when expanding (x − 1, y) and
+(x, y − 1).”
+
+“You are right. We need an extra data structure to guard against duplicates.
+The simplest might be a hash table to tell us whether a given pair exists in the
+priority queue before we insert a duplicate. In fact, we will never have more
+than n active pairs in our data structure, since there can only be one pair for
+each distinct value of the ﬁrst coordinate.”
+
+And so it went. Our approach naturally generalizes to itineraries with more
+than two legs, with complexity that grows with the number of legs. The best-
+ﬁrst evaluation inherent in our priority queue enabled the system to stop as
+soon as it found the provably cheapest fare. This proved to be fast enough
+to provide interactive response to the user. That said, I never noticed airline
+tickets getting cheaper as a result.
+
+4.5 Mergesort: Sorting by Divide and Conquer
+
+Recursive algorithms reduce large problems into smaller ones. A recursive ap-
+proach to sorting involves partitioning the elements into two groups, sorting each
+of the smaller problems recursively, and then interleaving the two sorted lists to
+totally order the elements. This algorithm is called mergesort, recognizing the
+importance of the interleaving operation:
+
+Mergesort(A[1, . . . , n])
+
+Merge( MergeSort(A[1, . . . , (cid:8)n/2(cid:9)]), MergeSort(A[(cid:8)n/2(cid:9) + 1, . . . , n]) )
+
+The basis case of the recursion occurs when the subarray to be sorted con-
+sists of at most one element, so no rearrangement is necessary. A trace of the
+execution of mergesort is given in Figure 4.4. Picture the action as it happens
+during an in-order traversal of the tree, with each merge occurring after the two
+child calls return sorted subarrays.
+
+The eﬃciency of mergesort depends upon how eﬃciently we can combine the
+two sorted halves into a single sorted list. We could concatenate them into one
+
+128
+
+CHAPTER 4. SORTING
+
+Figure 4.4: The recursion tree for mergesort. The tree has height (cid:13)log2 n(cid:14), and
+the cost of the merging operations on each level are Θ(n), yielding an Θ(n log n)
+time algorithm.
+
+list and call heapsort or some other sorting algorithm to do it, but that would
+just destroy all the work spent sorting our component lists.
+
+Instead we can merge the two lists together. Observe that the smallest
+overall item in two lists sorted in increasing order (as above) must sit at the
+top of one of the two lists. This smallest element can be removed, leaving two
+sorted lists behind—one slightly shorter than before. The second smallest item
+overall must now be atop one of these lists. Repeating this operation until both
+lists are empty will merge two sorted lists (with a total of n elements between
+them) into one, using at most n − 1 comparisons or O(n) total work.
+
+What is the total running time of mergesort? It helps to think about how
+much work is done at each level of the execution tree, as shown in Figure 4.4.
+If we assume for simplicity that n is a power of two, the kth level consists of all
+the 2k calls to mergesort processing subranges of n/2k elements.
+
+The work done on the zeroth level (the top) involves merging one pair of
+sorted lists, each of size n/2, for a total of at most n − 1 comparisons. The
+work done on the ﬁrst level (one down) involves merging two pairs of sorted
+lists, each of size n/4, for a total of at most n − 2 comparisons. In general, the
+work done on the kth level involves merging 2k pairs of sorted lists, each of size
+n/2k+1, for a total of at most n − 2k comparisons. Linear work is done merging
+all the elements on each level. Each of the n elements appears in exactly one
+subproblem on each level. The most expensive case (in terms of comparisons)
+is actually the top level.
+
+The number of elements in a subproblem gets halved at each level. The
+number of times we can halve n until we get to 1 is (cid:13)lg n(cid:14). Because the recursion
+goes lg n levels deep, and a linear amount of work is done per level, mergesort
+takes O(n log n) time in the worst case.
+
+Mergesort is a great algorithm for sorting linked lists, because it does not
+Its primary
+rely on random access to elements like heapsort and quicksort.
+disadvantage is the need for an auxiliary buﬀer when sorting arrays. It is easy to
+merge two sorted linked lists without using any extra space, just by rearranging
+the pointers. However, to merge two sorted arrays (or portions of an array), we
+need to use a third array to store the result of the merge to avoid stepping on the
+
+4.5. MERGESORT: SORTING BY DIVIDE AND CONQUER
+
+129
+
+component arrays. Consider merging {4, 5, 6} with {1, 2, 3}, packed from left to
+right in a single array. Without the buﬀer, we would overwrite the elements of
+the left half during merging and lose them.
+
+Mergesort is a classic divide-and-conquer algorithm. We are ahead of the
+game whenever we can break one large problem into two smaller problems,
+because the smaller problems are easier to solve. The trick is taking advantage
+of the two partial solutions to construct a solution of the full problem, as we
+did with the merge operation. Divide and conquer is an important algorithm
+design paradigm, and will be the subject of Chapter 5.
+
+Implementation
+
+The divide-and-conquer mergesort routine follows naturally from the pseu-
+docode:
+
+void merge_sort(item_type s[], int low, int high) {
+
+int middle;
+
+/* index of middle element */
+
+if (low < high) {
+
+middle = (low + high) / 2;
+merge_sort(s, low, middle);
+merge_sort(s, middle + 1, high);
+
+merge(s, low, middle, high);
+
+}
+
+}
+
+More challenging turns out to be the details of how the merging is done. The
+problem is that we must put our merged array somewhere. To avoid losing an
+element by overwriting it in the course of the merge, we ﬁrst copy each subarray
+to a separate queue and merge these elements back into the array. In particular:
+
+void merge(item_type s[], int low, int middle, int high) {
+
+int i;
+queue buffer1, buffer2; /* buffers to hold elements for merging */
+
+/* counter */
+
+init_queue(&buffer1);
+init_queue(&buffer2);
+
+for (i = low; i <= middle; i++) enqueue(&buffer1, s[i]);
+for (i = middle + 1; i<=
+
+high; i++) enqueue(&buffer2, s[i]);
+
+i = low;
+while (!(empty_queue(&buffer1) || empty_queue(&buffer2))) {
+
+if (headq(&buffer1) <= headq(&buffer2)) {
+
+s[i++] = dequeue(&buffer1);
+
+130
+
+CHAPTER 4. SORTING
+
+} else {
+
+s[i++] = dequeue(&buffer2);
+
+}
+
+}
+
+while (!empty_queue(&buffer1)) {
+
+s[i++] = dequeue(&buffer1);
+
+}
+
+while (!empty_queue(&buffer2)) {
+
+s[i++] = dequeue(&buffer2);
+
+}
+
+}
+
+4.6 Quicksort: Sorting by Randomization
+
+Suppose we select an arbitrary item p from the n items we seek to sort. Quicksort
+(shown in action in Figure 4.5) separates the n − 1 other items into two piles: a
+low pile containing all the elements that are < p, and a high pile containing all
+the elements that are ≥ p. Low and high denote the array positions into which
+we place the respective piles, leaving a single slot between them for p.
+
+Such partitioning buys us two things. First, the pivot element p ends up in
+the exact array position it will occupy in the ﬁnal sorted order. Second, after
+partitioning no element ﬂips to the other side in the ﬁnal sorted order. Thus,
+we can now sort the elements to the left and the right of the pivot independently!
+This gives us a recursive sorting algorithm, since we can use the partitioning
+approach to sort each subproblem. The algorithm must be correct, because each
+element ultimately ends up in the proper position:
+
+void quicksort(item_type s[], int l, int h) {
+
+int p;
+
+/* index of partition */
+
+if (l < h) {
+
+p = partition(s, l, h);
+quicksort(s, l, p - 1);
+quicksort(s, p + 1, h);
+
+}
+
+}
+
+We can partition the array in one linear scan for a particular pivot element
+by maintaining three sections of the array:
+less than the pivot (to the left of
+firsthigh), greater than or equal to the pivot (between firsthigh and i), and
+unexplored (to the right of i), as implemented below:
+
+4.6. QUICKSORT: SORTING BY RANDOMIZATION
+
+131
+
+Figure 4.5: Animations of quicksort in action: ﬁrst selecting the ﬁrst element
+in each subarray as pivot (on left), and then selecting the last element as pivot
+(on right).
+
+int partition(item_type s[], int l, int h) {
+
+int i;
+int p;
+int firsthigh;
+
+/* counter */
+/* pivot element index */
+/* divider position for pivot element */
+
+/* select last element as pivot */
+
+p = h;
+firsthigh = l;
+for (i = l; i < h; i++) {
+if (s[i] < s[p]) {
+
+swap(&s[i], &s[firsthigh]);
+firsthigh++;
+
+}
+
+}
+swap(&s[p], &s[firsthigh]);
+
+return(firsthigh);
+
+}
+
+Since the partitioning step consists of at most n swaps, it takes time lin-
+ear in the number of keys. But how long does the entire quicksort take? As
+with mergesort, quicksort builds a recursion tree of nested subranges of the n-
+element array. As with mergesort, quicksort spends linear time processing (now
+partitioning instead of mergeing) the elements in each subarray on each level.
+As with mergesort, quicksort runs in O(n · h) time, where h is the height of the
+recursion tree.
+
+The diﬃculty is that the height of the tree depends upon where the pivot
+element ends up in each partition. If we get very lucky and happen to repeatedly
+pick the median element as our pivot, the subproblems are always half the size
+of those at the previous level. The height represents the number of times we
+
+132
+
+CHAPTER 4. SORTING
+
+p
+
+p
+
+p
+
+p
+
+p
+
+p
+
+p
+
+p
+
+p
+
+p
+
+Figure 4.6: The best-case (left) and worst-case (right) recursion trees for quick-
+sort. The left partition is in blue and the right partition in red.
+
+can halve n until we get down to 1, meaning h = (cid:13)lg n(cid:14). This happy situation
+is shown in Figure 4.6(left), and corresponds to the best case of quicksort.
+
+Now suppose we consistently get unlucky, and our pivot element always splits
+the array as unequally as possible. This implies that the pivot element is always
+the biggest or smallest element in the sub-array. After this pivot settles into its
+position, we will be left with one subproblem of size n − 1. After doing linear
+work we have reduced the size of our problem by just one measly element, as
+shown in Figure 4.6(right). It takes a tree of height n − 1 to chop our array
+down to one element per level, for a worst case time of Θ(n2).
+
+Thus, the worst case for quicksort is worse than heapsort or mergesort. To
+justify its name, quicksort had better be good in the average case. Understand-
+ing why requires some intuition about random sampling.
+
+4.6.1
+
+Intuition: The Expected Case for Quicksort
+
+The expected performance of quicksort depends upon the height of the partition
+tree constructed by pivot elements at each step. Mergesort splits the keys into
+two equal halves, sorts both of them recursively, and then merges the halves
+in linear time—and hence runs in O(n log n) time. Thus, whenever our pivot
+element is near the center of the sorted array (meaning the pivot is close to the
+median element), we get the same good split realizing the same running time
+as mergesort.
+
+I will give an intuitive explanation of why quicksort runs in O(n log n) time
+in the average case. How likely is it that a randomly selected pivot is a good
+one? The best possible selection for the pivot would be the median key, because
+exactly half of elements would end up left, and half the elements right, of the
+pivot. However, we have only a probability of 1/n that a randomly selected
+pivot is the median, which is quite small.
+
+Suppose we say a key is a good enough pivot if it lies in the center half of the
+sorted space of keys—those ranked from n/4 to 3n/4 in the space of all keys to
+be sorted. Such good enough pivot elements are quite plentiful, since half the
+elements lie closer to the middle than to one of the two ends (see Figure 4.7).
+Thus, on each selection we will pick a good enough pivot with probability of 1/2.
+We will make good progress towards sorting whenever we pick a good enough
+
+ 
+ 
+4.6. QUICKSORT: SORTING BY RANDOMIZATION
+
+133
+
+11111
+1
+
+n//n/n/n/n/n/n/n//n/n/n//n/n/n/n//44444444444444444444
+n/4
+
+n/2
+n/n/n/n/n/nn/n/n/n//nn/n//n/n/n/n/n 222222222222222222222
+
+3n/4/4/44/4/4/4/4444/4//4/4/444/44
+3n/4
+
+nnnnnnnnnnnnnnnnnnn
+n
+
+Figure 4.7: Half the time, a randomly chosen pivot is close to the median
+element.
+
+pivot.
+
+The worst possible good enough pivot leaves the bigger of the two partitions
+with 3n/4 items. This happens also to be the expected size of the larger partition
+left after picking a random pivot p, at the median between the worst possible
+pivot (p = 1 or p = n leaving a partition of size n − 1) and the best possible
+pivot (p = n/2 leaving two partitions of size n/2. So what is the height hg
+of a quicksort partition tree constructed repeatedly from the expected pivot
+value? The deepest path through this tree passes through partitions of size
+n, (3/4)n, (3/4)2n, . . ., down to 1. How many times can we multiply n by 3/4
+until it gets down to 1?
+
+(3/4)hg n = 1 =⇒ n = (4/3)hg
+
+so hg = log4/3 n.
+
+On average, random quicksort partition trees (and by analogy, binary search
+trees under random insertion) are very good. More careful analysis shows the av-
+erage height after n insertions is approximately 2 ln n. Since 2 ln n ≈ 1.386 lg n,
+this is only 39% taller than a perfectly balanced binary tree. Since quicksort
+does O(n) work partitioning on each level, the average time is O(n log n). If we
+are extremely unlucky, and our randomly selected elements are always among
+the largest or smallest element in the array, quicksort turns into selection sort
+and runs in O(n2). But the odds against this are vanishingly small.
+
+4.6.2 Randomized Algorithms
+
+There is an important subtlety about the expected case O(n log n) running time
+for quicksort. Our quicksort implementation above selected the last element in
+each sub-array as the pivot. Suppose this program were given a sorted array
+as input. Then at each step it would pick the worst possible pivot, and run in
+quadratic time.
+
+For any deterministic method of pivot selection, there exists a worst-case
+input instance which will doom us to quadratic time. The analysis presented
+above made no claim stronger than:
+
+“Quicksort runs in Θ(n log n) time, with high probability, if you give
+it randomly ordered data to sort.”
+
+But now suppose we add an initial step to our algorithm where we ran-
+domly permute the order of the n elements before we try to sort them. Such
+a permutation can be constructed in O(n) time (see Section 16.7 for details).
+
+134
+
+CHAPTER 4. SORTING
+
+This might seem like wasted eﬀort, but it provides the guarantee that we can
+expect Θ(n log n) running time whatever the initial input was. The worst case
+performance still can happen, but it now depends only upon how unlucky we
+are. There is no longer a well-deﬁned “worst-case” input. We now can claim
+that:
+
+“Randomized quicksort runs in Θ(n log n) time on any input, with
+high probability.”
+
+Alternately, we could get the same guarantee by selecting a random element to
+be the pivot at each step.
+
+Randomization is a powerful tool to improve algorithms with bad worst-
+It can be used to make algorithms
+case but good average-case complexity.
+more robust to boundary cases and more eﬃcient on highly structured input
+instances that confound heuristic decisions (such as sorted input to quicksort).
+It often lends itself to simple algorithms that provide expected-time performance
+guarantees, which are otherwise obtainable only using complicated deterministic
+algorithms. Randomized algorithms will be the topic of Chapter 6.
+
+Proper analysis of randomized algorithms requires some knowledge of prob-
+ability theory, and will be deferred to Chapter 6. However, some of the basic
+approaches to designing eﬃcient randomized algorithms are readily explainable:
+
+• Random sampling – Want to get an idea of the median value of n things,
+but don’t have either the time or space to look at them all? Select a small
+random sample of the input and ﬁnd the median of those. The result
+should be representative for the full set.
+
+This is the idea behind opinion polling, where we sample a small number
+of people as a proxy for the full population. Biases creep in unless you
+take a truly random sample, as opposed to the ﬁrst x people you happen
+to see. To avoid bias, actual polling agencies typically dial random phone
+numbers and hope someone answers.
+
+• Randomized hashing – We have claimed that hashing can be used to im-
+plement dictionary search in O(1) “expected time.” However, for any hash
+function there is a given worst-case set of keys that all get hashed to the
+same bucket. But now suppose we randomly select our hash function from
+a large family of good ones as the ﬁrst step of our algorithm. We get the
+same type of improved guarantee that we did with randomized quicksort.
+
+• Randomized search – Randomization can also be used to drive search tech-
+niques such as simulated annealing, as will be discussed in detail in Section
+12.6.3 (page 406).
+
+Stop and Think: Nuts and Bolts
+
+Problem: The nuts and bolts problem is deﬁned as follows. You are given a
+collection of n bolts of diﬀerent widths, and n corresponding nuts. You can test
+
+4.6. QUICKSORT: SORTING BY RANDOMIZATION
+
+135
+
+whether a given nut and bolt ﬁt together, from which you learn whether the
+nut is too large, too small, or an exact match for the bolt. The diﬀerences in
+size between pairs of nuts or bolts are too small to see by eye, so you cannot
+compare the sizes of two nuts or two bolts directly. You are asked to match
+each bolt to each nut as eﬃciently as possible.
+
+Give an O(n2) algorithm to solve the nuts and bolts problem. Then give a
+
+randomized O(n log n) expected-time algorithm for the same problem.
+
+Solution: The brute force algorithm for matching nuts and bolts starts with
+the ﬁrst bolt and compares it to each nut until a match is found. In the worst
+case, this will require n comparisons. Repeating this for each successive bolt on
+all remaining nuts yields an algorithm with a quadratic number of comparisons.
+But what if we pick a random bolt and try it? On average, we would expect
+to get about halfway through the set of nuts before we found the match, so
+this randomized algorithm would do half the work on average as the worst case.
+That counts as some kind of improvement, although not an asymptotic one.
+
+Randomized quicksort achieves the desired expected-case running time, so a
+natural idea is to emulate it on the nuts and bolts problem. The fundamental
+step in quicksort is partitioning elements around a pivot. Can we partition nuts
+and bolts around a randomly selected bolt b?
+
+Certainly we can partition the nuts into those of size less than b and greater
+than b. But decomposing the problem into two halves requires partitioning the
+bolts as well, and we cannot compare bolt against bolt. But once we ﬁnd the
+matching nut to b, we can use it to partition the bolts accordingly. In 2n − 2
+comparisons, we partition the nuts and bolts, and the remaining analysis follows
+directly from randomized quicksort.
+
+What is interesting about this problem is that no simple deterministic algo-
+rithm for nut and bolt sorting is known. It illustrates how randomization makes
+the bad case go away, leaving behind a simple and beautiful algorithm.
+
+4.6.3
+
+Is Quicksort Really Quick?
+
+There is a clear, asymptotic diﬀerence between a Θ(n log n) algorithm and one
+that runs in Θ(n2). Only the most obstinate reader would doubt my claim that
+mergesort, heapsort, and quicksort will all outperform insertion sort or selection
+sort on large enough instances.
+
+But how can we compare two Θ(n log n) algorithms to decide which is faster?
+How can we prove that quicksort is really quick? Unfortunately, the RAM model
+and Big Oh analysis provide too coarse a set of tools to make that type of dis-
+tinction. When faced with algorithms of the same asymptotic complexity, im-
+plementation details and system quirks such as cache performance and memory
+size often prove to be the decisive factor.
+
+What we can say is that experiments show that when quicksort is imple-
+mented well, it is typically two to three times faster than mergesort or heapsort.
+The primary reason is that the operations in the innermost loop are simpler.
+
+136
+
+CHAPTER 4. SORTING
+
+Figure 4.8: A small subset of Charlottesville Shiﬄetts.
+
+But I can’t argue if you don’t believe me when I say quicksort is faster. It is a
+question whose solution lies outside the analytical tools we are using. The best
+way to tell is to implement both algorithms and experiment.
+
+4.7 Distribution Sort: Sorting via Bucketing
+
+To sort names for a class roster or the telephone book, we could ﬁrst partition
+them according to the ﬁrst letter of the last name. This will create twenty-six
+diﬀerent piles, or buckets, of names. Observe that any name in the J pile must
+occur after all names in the I pile, and before any name in the K pile. Therefore,
+we can proceed to sort each pile individually and just concatenate the sorted
+piles together at the end.
+
+Assuming the names are distributed evenly among the buckets, the resulting
+twenty-six sorting problems should each be substantially smaller than the orig-
+inal problem. By now further partitioning each pile based on the second letter
+of each name, we can generate smaller and smaller piles. The set of names will
+be completely sorted as soon as every bucket contains only a single name. Such
+an algorithm is commonly called bucketsort or distribution sort.
+
+Bucketing is a very eﬀective idea whenever we are conﬁdent that the distri-
+bution of data will be roughly uniform. It is the idea that underlies hash tables,
+kd-trees, and a variety of other practical data structures. The downside of such
+techniques is that the performance can be terrible when the data distribution is
+not what we expected. Although data structures such as balanced binary trees
+oﬀer guaranteed worst-case behavior for any input distribution, no such promise
+exists for heuristic data structures on unexpected input distributions.
+
+Non-uniform distributions do occur in real life. Consider Americans with the
+uncommon last name of Shiﬄett. When last I looked, the Manhattan telephone
+directory (with over one million names) contained exactly ﬁve Shiﬄetts. So how
+many Shiﬄetts should there be in a small city of 50,000 people? Figure 4.8 shows
+a small portion of the two and a half pages of Shiﬄetts in the Charlottesville,
+Virginia telephone book. The Shiﬄett clan is a ﬁxture of the region, but it
+would play havoc with any distribution sort program, as reﬁning buckets from
+S to Sh to Shi to Shif to . . . to Shiﬄett results in no signiﬁcant partitioning.
+
+4.7. DISTRIBUTION SORT: SORTING VIA BUCKETING
+
+137
+
+a1 < a2
+
+F
+
+T
+
+a2 < a3
+
+a1 < a3
+
+T
+
+(1,2,3)
+
+F
+
+T
+
+F
+
+a1 < a3
+
+(2,1,3)
+
+a2 < a3
+
+T
+
+F
+
+T
+
+F
+
+(1,3,2)
+
+(2,3,1)
+
+(3,1,2)
+
+(3,2,1)
+
+Figure 4.9: Interpreting insertion sort of input array a as a decision tree. Each
+leaf represents a given input permutation, while the root–to–leaf path describes
+the sequence of comparisons the algorithm does to sort it.
+
+Take-Home Lesson: Sorting can be used to illustrate many algorithm design
+paradigms. Data structure techniques, divide and conquer, randomization, and
+incremental construction all lead to eﬃcient sorting algorithms.
+
+4.7.1 Lower Bounds for Sorting
+
+One last issue on the complexity of sorting. We have seen several sorting algo-
+rithms that run in worst-case O(n log n) time, but none that is linear. To sort
+n items certainly requires looking at all of them, so any sorting algorithm must
+be Ω(n) in the worst case. Might sorting be possible in linear time?
+
+The answer is no, presuming that your algorithm is based on comparing
+pairs of elements. An Ω(n log n) lower bound can be shown by observing that
+any sorting algorithm must behave diﬀerently during execution on each of the
+n! possible permutations of n keys. If an algorithm did exactly the same thing
+with two diﬀerent input permutations, there is no way that both of them could
+correctly come out sorted. The outcome of each pairwise comparison governs
+the run-time behavior of any comparison-based sorting algorithm. We can think
+of the set of all possible executions for such an algorithm as a tree with n! leaves,
+each of which correspond to one input permutation, and each root–to–leaf path
+describes the comparisons performed to sort the given input. The minimum
+height tree corresponds to the fastest possible algorithm, and it happens that
+lg(n!) = Θ(n log n).
+
+Figure 4.9 presents the decision tree for insertion sort on three elements. To
+interpret it, simulate what insertion sort does on the input a = (3, 1, 2). Because
+a1 ≥ a2, these elements must be swapped to produce a sorted order. Insertion
+sort then compares the end of the sorted array (the original input a1) against
+a3. If a1 ≥ a3, the ﬁnal test of a3 against the head of the sorted part (original
+input a2) decides whether to put a2 ﬁrst or second in sorted order.
+
+This lower bound is important for several reasons. First, the idea can be
+
+138
+
+CHAPTER 4. SORTING
+
+extended to give lower bounds for many applications of sorting, including ele-
+ment uniqueness, ﬁnding the mode, and constructing convex hulls. Sorting has
+one of the few non-trivial lower bounds among algorithmic problems. We will
+present a diﬀerent approach to arguing that fast algorithms are unlikely to exist
+in Chapter 11.
+
+Note that hashing-based algorithms do not perform such element compar-
+isons, putting them outside the scope of this lower bound. But hashing-based
+algorithms can get unlucky, and with worst-case luck the running time of any
+randomized algorithm for one of these problems will be Ω(n log n).
+
+4.8 War Story: Skiena for the Defense
+
+I lead a quiet, reasonably honest life. One reward for this is that I don’t often
+ﬁnd myself on the business end of surprise calls from lawyers. Thus, I was
+astonished to get a call from a lawyer who not only wanted to talk with me, but
+wanted to talk to me about sorting algorithms.
+
+It turned out that her ﬁrm was working on a case involving high-performance
+programs for sorting, and needed an expert witness who could explain technical
+issues to the jury. They knew I knew something about algorithms, but before
+taking me on they demanded to see my teaching evaluations to prove that I
+could explain things to people.3
+It promised to be an opportunity to learn
+about how fast sorting programs really worked. I ﬁgured I would learn which
+in-place sorting algorithm was fastest in practice. Was it heapsort or quicksort?
+What subtle, secret algorithmics made the diﬀerence to minimize the number
+of comparisons in practice?
+
+The answer was quite humbling. Nobody cared about in-place sorting. The
+name of the game was sorting huge ﬁles, much bigger than can ﬁt in main
+memory. All the important action was in getting the data on and oﬀ a disk.
+Cute algorithms for doing internal (in-memory) sorting were not the bottleneck,
+because the real problem lies in sorting gigabytes at a time.
+
+Recall that disks have relatively long seek times, reﬂecting how long it takes
+the desired part of the disk to rotate under the read/write head. Once the head
+is in the right place, the data moves relatively quickly, and it costs about the
+same to read a large data block as it does to read a single byte. Thus, the
+goal is minimizing the number of blocks read/written, and coordinating these
+operations so the sorting algorithm is never waiting to get the data it needs.
+
+The disk-intensive nature of sorting is best revealed by the annual Minutesort
+competition. The goal is to sort as much data in one minute as possible. As
+of this writing, the current champion is Tencent Sort, which managed to sort
+55 terabytes of data in under a minute on a little old 512-node cluster, each
+with 20 cores and 512 GB RAM. You can check out the current records at
+http://sortbenchmark.org/.
+
+3One of my more cynical faculty colleagues said this was the ﬁrst time anyone, anywhere,
+
+had ever actually looked at university teaching evaluations.
+
+4.8. WAR STORY: SKIENA FOR THE DEFENSE
+
+139
+
+That said, which algorithm is best for external sorting? It basically turns
+out to be a multiway mergesort, employing a lot of engineering and special
+tricks. You build a heap with members of the top block from each of k sorted
+lists. By repeatedly plucking the top element oﬀ this heap, you build a sorted
+list merging these k lists. Because this heap is sitting in main memory, these
+operations are fast. When you have a large enough sorted run, you write it to
+disk, and free up memory for more data. When you get close to emptying out
+the elements from the top block of one of the k sorted lists you are merging,
+load the next block.
+
+It proves very hard to benchmark sorting programs/algorithms at this level
+and decide which really is fastest.
+Is it fair to compare a commercial pro-
+gram designed to handle general ﬁles with a stripped-down code optimized for
+integers? The Minutesort competition employs randomly generated 100-byte
+records. This is a diﬀerent world than sorting names: Shiﬄetts are not ran-
+domly distributed. For example, one widely employed trick is to strip oﬀ a
+relatively short preﬁx of the key and initially sort only on that, just to avoid
+lugging all those extra bytes around.
+
+What lessons did I learn from this? The most important, by far, is to do
+everything you can to avoid being involved in a lawsuit either as a plaintiﬀ or
+defendant.4 Courts are not instruments for resolving disputes quickly. Legal
+battles have a lot in common with military battles: they escalate very quickly,
+become very expensive in time, money, and soul, and usually end only when
+both sides are exhausted and compromise. Wise are the parties who can work
+out their problems without going to court. Properly absorbing this lesson now
+could save you thousands of times the cost of this book.
+
+On technical matters, it is important to worry about external memory per-
+formance whenever you combine very large datasets with low-complexity algo-
+rithms (say linear or Θ(n log n)). Constant factors of even 5 or 10 can make a
+big diﬀerence here between what is feasible and what is hopeless. Of course,
+quadratic-time algorithms are doomed to fail on large datasets, regardless of
+data access times.
+
+Chapter Notes
+
+Several interesting sorting algorithms have not been discussed in this section
+including shellsort, a substantially more eﬃcient version of insertion sort, and
+radix sort, an eﬃcient algorithm for sorting strings. You can learn more about
+these and every other sorting algorithm by browsing through Knuth [Knu98].
+This includes external sorting, the subject of this chapter’s legal war story.
+
+As implemented here, mergesort copies the merged elements into an auxiliary
+buﬀer, to avoid overwriting the original elements to be sorted. Through clever
+but complicated buﬀer manipulation, mergesort can be implemented in an array
+without using too much extra storage. Kronrod’s algorithm for in-place merging
+is presented in [Knu98].
+
+4However, it is actually quite interesting serving as an expert witness.
+
+140
+
+CHAPTER 4. SORTING
+
+Randomized algorithms are discussed in greater detail in the books by Mot-
+wani and Raghavan [MR95] and Mitzenmacher and Upfal [MU17]. The prob-
+lem of nut and bolt sorting was introduced by Rawlins [Raw92]. A complicated
+but deterministic Θ(n log n) algorithm is due to Komlos, Ma, and Szemeredi
+[KMS98].
+
+4.9 Exercises
+
+Applications of Sorting: Numbers
+
+4-1. [3] The Grinch is given the job of partitioning 2n players into two teams of n
+players each. Each player has a numerical rating that measures how good he or
+she is at the game. The Grinch seeks to divide the players as unfairly as possible,
+so as to create the biggest possible talent imbalance between the teams. Show
+how the Grinch can do the job in O(n log n) time.
+
+4-2. [3] For each of the following problems, give an algorithm that ﬁnds the de-
+sired numbers within the given amount of time. To keep your answers brief,
+feel free to use algorithms from the book as subroutines. For the example,
+S = {6, 13, 19, 3, 8}, 19 − 3 maximizes the diﬀerence, while 8 − 6 minimizes the
+diﬀerence.
+(a) Let S be an unsorted array of n integers. Give an algorithm that ﬁnds the
+pair x, y ∈ S that maximizes |x−y|. Your algorithm must run in O(n) worst-case
+time.
+(b) Let S be a sorted array of n integers. Give an algorithm that ﬁnds the pair
+x, y ∈ S that maximizes |x − y|. Your algorithm must run in O(1) worst-case
+time.
+(c) Let S be an unsorted array of n integers. Give an algorithm that ﬁnds the
+pair x, y ∈ S that minimizes |x − y|, for x (cid:7)= y. Your algorithm must run in
+O(n log n) worst-case time.
+(d) Let S be a sorted array of n integers. Give an algorithm that ﬁnds the pair
+x, y ∈ S that minimizes |x − y|, for x (cid:7)= y. Your algorithm must run in O(n)
+worst-case time.
+
+4-3. [3] Take a list of 2n real numbers as input. Design an O(n log n) algorithm
+that partitions the numbers into n pairs, with the property that the partition
+minimizes the maximum sum of a pair. For example, say we are given the
+numbers (1,3,5,9). The possible partitions are ((1,3),(5,9)), ((1,5),(3,9)), and
+((1,9),(3,5)). The pair sums for these partitions are (4,14), (6,12), and (10,8).
+Thus, the third partition has 10 as its maximum sum, which is the minimum
+over the three partitions.
+
+4-4. [3] Assume that we are given n pairs of items as input, where the ﬁrst item
+is a number and the second item is one of three colors (red, blue, or yellow).
+Further assume that the items are sorted by number. Give an O(n) algorithm
+to sort the items by color (all reds before all blues before all yellows) such that
+the numbers for identical colors stay sorted.
+For example: (1,blue), (3,red), (4,blue), (6,yellow), (9,red) should become (3,red),
+(9,red), (1,blue), (4,blue), (6,yellow).
+
+4.9. EXERCISES
+
+141
+
+4-5. [3] The mode of a bag of numbers is the number that occurs most frequently in
+the set. The set {4, 6, 2, 4, 3, 1} has a mode of 4. Give an eﬃcient and correct
+algorithm to compute the mode of a bag of n numbers.
+
+4-6. [3] Given two sets S1 and S2 (each of size n), and a number x, describe an
+O(n log n) algorithm for ﬁnding whether there exists a pair of elements, one
+from S1 and one from S2, that add up to x. (For partial credit, give a Θ(n2)
+algorithm for this problem.)
+
+4-7. [5] Give an eﬃcient algorithm to take the array of citation counts (each count
+is a non-negative integer) of a researcher’s papers, and compute the researcher’s
+h-index. By deﬁnition, a scientist has index h if h of his or her n papers have
+been cited at least h times, while the other n − h papers each have no more than
+h citations.
+
+4-8. [3] Outline a reasonable method of solving each of the following problems. Give
+
+the order of the worst-case complexity of your methods.
+
+(a) You are given a pile of thousands of telephone bills and thousands of checks
+
+sent in to pay the bills. Find out who did not pay.
+
+(b) You are given a printed list containing the title, author, call number, and
+publisher of all the books in a school library and another list of thirty
+publishers. Find out how many of the books in the library were published
+by each company.
+
+(c) You are given all the book checkout cards used in the campus library during
+the past year, each of which contains the name of the person who took out
+the book. Determine how many distinct people checked out at least one
+book.
+
+4-9. [5] Given a set S of n integers and an integer T , give an O(nk−1 log n) algorithm
+
+to test whether k of the integers in S add up to T .
+
+4-10. [3] We are given a set of S containing n real numbers and a real number x, and
+seek eﬃcient algorithms to determine whether two elements of S exist whose
+sum is exactly x.
+
+(a) Assume that S is unsorted. Give an O(n log n) algorithm for the problem.
+
+(b) Assume that S is sorted. Give an O(n) algorithm for the problem.
+
+4-11. [8] Design an O(n) algorithm that, given a list of n elements, ﬁnds all the
+elements that appear more than n/2 times in the list. Then, design an O(n)
+algorithm that, given a list of n elements, ﬁnds all the elements that appear
+more than n/4 times.
+
+Applications of Sorting: Intervals and Sets
+
+4-12. [3] Give an eﬃcient algorithm to compute the union of sets A and B, where
+n = max(|A|, |B|). The output should be an array of distinct elements that form
+the union of the sets.
+
+(a) Assume that A and B are unsorted arrays. Give an O(n log n) algorithm
+
+for the problem.
+
+(b) Assume that A and B are sorted arrays. Give an O(n) algorithm for the
+
+problem.
+
+142
+
+CHAPTER 4. SORTING
+
+4-13. [5] A camera at the door tracks the entry time ai and exit time bi (assume
+bi > ai) for each of n persons pi attending a party. Give an O(n log n) algo-
+rithm that analyzes this data to determine the time when the most people were
+simultaneously present at the party. You may assume that all entry and exit
+times are distinct (no ties).
+
+4-14. [5] Given a list I of n intervals, speciﬁed as (xi, yi) pairs, return a list where
+the overlapping intervals are merged. For I = {(1, 3), (2, 6), (8, 10), (7, 18)} the
+output should be {(1, 6), (7, 18)}. Your algorithm should run in worst-case
+O(n log n) time complexity.
+
+4-15. [5] You are given a set S of n intervals on a line, with the ith interval described
+by its left and right endpoints (li, ri). Give an O(n log n) algorithm to identify
+a point p on the line that is in the largest number of intervals.
+As an example, for S = {(10, 40), (20, 60), (50, 90), (15, 70)} no point exists in
+all four intervals, but p = 50 is an example of a point in three intervals. You
+can assume an endpoint counts as being in its interval.
+
+4-16. [5] You are given a set S of n segments on the line, where segment Si ranges
+from li to ri. Give an eﬃcient algorithm to select the fewest number of segments
+whose union completely covers the interval from 0 to m.
+
+Heaps
+4-17. [3] Devise an algorithm for ﬁnding the k smallest elements of an unsorted set
+
+of n integers in O(n + k log n).
+
+4-18. [5] Give an O(n log k)-time algorithm that merges k sorted lists with a total
+of n elements into one sorted list. (Hint: use a heap to speed up the obvious
+O(kn)-time algorithm).
+
+4-19. [5] You wish to store a set of n numbers in either a max-heap or a sorted array.
+For each application below, state which data structure is better, or if it does not
+matter. Explain your answers.
+
+(a) Find the maximum element quickly.
+
+(b) Delete an element quickly.
+
+(c) Form the structure quickly.
+
+(d) Find the minimum element quickly.
+
+4-20. [5] (a) Give an eﬃcient algorithm to ﬁnd the second-largest key among n keys.
+
+You can do better than 2n − 3 comparisons.
+(b) Then, give an eﬃcient algorithm to ﬁnd the third-largest key among n keys.
+How many key comparisons does your algorithm do in the worst case? Must your
+algorithm determine which key is largest and second-largest in the process?
+
+Quicksort
+4-21. [3] Use the partitioning idea of quicksort to give an algorithm that ﬁnds the
+median element of an array of n integers in expected O(n) time. (Hint: must
+you look at both sides of the partition?)
+
+4-22. [3] The median of a set of n values is the (cid:11)n/2(cid:12)th smallest value.
+
+(a) Suppose quicksort always pivoted on the median of the current sub-array.
+How many comparisons would quicksort make then in the worst case?
+
+4.9. EXERCISES
+
+143
+
+(b) Suppose quicksort always pivoted on the (cid:11)n/3(cid:12)th smallest value of the
+current sub-array. How many comparisons would be made then in the
+worst case?
+
+4-23. [5] Suppose an array A consists of n elements, each of which is red, white, or
+blue. We seek to sort the elements so that all the reds come before all the whites,
+which come before all the blues. The only operations permitted on the keys are:
+
+• Examine(A,i) – report the color of the ith element of A.
+• Swap(A,i,j) – swap the ith element of A with the jth element.
+
+Find a correct and eﬃcient algorithm for red–white–blue sorting. There is a
+linear-time solution.
+
+4-24. [3] Give an eﬃcient algorithm to rearrange an array of n keys so that all
+the negative keys precede all the non-negative keys. Your algorithm must be
+in-place, meaning you cannot allocate another array to temporarily hold the
+items. How fast is your algorithm?
+
+4-25. [5] Consider a given pair of diﬀerent elements in an input array to be sorted,
+say zi and zj. What is the most number of times zi and zj might be compared
+with each other during an execution of quicksort?
+
+4-26. [5] Deﬁne the recursion depth of quicksort as the maximum number of successive
+recursive calls it makes before hitting the base case. What are the minimum
+and maximum possible recursion depths for randomized quicksort?
+
+4-27. [8] Suppose you are given a permutation p of the integers 1 to n, and seek
+to sort them to be in increasing order [1, . . . , n]. The only operation at your
+disposal is reverse(p,i,j), which reverses the elements of a subsequence pi, . . . , pj
+in the permutation. For the permutation [1, 4, 3, 2, 5] one reversal (of the second
+through fourth elements) suﬃces to sort.
+
+• Show that it is possible to sort any permutation using O(n) reversals.
+• Now suppose that the cost of reverse(p,i,j) is equal to its length, the num-
+ber of elements in the range, |j − i| + 1. Design an algorithm that sorts p
+in O(n log2 n) cost. Analyze the running time and cost of your algorithm
+and prove correctness.
+
+Mergesort
+
+4-28. [5] Consider the following modiﬁcation to merge sort: divide the input array
+into thirds (rather than halves), recursively sort each third, and ﬁnally combine
+the results using a three-way merge subroutine. What is the worst-case running
+time of this modiﬁed merge sort?
+
+4-29. [5] Suppose you are given k sorted arrays, each with n elements, and you want
+to combine them into a single sorted array of kn elements. One approach is to
+use the merge subroutine repeatedly, merging the ﬁrst two arrays, then merging
+the result with the third array, then with the fourth array, and so on until you
+merge in the kth and ﬁnal input array. What is the running time?
+
+4-30. [5] Consider again the problem of merging k sorted length-n arrays into a single
+sorted length-kn array. Consider the algorithm that ﬁrst divides the k arrays
+into k/2 pairs of arrays, and uses the merge subroutine to combine each pair,
+
+144
+
+CHAPTER 4. SORTING
+
+resulting in k/2 sorted length-2n arrays. The algorithm repeats this step until
+there is only one length-kn sorted array. What is the running time as a function
+of n and k?
+
+Other Sorting Algorithms
+
+4-31. [5] Stable sorting algorithms leave equal-key items in the same relative order
+as in the original permutation. Explain what must be done to ensure that
+mergesort is a stable sorting algorithm.
+
+4-32. [5] Wiggle sort: Given an unsorted array A, reorder it such that A[0] < A[1] >
+A[2] < A[3] . . . . For example, one possible answer for input [3, 1, 4, 2, 6, 5] is
+[1, 3, 2, 5, 4, 6]. Can you do it in O(n) time using only O(1) space?
+
+4-33. [3] Show that n positive integers in the range 1 to k can be sorted in O(n log k)
+
+time. The interesting case is when k (cid:15) n.
+
+4-34. [5] Consider a sequence S of n integers with many duplications, such that the
+number of distinct integers in S is O(log n). Give an O(n log log n) worst-case
+time algorithm to sort such sequences.
+
+4-35. [5] Let A[1..n] be an array such that the ﬁrst n−
+
+n elements are already sorted
+(though we know nothing about the remaining elements). Give an algorithm
+that sorts A in substantially better than n log n steps.
+
+√
+
+4-36. [5] Assume that the array A[1..n] only has numbers from {1, . . . , n2} but that
+at most log log n of these numbers ever appear. Devise an algorithm that sorts
+A in substantially less than O(n log n).
+
+4-37. [5] Consider the problem of sorting a sequence of n 0’s and 1’s using compar-
+isons. For each comparison of two values x and y, the algorithm learns which of
+x < y, x = y, or x > y holds.
+
+(a) Give an algorithm to sort in n − 1 comparisons in the worst case. Show
+
+that your algorithm is optimal.
+
+(b) Give an algorithm to sort in 2n/3 comparisons in the average case (assum-
+ing each of the n inputs is 0 or 1 with equal probability). Show that your
+algorithm is optimal.
+
+4-38. [6] Let P be a simple, but not necessarily convex, n-sided polygon and q an
+arbitrary point not necessarily in P . Design an eﬃcient algorithm to ﬁnd a line
+segment originating from q that intersects the maximum number of edges of P .
+In other words, if standing at point q, in what direction should you aim a gun
+so the bullet will go through the largest number of walls. A bullet through a
+vertex of P gets credit for only one wall. An O(n log n) algorithm is possible.
+
+Lower Bounds
+
+4-39. [5] In one of my research papers [Ski88], I discovered a comparison-based sorting
+n)). Given the existence of an Ω(n log n) lower
+
+√
+
+algorithm that runs in O(n log(
+bound for sorting, how can this be possible?
+
+4-40. [5] Mr. B. C. Dull claims to have developed a new data structure for priority
+queues that supports the operations Insert, Maximum, and Extract-Max—all in
+O(1) worst-case time. Prove that he is mistaken. (Hint: the argument does not
+involve a lot of gory details—just think about what this would imply about the
+Ω(n log n) lower bound for sorting.)
+
+4.9. EXERCISES
+
+Searching
+
+145
+
+4-41. [3] A company database consists of 10,000 sorted names, 40% of whom are
+known as good customers and who together account for 60% of the accesses to
+the database. There are two data structure options to consider for representing
+the database:
+
+• Put all the names in a single array and use binary search.
+• Put the good customers in one array and the rest of them in a second
+array. Only if we do not ﬁnd the query name on a binary search of the
+ﬁrst array do we do a binary search of the second array.
+
+Demonstrate which option gives better expected performance. Does this change
+if linear search on an unsorted array is used instead of binary search for both
+options?
+
+4-42. [5] A Ramanujan number can be written two diﬀerent ways as the sum of two
+cubes—meaning there exist distinct positive integers a, b, c, and d such that
+a3 + b3 = c3 + d3. For example, 1729 is a Ramanujan number because 1729 =
+13 + 123 = 93 + 103.
+(a) Give an eﬃcient algorithm to test whether a given single integer n is a
+Ramanujan number, with an analysis of the algorithm’s complexity.
+(b) Now give an eﬃcient algorithm to generate all the Ramanujan numbers
+between 1 and n, with an analysis of its complexity.
+
+Implementation Challenges
+4-43. [5] Consider an n×n array A containing integer elements (positive, negative, and
+zero). Assume that the elements in each row of A are in strictly increasing order,
+and the elements of each column of A are in strictly decreasing order. (Hence
+there cannot be two zeros in the same row or the same column.) Describe an
+eﬃcient algorithm that counts the number of occurrences of the element 0 in A.
+Analyze its running time.
+
+4-44. [6] Implement versions of several diﬀerent sorting algorithms, such as selection
+sort, insertion sort, heapsort, mergesort, and quicksort. Conduct experiments
+to assess the relative performance of these algorithms in a simple application
+that reads a large text ﬁle and reports exactly one instance of each word that
+appears within it. This application can be eﬃciently implemented by sorting all
+the words that occur in the text and then passing through the sorted sequence
+to identify one instance of each distinct word. Write a brief report with your
+conclusions.
+
+4-45. [5] Implement an external sort, which uses intermediate ﬁles to sort ﬁles bigger
+than main memory. Mergesort is a good algorithm to base such an implemen-
+tation on. Test your program both on ﬁles with small records and on ﬁles with
+large records.
+
+4-46. [8] Design and implement a parallel sorting algorithm that distributes data
+across several processors. An appropriate variation of mergesort is a likely can-
+didate. Measure the speedup of this algorithm as the number of processors
+increases. Then compare the execution time to that of a purely sequential
+mergesort implementation. What are your experiences?
+
+146
+
+Interview Problems
+
+CHAPTER 4. SORTING
+
+4-47. [3] If you are given a million integers to sort, what algorithm would you use to
+
+sort them? How much time and memory would that consume?
+
+4-48. [3] Describe advantages and disadvantages of the most popular sorting algo-
+
+rithms.
+
+4-49. [3] Implement an algorithm that takes an input array and returns only the
+
+unique elements in it.
+
+4-50. [5] You have a computer with only 4 GB of main memory. How do you use it to
+
+sort a large ﬁle of 500 GB that is on disk?
+
+4-51. [5] Design a stack that supports push, pop, and retrieving the minimum element
+
+in constant time.
+
+4-52. [5] Given a search string of three words, ﬁnd the smallest snippet of the docu-
+ment that contains all three of the search words—that is, the snippet with the
+smallest number of words in it. You are given the index positions where these
+words occur in the document, such as word1: (1, 4, 5), word2: (3, 9, 10), and
+word3: (2, 6, 15). Each of the lists are in sorted order, as above.
+
+4-53. [6] You are given twelve coins. One of them is heavier or lighter than the rest.
+
+Identify this coin in just three weighings with a balance scale.
+
+LeetCode
+
+4-1. https://leetcode.com/problems/sort-list/
+
+4-2. https://leetcode.com/problems/queue-reconstruction-by-height/
+
+4-3. https://leetcode.com/problems/merge-k-sorted-lists/
+
+4-4. https://leetcode.com/problems/find-k-pairs-with-smallest-sums/
+
+HackerRank
+
+4-1. https://www.hackerrank.com/challenges/quicksort3/
+
+4-2. https://www.hackerrank.com/challenges/mark-and-toys/
+
+4-3. https://www.hackerrank.com/challenges/organizing-containers-of-balls/
+
+Programming Challenges
+
+These programming challenge problems with robot judging are available at
+https://onlinejudge.org:
+
+4-1. “Vito’s Family”—Chapter 4, problem 10041.
+
+4-2. “Stacks of Flapjacks”—Chapter 4, problem 120.
+
+4-3. “Bridge”—Chapter 4, problem 10037.
+
+4-4. “ShoeMaker’s Problem”—Chapter 4, problem 10026.
+
+4-5. “ShellSort”—Chapter 4, problem 10152.
+
+Chapter 5
+
+Divide and Conquer
+
+One of the most powerful techniques for solving problems is to break them down
+into smaller, more easily solved pieces. Smaller problems are less overwhelming,
+and they permit us to focus on details that are lost when we are studying
+the whole thing. A recursive algorithm starts to become apparent whenever
+we can break the problem into smaller instances of the same type of problem.
+Multicore processors now sit in almost every computer, but eﬀective parallel
+processing requires decomposing jobs into at least as many tasks as the number
+of processors.
+
+Two important algorithm design paradigms are based on breaking problems
+down into smaller problems. In Chapter 10, we will see dynamic programming,
+which typically removes one element from the problem, solves the smaller prob-
+lem, and then adds back the element to the solution of this smaller problem in
+the proper way. Divide and conquer instead splits the problem into (say) halves,
+solves each half, then stitches the pieces back together to form a full solution.
+
+Thus, to use divide and conquer as an algorithm design technique, we must
+divide the problem into two smaller subproblems, solve each of them recursively,
+and then meld the two partial solutions into one solution to the full problem.
+Whenever the merging takes less time than solving the two subproblems, we
+get an eﬃcient algorithm. Mergesort, discussed in Section 4.5 (page 127), is the
+classic example of a divide-and-conquer algorithm. It takes only linear time to
+merge two sorted lists of n/2 elements, each of which was obtained in O(n lg n)
+time.
+
+Divide and conquer is a design technique with many important algorithms to
+its credit, including mergesort, the fast Fourier transform, and Strassen’s matrix
+multiplication algorithm. Beyond binary search and its many variants, however,
+I ﬁnd it to be a diﬃcult design technique to apply in practice. Our ability to
+analyze divide and conquer algorithms rests on our proﬁciency in solving the
+recurrence relations governing the cost of such recursive algorithms, so we will
+introduce techniques for solving recurrences here.
+
+© The Editor(s) (if applicable) and The Author(s), under exclusive license to
+Springer Nature Switzerland AG 2020
+S. S. Skiena, The Algorithm Design Manual, Texts in Computer Science,
+https://doi.org/10.1007/978-3-030-54256-6_5
+
+147
+
+148
+
+CHAPTER 5. DIVIDE AND CONQUER
+
+5.1 Binary Search and Related Algorithms
+
+The mother of all divide-and-conquer algorithms is binary search, which is a
+fast algorithm for searching in a sorted array of keys S. To search for key q, we
+compare q to the middle key S[n/2]. If q appears before S[n/2], it must reside
+in the left half of S; if not, it must reside in the right half of S. By repeating
+this process recursively on the correct half, we locate the key in a total of (cid:13)lg n(cid:14)
+comparisons—a big win over the n/2 comparisons expected using sequential
+search:
+
+int binary_search(item_type s[], item_type key, int low, int high) {
+/* index of middle element */
+
+int middle;
+
+if (low > high) {
+
+return (-1);
+
+/* key not found */
+
+}
+
+middle = (low + high) / 2;
+
+if (s[middle] == key) {
+return(middle);
+
+}
+
+if (s[middle] > key) {
+
+return(binary_search(s, key, low, middle - 1));
+
+} else {
+
+return(binary_search(s, key, middle + 1, high));
+
+}
+
+}
+
+This much you probably know. What is important is to understand is just
+how fast binary search is. Twenty questions is a popular children’s game where
+one player selects a word and the other repeatedly asks true/false questions
+until they guess it. If the word remains unidentiﬁed after twenty questions, the
+ﬁrst party wins. But the second player has a winning strategy, based on binary
+search. Take a printed dictionary, open it in the middle, select a word (say
+“move”), and ask whether the unknown word is before “move” in alphabetical
+order. Standard dictionaries contain between 50,000 to 200,000 words, so we
+can be certain that the process will terminate within twenty questions.
+
+5.1.1 Counting Occurrences
+
+Several interesting algorithms are variants of binary search. Suppose that we
+want to count the number of times a given key k (say “Skiena”) occurs in a
+
+5.1. BINARY SEARCH AND RELATED ALGORITHMS
+
+149
+
+given sorted array. Because sorting groups all the copies of k into a contiguous
+block, the problem reduces to ﬁnding that block and then measuring its size.
+
+The binary search routine presented above enables us to ﬁnd the index of
+an element x of the correct block in O(lg n) time. A natural way to identify
+the boundaries of the block is to sequentially test elements to the left of x until
+we ﬁnd one that diﬀers from the search key, and then repeat this search to the
+right of x. The diﬀerence between the indices of these boundaries (plus one)
+gives the number of occurrences of k.
+
+This algorithm runs in O(lg n + s), where s is the number of occurrences of
+the key. But this can be as bad as Θ(n) if the entire array consists of identical
+keys. A faster algorithm results by modifying binary search to ﬁnd the boundary
+of the block containing k, instead of k itself. Suppose we delete the equality test
+
+if (s[middle] == key) return(middle);
+
+from the implementation above and return the index high instead of −1 on
+each unsuccessful search. All searches will now be unsuccessful, since there
+is no equality test. The search will proceed to the right half whenever the
+key is compared to an identical array element, eventually terminating at the
+right boundary. Repeating the search after reversing the direction of the binary
+comparison will lead us to the left boundary. Each search takes O(lg n) time,
+so we can count the occurrences in logarithmic time regardless of the size of the
+block.
+
+By modifying our binary search routine to return (low+high)/2 instead of
+-1 on an unsuccessful search, we obtain the location between two array elements
+where the key k should have been. This variant suggests another way to solve
+our length of run problem. We search for the positions of keys k − (cid:2) and k + (cid:2),
+where (cid:2) is a tiny enough constant that both searches are guaranteed to fail with
+no intervening keys. Again, doing two binary searches takes O(log n) time.
+
+5.1.2 One-Sided Binary Search
+
+Now suppose we have an array A consisting of a run of 0’s, followed by an
+unbounded run of 1’s, and would like to identify the exact point of transition
+between them. Binary search on the array would ﬁnd the transition point in
+(cid:13)lg n(cid:14) tests, if we had a bound n on the number of elements in the array.
+
+But in the absence of such a bound, we can test repeatedly at larger in-
+tervals (A[1], A[2], A[4], A[8], A[16], . . .) until we ﬁnd a non-zero value. Now
+we have a window containing the target and can proceed with binary search.
+This one-sided binary search ﬁnds the transition point p using at most 2(cid:13)lg p(cid:14)
+comparisons, regardless of how large the array actually is. One-sided binary
+search is useful whenever we are looking for a key that lies close to our current
+position.
+
+150
+
+CHAPTER 5. DIVIDE AND CONQUER
+
+5.1.3 Square and Other Roots
+
+The square root of n is the positive number r such that r2 = n. Square root
+computations are performed inside every pocket calculator, but it is instructive
+to develop an eﬃcient algorithm to compute them.
+
+First, observe that the square root of n ≥ 1 must be at least 1 and at most
+n. Let l = 1 and r = n. Consider the midpoint of this interval, m = (l + r)/2.
+How does m2 compare to n? If n ≥ m2, then the square root must be greater
+than m, so the algorithm repeats with l = m. If n < m2, then the square root
+must be less than m, so the algorithm repeats with r = m. Either way, we have
+halved the interval using only one comparison. Therefore, after (cid:13)lg n(cid:14) rounds
+we will have identiﬁed the square root to within ±1/2.
+
+This bisection method, as it is called in numerical analysis, can also be applied
+to the more general problem of ﬁnding the roots of an equation. We say that x
+is a root of the function f if f (x) = 0. Suppose that we start with values l and r
+such that f (l) > 0 and f (r) < 0. If f is a continuous function, there must exist
+a root between l and r. Depending upon the sign of f (m), where m = (l + r)/2,
+we can cut the window containing the root in half with each test, and stop as
+soon as our estimate becomes suﬃciently accurate.
+
+Root-ﬁnding algorithms converging faster than binary search are known for
+both of these problems. Instead of always testing the midpoint of the interval,
+these algorithms interpolate to ﬁnd a test point closer to the actual root. Still,
+binary search is simple, robust, and works as well as possible without additional
+information on the nature of the function to be computed.
+
+Take-Home Lesson:
+divide-and-conquer algorithms.
+
+Binary search and its variants are the quintessential
+
+5.2 War Story: Finding the Bug in the Bug
+
+Yutong stood up to announce the results of weeks of hard work. “Dead,” he
+announced deﬁantly. Everybody in the room groaned.
+
+I was part of a team developing a new approach to create vaccines: Synthetic
+Attenuated Virus Engineering or SAVE. Because of how the genetic code works,
+there are typically about 3n diﬀerent possible genes that code for any given
+protein of length n. To a ﬁrst approximation, all of these are the same, since
+they describe exactly the same protein. But each of the 3n synonymous genes use
+the biological machinery in somewhat diﬀerent ways, translating at somewhat
+diﬀerent speeds.
+
+By substituting a virus gene with a less dangerous replacement, we hoped to
+create a vaccine: a weaker version of the disease-causing agent that otherwise
+did the same thing. Your body could ﬁght oﬀ the weak virus without you getting
+sick, along the way training your immune system to ﬁght oﬀ tougher villains.
+But we needed weak viruses, not dead ones: you can’t learn anything ﬁghting
+oﬀ something that is already dead.
+
+5.2. WAR STORY: FINDING THE BUG IN THE BUG
+
+151
+
+I
+
+II
+
+III
+
+IV
+
+-
+
++
+
++
+
++
+
+Figure 5.1: Designs of four synthetic genes to locate a speciﬁc sequence signal.
+The green regions are drawn from a viable sequence, while the red regions are
+drawn from a lethally defective sequence. Genes II, III, and IV were viable while
+gene I was defective, an outcome that can only be explained by a lethal signal
+in the region located ﬁfth from the right.
+
+“Dead means that there must be one place in this 1,200-base region where the
+virus evolved a signal, a second meaning of the sequence it needs for survival,”
+said our senior virologist. By changing the sequence at this point, we killed the
+virus. “We have to ﬁnd this signal to bring it back to life.”
+
+“But there are 1,200 places to look! How can we ﬁnd it?” Yutong asked.
+I thought about this a bit. We had to debug a bug. This sounded similar
+to the problem of debugging a program. I recall many a lonesome night spent
+trying to ﬁgure out exactly which line number was causing my program to crash.
+I often stooped to commenting out chunks of the code, and then running it again
+to test if it still crashed. It was usually easy to ﬁgure out the problem after I
+got the commented-out region down to a small enough chunk. The best way to
+search for this region was. . .
+
+“Binary search!” I announced. Suppose we replace the ﬁrst half of the
+coding sequence of the viable gene (shown in green) with the coding sequence of
+the dead, critical signal-deﬁcient strain (shown in red), as in design II in Figure
+5.1. If this hybrid gene is viable, it means the critical signal must occur in the
+right half of the gene, whereas a dead virus implies the problem must occur in
+the left half. Through a binary search process the signal can be located to one
+of n regions in (cid:13)log2 n(cid:14) sequential rounds of experiment.
+
+“We can narrow the area containing the signal in a length-n gene to n/16
+by doing only four experiments,” I informed them. The senior virologist got
+excited. But Yutong turned pale.
+
+“Four more rounds of experiments!” he complained. “It took me a full
+month to synthesize, clone, and try to grow the virus the last time. Now you
+want me to do it again, wait to learn which half the signal is in, and then repeat
+three more times? Forget about it!”
+
+Yutong realized that the power of binary search came from interaction: the
+query that we make in round r depends upon the answers to the queries in
+rounds 1 through r − 1. Binary search is an inherently sequential algorithm.
+When each individual comparison is a slow and laborious process, suddenly lg n
+
+152
+
+CHAPTER 5. DIVIDE AND CONQUER
+
+comparisons doesn’t look so good. But I had a very cute trick up my sleeve.
+
+“Four successive rounds of this will be too much work for you, Yutong. But
+might you be able to do four diﬀerent designs at the same time if we could give
+them to you all at once?” I asked.
+
+“If I am doing the same things to four diﬀerent sequences at the same time,
+
+it is no big deal,” he said. “Not much harder than doing just one of them.”
+
+That settled, I proposed that they simultaneously synthesize the four virus
+designs labeled I, II, III, and IV in Figure 5.1. It turns out you can parallelize bi-
+nary search, provided your queries can be arbitrary subsets instead of connected
+halves. Observe that each of the columns deﬁned by these four designs consists
+of a distinct pattern of red and green. The pattern of living/dead among the
+four synthetic designs thus uniquely deﬁnes the position of the critical signal in
+one experimental round. In this example, virus I happened to be dead while
+the other three lived, pinpointing the location of the lethal signal to the ﬁfth
+region from the right.
+
+Yutong rose to the occasion, and after a month of toil (but not months)
+discovered a new signal in poliovirus [SLW+12]. He found the bug in the bug
+through the idea of divide and conquer, which works best when splitting the
+problem in half at each point. Note that all four of our designs consist of half red
+and half green, arranged so all sixteen regions have a distinct pattern of colors.
+With interactive binary search, the last test selects between just two remaining
+regions. By expanding each test to have half the sequence, we eliminated the
+need for sequential tests, making the entire process much faster.
+
+5.3 Recurrence Relations
+
+Many divide-and-conquer algorithms have time complexities that are naturally
+modeled by recurrence relations. The ability to solve such recurrences is impor-
+tant to understanding when divide-and-conquer algorithms perform well, and
+provides an important tool for analysis in general. The reader who balks at the
+very idea of analysis is free to skip this section, but important insights come
+from an understanding of the behavior of recurrence relations.
+
+What is a recurrence relation? It is an equation in which a function is
+deﬁned in terms of itself. The Fibonacci numbers are described by the recurrence
+relation
+
+Fn = Fn−1 + Fn−2
+
+together with the initial values F0 = 0 and F1 = 1, as will be discussed in Section
+10.1.1. Many other familiar functions are easily expressed as recurrences. Any
+polynomial can be represented by a recurrence, such as the linear function:
+
+an = an−1 + 1, a1 = 1 −→ an = n
+
+Any exponential can be represented by a recurrence:
+
+an = 2an−1, a1 = 1 −→ an = 2n−1
+
+5.3. RECURRENCE RELATIONS
+
+153
+
+Finally, lots of weird functions that cannot be easily described using conventional
+notation can be represented naturally by a recurrence, for example:
+
+an = nan−1, a1 = 1 −→ an = n!
+
+This shows that recurrence relations are a very versatile way to represent func-
+tions.
+
+The self-reference property of recurrence relations is shared with recursive
+programs or algorithms, as the shared roots of both terms reﬂect. Essentially,
+recurrence relations provide a way to analyze recursive structures, such as algo-
+rithms.
+
+5.3.1 Divide-and-Conquer Recurrences
+
+A typical divide-and-conquer algorithm breaks a given problem into a smaller
+pieces, each of which is of size n/b. It then spends f (n) time to combine these
+subproblem solutions into a complete result. Let T (n) denote the worst-case
+time this algorithm takes to solve a problem of size n. Then T (n) is given by
+the following recurrence relation:
+
+T (n) = a · T (n/b) + f (n)
+
+Consider the following examples, based on algorithms we have previously seen:
+
+• Mergesort – The running time of mergesort is governed by the recurrence
+T (n) = 2T (n/2) + O(n), since the algorithm divides the data into equal-
+sized halves and then spends linear time merging the halves after they are
+sorted. In fact, this recurrence evaluates to T (n) = O(n lg n), just as we
+got by our previous analysis.
+
+• Binary search – The running time of binary search is governed by the
+recurrence T (n) = T (n/2) + O(1), since at each step we spend constant
+time to reduce the problem to an instance half its size. This recurrence
+evaluates to T (n) = O(lg n), just as we got by our previous analysis.
+
+• Fast heap construction – The bubble down method of heap construction
+(described in Section 4.3.4) builds an n-element heap by constructing two
+n/2 element heaps and then merging them with the root in logarithmic
+time. The running time is thus governed by the recurrence relation T (n) =
+2T (n/2) + O(lg n). This recurrence evaluates to T (n) = O(n), just as we
+got by our previous analysis.
+
+Solving a recurrence means ﬁnding a nice closed form describing or bounding
+the result. We can use the master theorem, discussed in Section 5.4, to solve
+the recurrence relations typically arising from divide-and-conquer algorithms.
+
+154
+
+CHAPTER 5. DIVIDE AND CONQUER
+
+pararararaararararararararararararararaartittittittittittittittititittittittitittittittitittitti ionionionionioniononiononiononionioniononioniononionoon sisisisisisisississisisisisisissisize zezezezezezezezezezezezezezzezezeez =================nnnnnnnnnnnnnnnnn
+n
+partition size = 
+
+ddededdedededddeddededededededdeded gregregregregregregreeeegreggg eee =e =e =e =e =e =ee ===ee =e =e =e ===== aaaaaaaaa
+vertex degree = a
+verrrrrrrttextetextetetetttextexteteet
+
+n/bnnnnnnnnnnnnnnnnnn
+n/b
+
+n/b2bb
+2
+n/b
+
+b
+b
+
+1
+1
+
+heiheiheiheiheiheiiheieiiheiheiheheiheheeeheh ghtghtghtghtghghtghtghghtghtghghtghtghtghghtghtghthtghgh ====== loglogloglogggglogglogloglog nnnnnnnnnnnnn
+height = log n
+
+widwidwwidwwidwidwidiwiwidwidwidwidwidwidwidwidwiwidwidth hhhhhhhhhhh = a= a= a= a= aaaa= a= a= a= aa= a= aa= aaa= a
+width = a
+
+ggggggggggggggg
+log  n
+ggggg
+log oggggg gg nnnnnnnnnnnnnnnnnnggg g gggggggg gggg
+b
+bbbbbbbbbbbbbb
+
+g  g  
+log  b
+log  b
+b
+bbbbbbbbbb
+
+=== n== nn======
+= n
+
+Figure 5.2: The recursion tree resulting from decomposing each problem of
+size n into a problems of size n/b
+
+5.4 Solving Divide-and-Conquer Recurrences
+
+Divide-and-conquer recurrences of the form T (n) = aT (n/b)+f (n) are generally
+easy to solve, because the solutions typically fall into one of three distinct cases:
+
+1. If f (n) = O(nlogb a−(cid:2)) for some constant (cid:2) > 0, then T (n) = Θ(nlogb a).
+
+2. If f (n) = Θ(nlogb a), then T (n) = Θ(nlogb a lg n).
+
+3. If f (n) = Ω(nlogb a+(cid:2)) for some constant (cid:2) > 0, and if af (n/b) ≤ cf (n) for
+
+some c < 1, then T (n) = Θ(f (n)).
+
+Although this looks somewhat frightening, it really isn’t diﬃcult to apply.
+The issue is identifying which case of this so-called master theorem holds for
+your given recurrence. Case 1 holds for heap construction and matrix multipli-
+cation, while Case 2 holds for mergesort. Case 3 generally arises with clumsier
+algorithms, where the cost of combining the subproblems dominates everything.
+The master theorem can be thought of as a black-box piece of machinery,
+invoked as needed and left with its mystery intact. However, after a little study
+it becomes apparent why the master theorem works.
+
+Figure 5.2 shows the recursion tree associated with a typical T (n) = aT (n/b)+
+f (n) divide-and-conquer algorithm. Each problem of size n is decomposed into
+a problems of size n/b. Each subproblem of size k takes O(f (k)) time to deal
+with internally, between partitioning and merging. The total time for the algo-
+rithm is the sum of these internal evaluation costs, plus the overhead of building
+
+5.5. FAST MULTIPLICATION
+
+155
+
+the recursion tree. The height of this tree is h = logb n and the number of leaf
+nodes is ah = alogb n, which happens to simplify to nlogb a with some algebraic
+manipulation.
+
+The three cases of the master theorem correspond to three diﬀerent costs,
+
+each of which might be dominant as a function of a, b, and f (n):
+
+• Case 1: Too many leaves – If the number of leaf nodes outweighs the
+
+overall internal evaluation cost, the total running time is O(nlogb a).
+
+• Case 2: Equal work per level – As we move down the tree, each problem
+gets smaller but there are more of them to solve. If the sums of the internal
+evaluation costs at each level are equal, the total running time is the cost
+per level (nlogb a) times the number of levels (logb n), for a total running
+time of O(nlogb a lg n).
+
+• Case 3: Too expensive a root – If the internal evaluation cost grows very
+rapidly with n, then the cost of the root evaluation may dominate every-
+thing. Then the total running time is O(f (n)).
+
+Once you accept the master theorem, you can easily analyze any divide-and-
+conquer algorithm, given only the recurrence associated with it. We use this
+approach on several algorithms below.
+
+5.5 Fast Multiplication
+
+You know at least two ways to multiply integers A and B to get A×B. You ﬁrst
+learned that A × B meant adding up B copies of A, which gives an O(n · 10n)
+time algorithm to multiply two n-digit base-10 numbers. Then you learned to
+multiply long numbers on a digit-by-digit basis, like
+
+9256 × 5367 = 9256 × 7 + 9256 × 60 + 9256 × 300 + 9256 × 5000 = 13, 787, 823
+
+Recall that those zeros we pad the digit-terms by are not really computed as
+products. We implement their eﬀect by shifting the product digits to the correct
+place. Assuming we perform each real digit-by-digit product in constant time,
+by looking it up in a times table, this algorithm multiplies two n-digit numbers
+in O(n2) time.
+
+In this section I will present an even faster algorithm for multiplying large
+numbers. It is a classic divide-and-conquer algorithm. Suppose each number
+has n = 2m digits. Observe that we can split each number into two pieces each
+of m digits, such that the product of the full numbers can easily be constructed
+from the products of the pieces, as follows. Let w = 10m+1, and represent
+A = a0 + a1w and B = b0 + b1w, where ai and bi are the pieces of each
+respective number. Then:
+
+A × B = (a0 + a1w) × (b0 + b1w) = a0b0 + a0b1w + a1b0w + a1b1w2
+
+156
+
+CHAPTER 5. DIVIDE AND CONQUER
+
+This procedure reduces the problem of multiplying two n-digit numbers to
+four products of (n/2)-digit numbers. Recall that multiplication by w doesn’t
+count: it is simply padding the product with zeros. We also have to add together
+these four products once computed, which is O(n) work.
+
+Let T (n) denote the amount of time it takes to multiply two n-digit numbers.
+Assuming we use the same algorithm recursively on each of the smaller products,
+the running time of this algorithm is given by the recurrence:
+
+T (n) = 4T (n/2) + O(n)
+
+Using the master theorem (case 1), we see that this algorithm runs in O(n2)
+time, exactly the same as the digit-by-digit method. We divided, but we did
+not conquer.
+
+Karatsuba’s algorithm is an alternative recurrence for multiplication, which
+yields a better running time. Suppose we compute the following three products:
+
+q0 = a0b0
+q1 = (a0 + a1)(b0 + b1)
+q2 = a1b1
+
+Note that
+
+A × B = (a0 + a1w) × (b0 + b1w) = a0b0 + a0b1w + a1b0w + a1b1w2
+
+= q0 + (q1 − q0 − q2)w + q2w2
+
+so now we have computed the full product with just three half-length multipli-
+cations and a constant number of additions. Again, the w terms don’t count as
+multiplications: recall that they are really just zero shifts. The time complexity
+of this algorithm is therefore governed by the recurrence
+
+T (n) = 3T (n/2) + O(n)
+
+Since n = O(nlog2 3), this is solved by the ﬁrst case of the master theo-
+rem, and T (n) = Θ(nlog2 3) = Θ(n1.585). This is a substantial improvement
+over the quadratic algorithm for large numbers, and indeed beats the standard
+multiplication algorithm soundly for numbers of 500 digits or so.
+
+This approach of deﬁning a recurrence that uses fewer multiplications but
+more additions also lurks behind fast algorithms for matrix multiplication. The
+nested-loops algorithm for matrix multiplication discussed in Section 2.5.4 takes
+O(n3) for two n × n matrices, because we compute the dot product of n terms
+for each of the n2 elements in the product matrix. However, Strassen [Str69]
+discovered a divide-and-conquer algorithm that manipulates the products of
+seven n/2 × n/2 matrix products to yield the product of two n × n matrices.
+This yields a time-complexity recurrence
+
+T (n) = 7 · T (n/2) + O(n2)
+
+5.6. LARGEST SUBRANGE AND CLOSEST PAIR
+
+157
+
+Figure 5.3: The largest subrange sum is either entirely to the left of center
+or entirely to the right, or (like here) the sum of the largest center-bordering
+ranges on left and right.
+
+Because log2 7 ≈ 2.81, O(nlog2 7) dominates O(n2), so Case 1 of the master
+theorem applies and T (n) = Θ(n2.81).
+
+This algorithm has been repeatedly “improved” by increasingly complicated
+recurrences, and the current best is O(n2.3727). See Section 16.3 (page 472) for
+more detail.
+
+5.6 Largest Subrange and Closest Pair
+
+Suppose you are tasked with writing the advertising copy for a hedge fund whose
+monthly performance this year was
+
+[−17, 5, 3, −10, 6, 1, 4, −3, 8, 1, −13, 4]
+
+You lost money for the year, but from May through October you had your
+greatest gains over any period, a net total of 17 units of gains. This gives you
+something to brag about.
+
+The largest subrange problem takes an array A of n numbers, and asks for
+j
+the index pair i and j that maximizes S =
+k=i A[k]. Summing the entire
+array does not necessarily maximize S because of negative numbers. Explicitly
+testing each possible interval start–end pair requires Ω(n2) time. Here I present
+a divide-and-conquer algorithm that runs in O(n log n) time.
+
+(cid:3)
+
+Suppose we divide the array A into left and right halves. Where can the
+largest subrange be? It is either in the left half or the right half, or includes
+the middle. A recursive program to ﬁnd the largest subrange between A[l] and
+A[r] can easily call itself to work on the left and right subproblems. How can
+we ﬁnd the largest subrange spanning the middle, that is, spanning positions m
+and m + 1?
+
+The key is to observe that the largest subrange centered spanning the middle
+will be the union of the largest subrange on the left ending on m, and the largest
+subrange on the right starting from m+1, as illustrated in Figure 5.3. The value
+Vl of the largest such subrange on the left can be found in linear time with a
+sweep:
+
+158
+
+CHAPTER 5. DIVIDE AND CONQUER
+
+L
+
+R
+
+Figure 5.4: The closest pair of points in two dimensions either lie to the left of
+center, to the right, or in a thin strip straddling the center.
+
+LeftMidMaxRange(A, l, m)
+
+S = M = 0
+for i = m downto l
+S = S + A[i]
+if (S > M ) then M = S
+
+return S
+
+The corresponding value on the right can be found analogously. Dividing n
+
+into two halves, doing linear work, and recurring takes time T (n), where
+
+T (n) = 2 · T (n/2) + Θ(n)
+
+Case 2 of the master theorem yields T (n) = Θ(n log n).
+
+This general approach of “ﬁnd the best on each side, and then check what is
+straddling the middle” can be applied to other problems as well. Consider the
+problem of ﬁnding the smallest distance between pairs among a set of n points.
+In one dimension, this problem is easy: we saw in Section 4.1 (page 109)
+that after sorting the points, the closest pair must be neighbors. A linear-time
+sweep from left to right after sorting thus yields an Θ(n log n) algorithm. But
+we can replace this sweep by a cute divide-and-conquer algorithm. The closest
+pair is deﬁned by the left half of the points, the right half, or the pair in the
+middle, so the following algorithm must ﬁnd it:
+
+ClosestPair(A, l, r)
+
+mid = (cid:8)(l + r)/2(cid:9)
+lmin = ClosestPair(A, l, mid)
+rmin = ClosestPair(A, mid + 1, r)
+return min(lmin, rmin, A[m + 1] − A[m])
+
+Because this does constant work per call, its running time is given by the
+
+recurrence:
+
+T (n) = 2 · T (n/2) + O(1)
+
+5.7. PARALLEL ALGORITHMS
+
+159
+
+Case 1 of the master theorem tells us that T (n) = Θ(n).
+
+This is still linear time and so might not seem very impressive, but let’s
+generalize the idea to points in two dimensions. After we sort the n (x, y)
+points according to their x-coordinates, the same property must be true: the
+closest pair is either two points on the left half or two points on the right, or
+it straddles left and right. As shown in Figure 5.4, these straddling points had
+better be close to the dividing line (distance d < min(lmin, rmin)) and also have
+very similar y-coordinates. With clever bookkeeping, the closest straddling pair
+can be found in linear time, yielding a running time of
+
+T (n) = 2 · T (n/2) + Θ(n) = Θ(n log n)
+
+as deﬁned by Case 2 of the master theorem.
+
+5.7 Parallel Algorithms
+
+Two heads are better than one, and more generally, n heads better than n − 1.
+Parallel processing has become increasingly prevalent, with the advent of multi-
+core processors and cluster computing.
+
+5.7.1 Data Parallelism
+
+Divide and conquer is the algorithm paradigm most suited to parallel compu-
+tation. Typically, we seek to partition our problem of size n into p equal-sized
+parts, and simultaneously feed one to each processor. This reduces the time to
+completion (or makespan) from T (n) to T (n/p), plus the cost of combining the
+results together. If T (n) is linear, this gives us a maximum possible speedup of
+p. If T (n) = Θ(n2) it may look like we can do even better, but this is generally
+an illusion. Suppose we want to sweep through all pairs of n items. Sure we
+can partition the items into p independent chunks, but n2 − p(n/p)2 of the n2
+possible pairs will not ever have both elements on the same processor.
+
+Multiple processors are typically best deployed to exploit data parallelism,
+running a single algorithm on diﬀerent and independent data sets. For example,
+computer animation systems must render thirty frames per second for realistic
+animation. Assigning each frame to a distinct processor, or dividing each image
+into regions assigned to diﬀerent processors, might be the best way to get the
+job done in time. Such tasks are often called embarrassingly parallel.
+
+Generally speaking, such data parallel approaches are not algorithmically
+interesting, but they are simple and eﬀective. There is a more advanced world
+of parallel algorithms where diﬀerent processors synchronize their eﬀorts so they
+can together solve a single problem quicker than one can. These algorithms are
+out of the scope of what we will cover in this book, but be aware of the challenges
+involved in the design and implementation of sophisticated parallel algorithms.
+
+160
+
+CHAPTER 5. DIVIDE AND CONQUER
+
+5.7.2 Pitfalls of Parallelism
+
+There are several potential pitfalls and complexities associated with parallel
+algorithms:
+
+• There is often a small upper bound on the potential win – Suppose that
+you have access to a machine with 24 cores that can be devoted exclu-
+sively to your job. These can potentially be used to speed up the fastest
+sequential program by up to a factor of 24. Sweet! But even greater
+performance gains can often result from developing more eﬃcient sequen-
+tial algorithms. Your time spent parallelizing a code might well be better
+spent enhancing the sequential version. Performance-tuning tools such as
+proﬁlers are better developed for sequential machines/programs than for
+parallel models.
+
+• Speedup means nothing – Suppose my parallel program runs 24 times faster
+on a 24-core machine than it does on a single processor. That’s great, isn’t
+it? If you get linear speedup and can increase the number of processors
+without bound, you will eventually beat any sequential algorithm. But
+the one-processor parallel version of your code is likely to be a crummy
+sequential algorithm, so measuring speedup typically provides an unfair
+test of the beneﬁts of parallelism. And it is hard to buy machines with an
+unlimited number of cores.
+
+The classic example of this phenomenon occurs in the minimax game-tree
+search algorithm used in computer chess programs. A brute-force tree
+just put each subtree on a
+search is embarrassingly easy to parallelize:
+diﬀerent processor. However, a lot of work gets wasted because the same
+positions get considered on diﬀerent machines. Moving from a brute-force
+search to the more clever alpha–beta pruning algorithm can easily save
+99.99% of the work, thus dwarﬁng any beneﬁts of a parallel brute-force
+search. Alpha–beta can be parallelized, but not easily, and the speedups
+grow surprisingly slowly as a function of the number of processors you
+have.
+
+• Parallel algorithms are tough to debug – Unless your problem can be de-
+composed into several independent jobs, the diﬀerent processors must com-
+municate with each other to end up with the correct ﬁnal result. Unfortu-
+nately, the non-deterministic nature of this communication makes parallel
+programs notoriously diﬃcult to debug, because you will get diﬀerent re-
+sults each time you run the code. Data parallel programs typically have no
+communication except copying the results at the end, which makes things
+much simpler.
+
+I recommend considering parallel processing only after attempts at solving
+a problem sequentially prove too slow. Even then, I would restrict attention
+to data parallel algorithms where no communication is needed between the
+processors, except to collect the ﬁnal results. Such large-grain, naive parallelism
+
+5.8. WAR STORY: GOING NOWHERE FAST
+
+161
+
+can be simple enough to be both implementable and debuggable, because it
+really reduces to producing a good sequential implementation. There can be
+pitfalls even in this approach, however, as shown by the following war story.
+
+5.8 War Story: Going Nowhere Fast
+
+In Section 2.9 (page 54), I related our eﬀorts to build a fast program to test
+Waring’s conjecture for pyramidal numbers. At that point, my code was fast
+enough that it could complete the job in a few weeks running in the background
+of a desktop workstation. This option did not appeal to my supercomputing
+colleague, however.
+
+“Why don’t we do it in parallel?” he suggested. “After all, you have an
+outer loop doing the same calculation on each integer from 1 to 1,000,000,000.
+I can split this range of numbers into diﬀerent intervals and run each range on
+a diﬀerent processor. Divide and conquer. Watch, it will be easy.”
+
+He set to work trying to do our computations on an Intel IPSC-860 hyper-
+cube using 32 nodes with 16 megabytes of memory per node—very big iron for
+the time. However, instead of getting answers, over the next few weeks I was
+treated to a regular stream of e-mail about system reliability:
+
+• “Our code is running ﬁne, except one processor died last night.
+
+I will
+
+rerun.”
+
+• “This time the machine was rebooted by accident, so our long-standing
+
+job was killed.”
+
+• “We have another problem. The policy on using our machine is that
+nobody can command the entire machine for more than 13 hours, under
+any condition.”
+
+Still, eventually, he rose to the challenge. Waiting until the machine was
+stable, he locked out 16 processors (half the computer), divided the integers
+from 1 to 1,000,000,000 into 16 equal-sized intervals, and ran each interval on
+its own processor. He spent the next day fending oﬀ angry users who couldn’t
+get their work done because of our rogue job. The instant the ﬁrst processor
+completed analyzing the numbers from 1 to 62,500,000, he announced to all the
+people yelling at him that the rest of the processors would soon follow.
+
+But they didn’t. He failed to realize that the time to test each integer
+increased as the numbers got larger. After all, it would take longer to test
+whether 1,000,000,000 could be expressed as the sum of three pyramidal numbers
+than it would for 100. Thus, at longer and longer intervals, each new processor
+would announce its completion. Because of the architecture of the hypercube,
+he couldn’t return any of the processors until our entire job was completed.
+Eventually, half the machine and most of its users were held hostage by one,
+ﬁnal interval.
+
+What conclusions can be drawn from this? If you are going to parallelize a
+problem, be sure to balance the load carefully among the processors. Proper
+
+162
+
+CHAPTER 5. DIVIDE AND CONQUER
+
+load balancing, using either back-of-the-envelope calculations or the partition
+algorithm we will develop in Section 10.7 (page 333), would have signiﬁcantly
+reduced the length of time we needed the machine, and his exposure to the
+wrath of his colleagues.
+
+5.9 Convolution (*)
+
+The convolution of two arrays (or vectors) A and B is a new vector C such that
+
+m−1
+
+C[k] =
+
+A[j] · B[k − j]
+
+j=0
+(cid:7)
+
+If we assume that A and B are of length m and n respectively, and indexed
+starting from 0, the natural range on C is from C[0] to C[n + m − 2]. The values
+of all out-of-range elements of A and B are interpreted as zero, so they do not
+contribute to any product.
+
+An example of convolution that you are familiar with is polynomial multi-
+
+plication. Recall the problem of multiplying two polynomials, for example:
+(3x2 + 2x + 6) × (4x2 + 3x + 2) = (3 · 4)x4 + (3 · 3 + 2 · 4)x3
+
++ (3 · 2 + 2 · 3 + 6 · 4)x2 + (2 · 2 + 6 · 3)x1 + (6 · 2)x0
+
+Let A[i] and B[i] denote the coeﬃcients of xi in each of the polynomials. Then
+multiplication is a convolution, because the coeﬃcient of the xk term in the
+product polynomial is given by the convolution C[k] above. This coeﬃcient is
+the sum of the products of all terms which have exponent pairs adding to k: for
+example, x5 = x4 · x1 = x3 · x2.
+
+The obvious way to implement convolution is by computing the m term dot
+product C[k] for each 0 ≤ k ≤ n + m − 2. This is two nested loops, running
+in Θ(nm) time. The inner loop does not always involve m iterations because of
+boundary conditions. Simpler loop bounds could have been employed if A and
+B were ﬂanked by ranges of zeros.
+
+for (i = 0; i<
+
+n+m-1; i++) {
+
+for (j = max(0,i-(n-1)); j <= min(m-1,i); j++) {
+
+c[i] = c[i] + a[j] * b[i-j];
+
+}
+
+}
+
+Convolution multiplies every possible pair of elements from A and B, and
+hence it seems like we should require quadratic time to get these n + m − 1
+numbers. But in a miracle akin to sorting, there exists a clever divide-and-
+conquer algorithm that runs in O(n log n) time, assuming that n ≥ m. And just
+like sorting, there are a large number of applications that take advantage of this
+enormous speedup for large sequences.
+
+5.9. CONVOLUTION (*)
+
+163
+
+B
+
+0 1 2 3 4
+
+BR
+
+4 3 2 1 0
+
+A 0 1 2 3 4 5 6 7 8 9
+
+A 0 1 2 3 4 5 6 7 8 9
+
+Figure 5.5: Convolution of strings becomes equivalent to string matching when
+the pattern is reversed.
+
+5.9.1 Applications of Convolution
+
+Going from O(n2) to O(n log n) is as big a win for convolution as it was for
+sorting. Taking advantage of it requires recognizing when you are doing a con-
+volution operation. Convolutions often arise when you are trying all possible
+ways of doing things that add up to k, for a large range of values of k, or when
+sliding a mask or pattern A over a sequence B and calculating at each position.
+
+Important examples of convolution operations include:
+
+• Integer multiplication: We can interpret integers as polynomials in any
+base b. For example, 632 = 6 · b2 + 3 · b1 + 2 · b0, where b = 10. Polynomial
+multiplication behaves like integer multiplication without carrying.
+
+There are two diﬀerent ways we can use fast polynomial multiplication to
+deal with integers. First, we can explicitly perform the carrying operation
+on the product polynomial, adding (cid:8)C[i]/b(cid:9) to C[i + 1], and then replac-
+ing C[i] with C[i] (mod b). Alternatively, we could compute the product
+polynomial and then evaluate it at b to get the integer product A × B.
+With fast convolution, either way gives us an even faster multiplication
+algorithm than Karatsuba, running in O(n log n) time on a RAM model
+of computation.
+
+• Cross-correlation:
+
+For two time series A and B, the cross-correlation
+function measures the similarity as a function of the shift or displacement
+of one relative to the other. Perhaps people buy a product on average
+k days after seeing an advertisement for it. Then there should be high
+correlation between sales and advertising expenditures lagged by k days.
+This cross-correlation function C[k] can be computed:
+
+C[k] =
+
+A[j]B[j + k]
+
+j
+(cid:7)
+
+Note that the dot product here is computed over backward shifts of B
+instead of forward shifts, as in the original deﬁnition of a convolution.
+But we can still use fast convolution to compute this: simply input the
+reversed sequence BR instead of B.
+
+• Moving average ﬁlters: Often we are tasked with smoothing time series
+data by averaging over a window. Perhaps we want C[i−1] = 0.25B[i−1]+
+0.5B[i] + 0.25B[i + 1] over all positions i. This is just another convolution,
+where A is the vector of weights within the window around B[i].
+
+164
+
+CHAPTER 5. DIVIDE AND CONQUER
+
+• String matching: Recall the problem of substring pattern matching, ﬁrst
+discussed in Section 2.5.3. We are given a text string S and a pattern
+string P , and seek to identify all locations in P where P may be found.
+For S = abaababa and P = aba, we can ﬁnd P in S starting at positions
+0, 3, and 5.
+
+The O(mn) algorithm described in Section 2.5.3 works by sliding the
+length-m pattern over each of the n possible starting points in the text.
+This sliding window approach is suggestive of being a convolution with
+the reversed pattern P R, as shown in Figure 5.5. Can we solve string
+matching in O(n log n) by using fast convolution?
+
+The answer is yes! Suppose our strings have an alphabet of size α. We
+can represent each character by a binary vector of length α having exactly
+one non-zero bit. Say a = 10 and b = 01 for the alphabet {a, b}. Then we
+can encode the strings S and P above as
+
+S = 1001101001100110
+P = 100110
+
+The dot product over a window will be m on an even-numbered position of
+s iﬀ p starts at that position in the text. So fast convolution can identify
+all locations of p in s in O(n log n) time.
+
+Take-Home Lesson: Learn to recognize possible convolutions. A magical
+Θ(n log n) algorithm instead of O(n2) is your reward for seeing this.
+
+5.9.2 Fast Polynomial Multiplication (**)
+
+The applications above should whet our interest in eﬃcient ways to compute
+convolutions. The fast convolution algorithm uses divide and conquer, but a
+detailed proof of correctness relies on fairly sophisticated properties of complex
+numbers and linear algebra that are beyond the scope of what I want to do
+here. Feel free to skip ahead! But I will provide enough of an overview for you
+to understand the divide and conquer part.
+
+We present convolution through a fast algorithm for multiplying polynomi-
+
+als. It is based on a series of observations:
+
+• Polynomials can be represented either as equations or sets of points: You
+know that every pair of points deﬁnes a line. More generally, any degree-n
+polynomial P (x) is completely deﬁned by n + 1 points on the polynomial.
+For example, the points (−1, −2), (0, −1), and (1, 2) deﬁne (and are de-
+ﬁned by) the quadratic equation y = x2 + 2x − 1.
+
+• We can ﬁnd n+1 such points on P (x) by evaluation, but it looks expensive:
+Generating a point on a given polynomial is easy—simply pick an arbitrary
+value x and plug it into P (x). The time it takes for one such x will be linear
+
+

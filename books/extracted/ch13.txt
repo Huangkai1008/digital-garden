@@ -1,0 +1,649 @@
+CHAPTER 13
+Libraries
+And if I really wanted to learn something I’ d listen to more records.
+And I do, we do, you do.
+—The Hives, “Untutored Youth”
+This chapter will cover a few libraries that will make your life easier.
+My impression is that C libraries have grown less pedantic over the years. Ten years
+ago, the typical library provided the minimal set of tools necessary for work, and
+expected you to build convenient and programmer-friendly versions from those
+basics. The typical library would require you to perform all memory allocation,
+because it’s not the place of a library to grab memory without asking. Conversely, the
+libraries presented in this chapter all provide an “easy” interface, like curl_easy_...
+functions for cURL, or SQLite’s single function to execute all the gory steps of a data‐
+base transaction. If they need intermediate workspaces to get the work done, they just
+do it. They are fun to use.
+I’ll start with somewhat standard and very general libraries, and move on to a few of
+my favorite libraries for more specific purposes, including SQLite, the GNU Scientific
+Library, libxml2, and libcURL. I can’t guess what you are using C for, but these are
+friendly, reliable systems for doing broadly applicable tasks.
+GLib
+Given that the standard library left so much to be filled in, it is only natural that a
+library would eventually evolve to fill in the gaps. GLib implements enough basic
+computing needs that it will pass the first year of CompSci for you, is ported to just
+about everywhere (even POSIX-less editions of Windows), and is at this point stable
+enough to be relied on.
+321
+
+I’m not going to give you sample code for the GLib, because I’ve already given you
+several samples:
+• The lighting-quick intro to linked lists in Example 2-2
+• A test harness, in “Unit Testing” on page 50
+• Unicode tools, in “Unicode” on page 197
+• Hashes, in “Generic Structures” on page 239
+• Reading a text file into memory and using Perl-compatible regular expressions,
+in “Count References” on page 274
+And over the next few pages, I’ll mention GLib’s contributions for wrapping mmap for
+both POSIX and Windows, in “Using mmap for Gigantic Data Sets” on page 327 .
+There’s more: if you are writing a mouse-and-window program, then you will need an
+event loop to catch and dispatch mouse and keyboard events; GLib provides this.
+There are file utilities that do the right thing on POSIX and non-POSIX (i.e., Win‐
+dows) systems. There’s a simple parser for configuration files, and a lightweight lexi‐
+cal scanner for more complex processes. Et cetera.
+POSIX
+The POSIX standard adds several useful functions to the standard C library. Given
+how prevalent POSIX is, they are worth getting to know. Here, I’ll give some usage
+notes on two parts that stand out as especially useful: regular expression parsing and
+mapping a file to memory.
+Parsing Regular Expressions
+Regular expressions are a means of expressing a pattern in text, like (a number fol‐
+lowed by one or more letters) or (number-comma-space-number, with nothing else
+on the line); in basic regex-ese, these could be expressed as [0-9]\+[[:alpha:]]\+
+and ^[0-9]\+, [0-9]\+\$ . The POSIX standard specifies a set of C functions to
+parse the regular expressions whose grammar it defines, and those functions have
+been wrapped by hundreds of tools. I think it is literally true that I use them every
+day, either at the command line via POSIX-standard tools like sed, awk, and grep, or
+to deal with little text-parsing details in code. Maybe I need to find somebody’s name
+in a file, or somebody sent me date ranges in single strings like
+"04Apr2009-12Jun2010" and I want to break that down into six usable fields, or I
+have a fictionalized treatise on cetology and need to find the chapter markers.
+322 | Chapter 13: Libraries
+
+If you want to break a string down into tokens demarcated with a
+single-character delimiter, strtok will work for you. See “ A Pæan
+to strtok” on page 192 .
+However, I resolved to not include a regular expression tutorial in this book. My
+Internet search for “regular expression tutorial”  gives me 12,900 hits. On a Linux box,
+man 7 regex should give you a rundown, and if you have Perl installed, you have man
+perlre summarizing Perl-compatible regular expressions (PCREs). (Friedl, 2002)
+gives an excellent book-length discussion of the topic. Here, I will cover how they
+work in POSIX’s C library.
+ There are three major types of regular expression:
+• Basic regular expressions (BREs) were the first draft, with only a few of the more
+common symbols having special meaning, like the * meaning zero or more of the
+previous atom, as in [0-9]* to represent an optional integer. Additional features
+required a backslash to indicate a special character: one or more digits  is
+expressed via \+, so an integer preceded by a plus sign would be +[0-9]\+.
+• Extended regular expressions (EREs) were the second draft, mostly taking special
+characters to be special without the backslashes, and plain text with a backslash.
+Now an integer preceded by a plus sign is \+[0-9]+.
+• Perl has regular expressions at the core of the language, and its authors made sev‐
+eral significant additions to the regex grammar, including a lookahead/lookbe‐
+hind feature, nongreedy quantifiers that match the smallest possible match, and
+in-regex comments.
+The first two types of regular expression are implemented via a small set of functions
+defined in the POSIX standard. They are probably part of your standard library.
+PCREs are available via libpcre, which you can download from online or via your
+package manager. See man pcreapi for details of its functions. GLib provides a con‐
+venient, higher-level wrapper for libpcre, as shown in Example 11-18.
+Given that regexes are such a fundamental part of POSIX, the sample of regex use in
+this segment, Example 13-2, compiles on Linux and Mac without any compiler flags
+beyond the usual necessities:
+CFLAGS="-g -Wall -O3 --std=gnu11" make regex
+The POSIX and PCRE interfaces have a common four-step procedure:
+1. Compile the regex via regcomp or pcre_compile
+2. Run a string through the compiled regex via regexec or pcre_exec.
+POSIX | 323
+
+3. If you marked substrings in the regular expression to pull out (see below), copy
+them from the base string using the offsets returned by the regexec or
+pcre_exec function.
+4. Free the internal memory used by the compiled regex.
+The first two steps and the last step can be executed with a single line of code each, so
+if your question is only whether a string matches a given regular expression, then life
+is easy. I won’t go into great detail about the flags and details of usage of regcomp,
+regexec, and regfree here, because the page of the POSIX standard about them is
+reprinted in the Linux and BSD manpages (try man regexec ), and there are many
+websites devoted to reprinting those manpages.
+If you need to pull substrings, things get more complicated. Parens in a regex indicate
+that the parser should retrieve the match for the subpattern within the parens (even if
+it only matches the null string). Thus, the ERE pattern "(.*)o" matches the string
+"hello", and as a side effect, stores the largest possible match for the .*, which is
+hell. The third argument to the regexec function is the number of parenthesized
+subexpressions in the pattern; I call it matchcount in the example below. The fourth
+argument to regexec is an array of matchcount+1 regmatch_t elements. The
+regmatch_t has two elements: rm_so, marking the start of the match, and rm_eo,
+marking the end. The zeroth element of the array will have the start and end of the
+match of the entire regex (imagine parens around the entire pattern), and subsequent
+elements have the start and end of each parenthesized subexpression, ordered by
+where their open-parens are in the pattern.
+By way of foreshadowing, Example 13-1 displays a header describing the two utility
+functions provided by the sample code at the end of this segment. The regex_match
+function + macro + struct allows named and optional arguments, as per “Optional
+and Named Arguments” on page 226 . It takes in a string and a regex and produces an
+array of substrings.
+Example 13-1. The header for a few regex utilities (regex_fns.h)
+typedef struct {
+    const char *string;
+    const char *regex;
+    char ***substrings;
+    _Bool use_case;
+} regex_fn_s;
+#define regex_match(...) regex_match_base((regex_fn_s){__VA_ARGS__})
+int regex_match_base(regex_fn_s in);
+char * search_and_replace(char const *base, char const*search, char const *replace);
+324 | Chapter 13: Libraries
+
+We need a separate search-and-replace function because POSIX doesn’t provide one.
+Unless the replacement is exactly the same length as what it is replacing, the opera‐
+tion requires reallocating the original string. But we already have the tools to break a
+string into substrings, so search_and_replace uses parenthesized substrings to break
+down a function into substrings, and then rebuilds a new string, inserting the
+replacement part at the appropriate point.
+It returns NULL on no match, so you could do a global search and replace via:
+char *s2;
+while((s2 = search_and_replace(long_string, pattern))){
+    char *tmp = long_string;
+    long_string = s2;
+    free(tmp);
+}
+There are inefficiencies here: the regex_match function recompiles the string every
+time, and the global search-and-replace would be more efficient if it used the fact that
+everything up to result[1].rm_eo does not need to be re-searched. In this case, we
+can use C as a prototyping language for C: write the easy version, and if the profiler
+shows that these inefficiencies are a problem, replace them with more efficient code.
+Example 13-2 provides the code. The lines where key events in the above discussion
+occur are marked, with some additional notes at the end. The test function at the end
+shows some simple uses of the provided functions.
+Example 13-2. A few utilities for regular expression parsing (regex.c)
+#define _GNU_SOURCE //cause stdio.h to include asprintf
+#include "stopif.h"
+#include <regex.h>
+#include "regex_fns.h"
+#include <string.h> //strlen
+#include <stdlib.h> //malloc, memcpy
+static int count_parens(const char *string){                        
+    int out = 0;
+    int last_was_backslash = 0;
+    for(const char *step=string; *step !='\0'; step++){
+        if (*step == '\\' && !last_was_backslash){
+            last_was_backslash = 1;
+            continue;
+        }
+        if (*step == ')' && !last_was_backslash)
+            out++;
+        last_was_backslash = 0;
+    }
+    return out;
+}
+POSIX | 325
+
+int regex_match_base(regex_fn_s in){
+    Stopif(!in.string, return -1, "NULL string input");
+    Stopif(!in.regex, return -2, "NULL regex input");
+    regex_t re;
+    int matchcount = 0;
+    if (in.substrings) matchcount = count_parens(in.regex);
+    regmatch_t result[matchcount+1];
+    int compiled_ok = !regcomp(&re, in.regex, REG_EXTENDED          
+                                            + (in.use_case ? 0 : REG_ICASE)
+                                            + (in.substrings ? 0 : REG_NOSUB) );
+    Stopif(!compiled_ok, return -3, "This regular expression didn't "
+                                    "compile: \"%s\"", in.regex);
+    int found = !regexec(&re, in.string, matchcount+1, result, 0);  
+    if (!found) return 0;
+    if (in.substrings){
+         *in.substrings = malloc(sizeof(char*) * matchcount);
+         char **substrings = *in.substrings;
+        //match zero is the whole string; ignore it.
+        for (int i=0; i< matchcount; i++){
+            if (result[i+1].rm_eo > 0){//GNU peculiarity: match-to-empty marked with -1.
+                int length_of_match = result[i+1].rm_eo - result[i+1].rm_so;
+                substrings[i] = malloc(strlen(in.string)+1);
+                memcpy(substrings[i], in.string + result[i+1].rm_so,
+                          length_of_match);
+                substrings[i][length_of_match] = '\0';
+            } else { //empty match
+                substrings[i] = malloc(1);
+                substrings[i][0] = '\0';
+            }
+        }
+        in.string += result[0].rm_eo; //end of whole match;
+    }
+    regfree(&re);                                                   
+    return matchcount;
+}
+char * search_and_replace(char const *base, char const*search, char const *replace){
+    char *regex, *out;
+    asprintf(&regex, "(.*)(%s)(.*)", search);                       
+    char **substrings;
+    int match_ct =  regex_match(base, regex, &substrings);
+    if(match_ct < 3) return NULL;
+    asprintf(&out, "%s%s%s", substrings[0], replace, substrings[2]);
+    for (int i=0; i< match_ct; i++)
+        free(substrings[i]);
+    free(substrings);
+    return out;
+}
+#ifdef test_regexes
+326 | Chapter 13: Libraries
+
+int main(){
+    char **substrings;
+    int match_ct = regex_match("Hedonism by the alps, savory foods at every meal.",
+            "([He]*)do.*a(.*)s, (.*)or.* ([em]*)al", &substrings);
+    printf("%i matches:\n", match_ct);
+    for (int i=0; i< match_ct; i++){
+        printf("[%s] ", substrings[i]);
+        free(substrings[i]);
+    }
+    free(substrings);
+    printf("\n\n");
+    match_ct = regex_match("", "([[:alpha:]]+) ([[:alpha:]]+)", &substrings);
+    Stopif(match_ct != 0, return 1, "Error: matched a blank");
+    printf("Without the L, Plants are: %s", 
+             search_and_replace("Plants\n", "l", ""));
+}
+#endif
+Y ou need to send regexec an allocated array to hold substring matches and its
+length, meaning that you need to know how many substrings there will be. This
+function takes in an ERE and counts open-parens that aren’t escaped by a back‐
+slash.
+Here we compile the regex to a regex_t. The function would be inefficient in
+repeated use, because the regex gets recompiled every time. It is left as an exercise
+to the reader to cache already-compiled regular expressions.
+Here is the regexec use. If you just want to know whether there is a match or
+not, you can send NULL and 0 as the list of matches and its length.
+Don’t forget to free the internal memory used by the regex_t.
+The search-and-replace works by breaking down the input string into (every‐
+thing before the match)(the match)(everything after the match). This is the regex
+representing that.
+Using mmap for Gigantic Data Sets
+I’ve mentioned the three types of memory (static, manual, and automatic), and here’s
+a fourth: disk-based. With this type, we take a file on the hard drive and map it to a
+location in memory using mmap.
+POSIX | 327
+
+
+This is often how shared libraries work: the system finds libwhatever.so, assigns a
+memory address to the segment of the file representing a needed function, and there
+you go: you’ve loaded a function into memory.
+Or, we could share data across processes by having them both mmap the same file.
+Or, we could use this to save data structures to memory. mmap a file to memory, use
+memmove to copy your in-memory data structure to the mapped memory, and it’s
+stored for next time. Problems come up when your data structure has a pointer to
+another data structure; converting a series of pointed-to data structures to something
+savable is the serialization problem, which I won’t cover here.
+And, of course, there’s dealing with data sets too large to fit in memory. The size of an
+mmaped array is constrained by the size of your disk, not memory.
+Example 13-3 presents sample code. The load_mmap routine does most of the work. If
+used as a malloc, then it needs to create the file and stretch it to the right size; if you
+are opening an already-existing file, it just has to be opened and mmaped.
+Example 13-3. A file on disk can be mapped transparently to memory (mmap.c)
+#include <stdio.h>
+#include <unistd.h> //lseek, write, close
+#include <stdlib.h> //exit
+#include <fcntl.h>  //open
+#include <sys/mman.h>
+#include "stopif.h"
+#define Mapmalloc(number, type, filename, fd) \                               
+            load_mmap((filename), &(fd), (number)*sizeof(type), 'y' )
+#define Mapload(number, type, filename, fd)   \
+            load_mmap((filename), &(fd), (number)*sizeof(type), 'n')
+#define Mapfree(number, type, fd, pointer)    \
+            releasemmap((pointer), (number)*sizeof(type), (fd))
+void *load_mmap(char const *filename, int *fd, size_t size, char make_room){  
+    *fd=open(filename,
+            make_room=='y'  ?  O_RDWR | O_CREAT | O_TRUNC : O_RDWR,
+            (mode_t)0600);
+    Stopif(*fd==-1, return NULL, "Error opening file");
+    if (make_room=='y' ){ // Stretch the file size to the size of the (mmapped) array
+        int result=lseek(*fd, size-1, SEEK_SET);
+        Stopif(result==-1, close(*fd); return NULL, 
+            "Error stretching file with lseek");
+        result=write(*fd, "", 1);
+        Stopif(result!=1, close(*fd); return NULL, 
+            "Error writing last byte of the file");
+    }
+328 | Chapter 13: Libraries
+
+    void *map=mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, *fd, 0);
+    Stopif(map==MAP_FAILED, return NULL, "Error mmapping the file");
+    return map;
+}
+int releasemmap(void *map, size_t size, int fd){                              
+    Stopif(munmap(map, size) == -1, return -1, "Error un-mmapping the file");
+    close(fd);
+    return 0;
+}
+int main(int argc, char *argv[]) {
+    int fd;
+    long int N=1e5+6;
+    int *map = Mapmalloc(N, int, "mmapped.bin", fd);
+    for (long int i = 0; i <N; ++i) map[i] = i;                               
+    Mapfree(N, int, fd, map);
+    //Now reopen and do some counting.
+    int *readme = Mapload(N, int, "mmapped.bin", fd);
+    long long int oddsum=0;
+    for (long int i = 0; i <N; ++i) if (readme[i]%2) oddsum += i;
+    printf("The sum of odd numbers up to %li: %lli\n", N, oddsum);
+    Mapfree(N, int, fd, readme);
+}
+I wrapped the functions that follow in macros so you don’t have to type sizeof
+every time, and you won’t have to remember how to call load_mmap when allocat‐
+ing, as opposed to when loading.
+The macros hide that this function gets called two different ways. If only reopen‐
+ing existing data, the file gets opened, mmap gets called, the results are checked,
+and that’s all. If called as an allocate function, we need to stretch the file to the
+right length.
+Releasing the mapping requires using munmap, which is akin to malloc’s friend
+free, and closing the file handle. The data is left on the hard drive, so when you
+come back tomorrow you can reopen it and continue where you left off. If you
+want to remove the file entirely, use unlink("filename").
+The payoff: you can’t tell map is on disk and not in the usual memory.
+POSIX | 329
+
+
+Final details: the mmap function is POSIX-standard, so it is available everywhere but
+Windows boxes and some embedded devices. In Windows, you can do the identical
+thing but with different function names and flags; see CreateFileMapping and Map
+ViewOfFile. GLib wraps both mmap and the Windows functions in an if POSIX … else
+if W indows …  construct and names the whole thing g_mapped_file_new.
+The GNU Scientific Library
+If you ever read a question that starts “I’m trying to implement something from
+Numerical Recipes in C … ” ( Press, 1992 ), the correct response is almost certainly
+“Download the The GNU Scientific Library (GSL), because they already did it for
+you” ( Gough, 2003).
+Some means of numerically integrating a function are better than others, and as hin‐
+ted in “Deprecate Float” on page 153, some seemingly sensible numeric algorithms
+will give you answers that are too imprecise to be considered anywhere near correct.
+So especially in this range of computing, it pays to use existing libraries where possi‐
+ble.
+At the least, the GSL provides a reliable random-number generator (the C-standard
+RNG may be different on different machines, which makes it inappropriate for repro‐
+ducible inquiry), and vector and matrix structures that are easy to subset and other‐
+wise manipulate. The standard linear algebra routines, function minimizers, basic
+statistics (means and variances), and permutation structure may be of use to you even
+if you aren’t spending all day crunching numbers.
+And if you know what an Eigenvector, Bessel function, or Fast Fourier Transform are,
+here’s where you can get routines for them.
+Y ou saw one example using the GSL ’s vectors and complex numbers in
+Example 11-14 . I give another example of the GSL ’s use in Example 13-4 , though
+you’ll notice that the string gsl_ only appears once or twice in the example. The GSL
+is a fine example of an old-school library that provides the minimal tools needed and
+then expects you to build the rest from there. For example, the GSL manual will show
+you the page of boilerplate you will need to use the provided optimization routines to
+productive effect. It felt like something the library should do for us, so I wrote a set of
+wrapper functions for portions of the GSL, which became Apophenia, a library aimed
+at modeling with data. For example, the apop_data struct binds together raw GSL
+matrices and GSL vectors with row and column names and an array of text data,
+which brings the basic numeric-processing structs closer to what real-world data
+looks like. The library’s calling conventions look like the modernized forms in Chap‐
+ter 10.
+An optimizer has a setup much like the routines in “The Void Pointer and the Struc‐
+tures It Points To” on page 234, where routines took in any function and used the
+330 | Chapter 13: Libraries
+
+provided function as a black box. The optimizer tries an input to the given function
+and uses the output value to improve its next guess for an input that will produce a
+larger output; with a sufficiently intelligent search algorithm, the sequence of guesses
+will converge to the function-maximizing input. Using an optimization routine is
+then a problem of writing a function to be optimized in the appropriate form and
+sending it and the right settings to the optimizer.
+To give an example, say that we are given a list of data points x1, x2, x3, … in some
+space (in the example, ℝ2), and we want the point y that minimizes the total distance
+to each of those points. That is, given a distance function D, we want the value of y
+that minimizes D(y, x1) + D(y, x2) + D(y, x3) + … .
+The optimizer will need a function that takes in those data points and a candidate
+point, and calcuates D(y, xi) for each xi. This sounds a lot like a map-reduce opera‐
+tion like those discussed in “Map-reduce”  on page 296, and apop_map_sum facilitates
+this (it even parallelizes the process using OpenMP). The apop_data struct offers a
+consistent means of providing the set of xs against which the optimization will occur.
+Also, physicists and the GSL usually prefer to minimize; economists and Apophenia
+maximize. This difference is easily surmounted by adding a minus sign: instead of
+minimizing the total distance, maximize the negation of the total distance.
+An optimization procedure is relatively complex (over how many dimensions is the
+optimizer searching? Where can the optimizer find the reference data set? Which
+search procedure should the optimizer use?), so the apop_estimate function takes in
+an apop_model struct with hooks for the function and the relevant additional infor‐
+mation. It may seem odd to call this distance-minimzer a model, but many of the
+things we recognize as statistical models (linear regressions, support vector machines,
+simulations, etc.) are estimated via exactly this form of taking in data, finding the
+optimum given some objective function, and reporting the optimum as the most
+likely parameter set for the model given the data.
+Example 13-4 goes through the full procedure of writing down a distance function,
+wrapping it and all the relevant metatdata into an apop_model, and the one-line call
+to apop_estimate that does the actual optimization, and spits out a model struct with
+its parameters set to the point that minimizes total distance to the input data points.
+Example 13-4. Finding the point that minimizes the sum of distances to a set of input
+points (gsl_distance.c)
+#include <apop.h>
+double one_dist(gsl_vector *v1, void *v2){
+    return apop_vector_distance(v1, v2);
+}
+long double distance(apop_data *data, apop_model *model){
+The GNU Scientific Library | 331
+
+    gsl_vector *target = model->parameters->vector;
+    return -apop_map_sum(data, .fn_vp=one_dist, .param=target);                 
+}
+apop_model *min_distance= &(apop_model){
+  .name="Minimum distance to a set of input points.", .p=distance, .vsize=-1};  
+int main(){
+    apop_data *locations = apop_data_falloc((5, 2),                             
+                            1.1, 2.2,
+                            4.8, 7.4,
+                            2.9, 8.6,
+                            -1.3, 3.7,
+                            2.9, 1.1);
+    Apop_model_add_group(min_distance, apop_mle, .method="NM simplex",          
+                                                  .tolerance=1e-5);
+    apop_model *est=apop_estimate(locations, min_distance);                     
+    apop_model_show(est);
+}
+Apply the one_dist function to every row of the input data set. The negation is
+because we are using a maximization system to find a minimum distance.
+The .vbase element is a hint that apop_estimate does a lot under the hood. It
+will allocate the model’s parameters element, and setting this element to -1 indi‐
+cates that the parameter count should equal the number of columns in the data
+set.
+The first argument to apop_data_falloc is a list of dimensions; then fill the grid
+of the given dimensions with five 2D points. See “Multiple Lists” on page 210 .
+This line appends a group of settings to the model regarding how optimization
+should be done: use the Nelder-Mead simplex algorithm, and keep trying until
+the algorithm’s error measure is less than 1e-5. Add .verbose='y'  for some
+information about each iteration of the optimization search.
+OK, everything is now in place, so run the optimization engine in one last line of
+code: search for the point that minimizes the min_distance function given the
+locations data.
+SQLite
+Structured Query Language (SQL) is a roughly human-readable means of interacting
+with a database. Because the database is typically on disk, it can be as large as desired.
+An SQL database has two especial strengths for these large data sets: taking subsets of
+a data set and joining together data sets.
+332 | Chapter 13: Libraries
+
+
+I won’t go into great detail about SQL, because there are voluminous tutorials avail‐
+able. If I may cite myself, Modeling with Data: Tools and Techniques for Statisical Com‐
+puting has a chapter on SQL and using it from C, or just type sql tutorial into your
+favorite search engine. The basics are pretty simple. Here, I will focus on getting you
+started with the SQLite library itself.
+SQLite provides a database via a single C file plus a single header. That file includes
+the parser for SQL queries, the various internal structures and functions to talk to a
+file on disk, and a few dozen interface functions for our use in interacting with the
+database. Download the file, unzip it into your project directory, add sqlite3.o to the
+objects line of your makefile, and you’ve got a complete SQL database engine on
+hand.
+There are only a few functions that you will need to interact with, to open the data‐
+base, close the database, send a query, and get rows of data from the database.
+Here are some serviceable database-opening and -closing functions:
+sqlite3 *db=NULL; //The global database handle.
+int db_open(char *filename){
+    if (filename)  sqlite3_open(filename, &db);
+    else           sqlite3_open(":memory:", &db);
+    if (!db) {printf("The database didn't open.\n"); return 1;}
+    return 0;
+}
+//The database closing function is easy:
+sqlite3_close(db);
+I prefer to have a single global database handle. If I need to open multiple databases,
+then I use the SQL attach command to open another database. The SQL to use a
+table in such an attached database might look like:
+attach "diskdata.db" as diskdb;
+create index diskdb.index1 on diskdb.tab1(col1);
+select * from diskdb.tab1 where col1=27;
+If the first database handle is in memory, and all on-disk databases are attached, then
+you will need to be explicit about which new tables or indices are being written to
+disk; anything you don’t specify will be taken to be a temporary table in faster, throw‐
+away memory. If you forget and write a table to memory, you can always write it to
+disk later using a form like create table diskdb.saved_table as select * from
+table_in_memory.
+SQLite | 333
+
+The Queries
+Here is a macro for sending SQL that doesn’t return a value to the database engine.
+For example, the attach and create index queries tell the database to take an action
+but return no data.
+#define ERRCHECK {if (err!=NULL) {printf("%s\n",err);  return 0;}}
+#define query(...){char *query; asprintf(&query, __VA_ARGS__);  \
+                    char *err=NULL;                             \
+                    sqlite3_exec(db, query, NULL,NULL, &err);   \
+                    ERRCHECK                                    \
+                    free(query); free(err);}
+The ERRCHECK macro is straight out of the SQLite manual. I wrap the call to
+sqlite3_exec in a macro so that you can write things like:
+for (int i=0; i< col_ct; i++)
+    query("create index idx%i on data(col%i)", i, i);
+Building queries via printf-style string construction is the norm for SQL-via-C, and
+you can expect that more of your queries will be built on the fly than will be verbatim
+from the source code. This format has one pitfall: SQL like clauses and printf
+bicker over the % sign, so query("select * from data where col1 like 'p%
+%nts'")  will fail, as printf thinks the %% was meant for it. Instead, query("%s",
+"select * from data where col1 like 'p%%nts'")  works. Nonetheless, building
+queries on the fly is so common that it’s worth the inconvenience of an extra %s for
+fixed queries.
+Getting data back from SQLite requires a callback function, as per “Functions with
+Generic Inputs” on page 234 . Here is an example that prints to the screen.
+int the_callback(void *ignore_this, int argc, char **argv, char **column){
+    for (int i=0; i< argc; i++)
+        printf("%s,\t", argv[i]);
+    printf("\n");
+    return 0;
+}
+#define query_to_screen(...){                           \
+    char *query; asprintf(&query, __VA_ARGS__);         \
+    char *err=NULL;                                     \
+    sqlite3_exec(db, query, the_callback, NULL, &err);  \
+    ERRCHECK                                            \
+    free(query); free(err);}
+The inputs to the callback look a lot like the inputs to main: you get an argv, which is
+a list of text elements of length argc. The column names (also a text list of length
+argc) are in column. Printing to screen means that I treat all the strings as such, which
+is easy enough. So is a function that fills an array, for example:
+334 | Chapter 13: Libraries
+
+typedef {
+    double *data;
+    int rows, cols;
+} array_w_size;
+int the_callback(void *array_in, int argc, char **argv, char **column){
+    array_w_size *array = array_in;
+    *array = realloc(&array->data,  sizeof(double)*(++(array->rows))*argc);
+    array->cols=argc;
+    for (int i=0; i< argc; i++)
+        array->data[(array->rows-1)*argc + i] = atof(argv[i]);
+}
+#define query_to_array(a, ...){\
+    char *query; asprintf(&query, __VA_ARGS__);     \
+    char *err=NULL;                                 \
+    sqlite3_exec(db, query, the_callback, a, &err); \
+    ERRCHECK                                        \
+    free(query); free(err);}
+//sample usage:
+array_w_size untrustworthy;
+query_to_array(&untrustworthy, "select * from people where age > %i", 30);
+The trouble comes in when we have mixed numeric and string data. Implementing
+something to handle a case of mixed numeric and text data took me about page or
+two in the previously mentioned Apophenia library.
+Nonetheless, let us delight in how the given snippets of code, along with the two
+SQLite files themselves and a tweak to the objects line of the makefile, are enough to
+provide full SQL database functionality to your program.
+libxml and cURL
+ The cURL library is a C library that handles a long list of Internet protocols, includ‐
+ing HTTP , HTTPS, POP3, Telnet, SCP , and of course Gopher. If you need to talk to a
+server, you can probably use libcURL to do it. As you will see in the following exam‐
+ple, the library provides an easy interface that requires only that you specify a few
+variables, and then run the connection.
+While we’re on the Internet, where markup languages like XML and HTML are so
+common, it makes sense to introduce libxml2 at the same time.
+Extensible Markup Language (XML) is used to describe the formatting for plain text
+files, but it is really the definition of a tree structure. The first half of Figure 13-1 is a
+typical barely readable slurry of XML data; the second half displays the tree structure
+formed by the text. Handling a well-tagged tree is a relatively easy affair: we could
+start at the root node (via xmlDocGetRootElement) and do a recursive traversal to
+check all elements, or we could get all elements with the tag par, or we could get all
+libxml and cURL | 335
+
+elements with the tag title that are children of the second chapter, and so on. In the
+following sample code, //item/title indicates all title elements whose parent is an
+item, anywhere in the tree.
+libxml2 therefore speaks the language of tagged trees, with its focal objects being rep‐
+resentations of the document, nodes, and lists of nodes.
+Figure 13-1. An XML document and the tree structure encoded therein
+Example 13-5 presents a full example. I documented it via Doxygen (see “Interweav‐
+ing Documentation” on page 59), which is why it looks so long, but the code explains
+itself. Again, if you’re in the habit of skipping long blocks of code, do try it out and
+see if it’s readable. If you have Doxygen on hand, you can try generating the docu‐
+mentation and viewing it in your browser.
+Example 13-5. Parse the NYT Headline feed to a simpler format (nyt_feed.c)
+/** \file
+ A program to read in the NYT's headline feed and produce a simple
+ HTML page from the headlines. */
+#include <stdio.h>
+#include <curl/curl.h>
+#include <libxml2/libxml/xpath.h>
+#include "stopif.h"
+336 | Chapter 13: Libraries
+
+/** \mainpage
+The front page of the Grey Lady's web site is as gaudy as can be, including
+several headlines and sections trying to get your attention, various formatting
+schemes, and even photographs--in <em>color</em>.
+This program reads in the NYT Headlines RSS feed, and writes a simple list in
+plain HTML. You can then click through to the headline that modestly piques
+your attention.
+For notes on compilation, see the \ref compilation page.
+*/
+/** \page compilation Compiling the program
+Save the following code to \c makefile.
+Notice that cURL has a program, \c curl-config, that behaves like \c pkg-config,
+but is cURL-specific.
+\code
+CFLAGS =-g -Wall -O3  `curl-config --cflags` -I/usr/include/libxml2
+LDLIBS=`curl-config --libs ` -lxml2 -lpthread
+CC=c99
+nyt_feed:
+\endcode
+Having saved your makefile, use <tt>make nyt_feed</tt> to compile.
+Of course, you have to have the development packages for libcurl and libxml2
+installed for this to work.
+*/
+//These have in-line Doxygen documentation. The < points to the prior text
+//being documented.
+char *rss_url = "http://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml";
+                                      /**< The URL for an NYT RSS feed. */
+char *rssfile = "nytimes_feeds.rss";  /**< A local file to write the RSS to.*/
+char *outfile = "now.html";       /**< The output file to open in your browser.*/
+/** Print a list of headlines in HTML format to the outfile, which is overwritten.
+\param urls The list of urls. This should have been tested for non-NULLness
+\param titles The list of titles, also pre-tested to be non-NULL. If the length
+      of the \c urls list or the \c titles list is \c NULL, this will crash.
+*/
+void print_to_html(xmlXPathObjectPtr urls, xmlXPathObjectPtr titles){
+    FILE *f = fopen(outfile, "w");
+    for (int i=0; i< titles->nodesetval->nodeNr; i++)
+        fprintf(f, "<a href=\"%s\">%s</a><br>\n"
+                 , xmlNodeGetContent(urls->nodesetval->nodeTab[i])
+                 , xmlNodeGetContent(titles->nodesetval->nodeTab[i]));
+libxml and cURL | 337

@@ -1,0 +1,819 @@
+CHAPTER 8
+Important C Syntax that Textbooks Often
+Do Not Cover
+The last chapter covered some topics that traditional C textbooks stressed but which
+may not be relevant in a current computing environment. This chapter covers some
+points that I have found many textbooks do not cover or only mention in passing.
+Like the last chapter, this chapter covers a lot of little topics, but it breaks down into
+three main segments:
+• The preprocessor often gets short mention, I think because many people think of
+it as auxiliary or not real C. But it’s there for a reason: there are things that mac‐
+ros can do that the rest of the C language can’t. Not all standards-compliant com‐
+pilers offer the same facilities, and the preprocessor is also how we determine and
+respond to the characteristics of the environment.
+• In my survey of C textbooks, I found a book or two that do not even mention the
+static and extern keywords. So this chapter takes some time to discuss linkage,
+and break down the confusing uses of the static keyword.
+• The const keyword fits this chapter because it is too useful to not use, but it has
+oddities in its specification in the standard and in its implementation in common
+compilers.
+Cultivate Robust and Flourishing Macros
+Some situations have common trap doors that users must know to avoid, but if you
+can provide a macro that always dodges the trap, you have a safer user interface.
+Chapter 10 will present several options for making the user interface to your library
+friendlier and less error-inviting, and will rely heavily on macros to do it.
+161
+
+I read a lot of people who say that macros are themselves invitations for errors and
+should be avoided, but those people don’t advise that you shouldn’t use NULL,
+isalpha, isfinite, assert, type-generic math like log, sin, cos, or pow, or any of the
+dozens of other facilities defined by the GNU-standard library via macros. Those are
+well-written, robust macros that do what they should every time.
+Macros perform text substitutions (referred to as expansions under the presumption
+that the substituted text will be longer), and text substitutions require a different
+mind-set from the usual functions, because the input text can interact with the text in
+the macro and other text in the source code. Macros are best used in cases where we
+want those interactions, and when we don’t we need to take care to prevent them.
+Before getting to the rules for making macros robust, of which there are three, let me
+distinguish between two types of macro. One type expands to an expression, meaning
+that it makes sense to evaluate these macros, print their values, or in the case of
+numeric results, use them in the middle of an equation. The other type is a block of
+instructions, that might appear after an if statement or in a while loop. That said,
+here are some rules:
+• Parens! It’s easy for expectations to be broken when a macro pastes text into
+place. Here’s an easy example:
+#define double(x) 2*x              Needs more parens.
+Now, the user tries double(1+1)*8, and the macro expands it to 2*1+1*8, equals
+10, not 32. Parens make it work:
+#define double(x) (2*(x))
+Now (2*(1+1))*8 is what it should be. The general rule is to put all inputs in
+parens unless you have a specific reason not to. If you have an expression-type
+macro, put the macro expansion itself in parens.
+• Avoid double usage. This textbook example is a little risky:
+#define max(a, b)   ((a) > (b) ? (a) : (b))
+If the user tries int x=1, y=2; int m=max(x, y++) , the expectation is that m
+will be 2 (the preincrement value of y), and then y will bump up to 3. But the
+macro expands to:
+m = ((x) > (y++) ? (x) : (y++))
+which will evaluate y++ twice, causing a double increment where the user
+expected only a single, and m=3 where the user expected m=2.
+If you have a block-type macro, then you can declare a variable to take on the
+value of the input at the head of the block, and then use your copy of the input
+for the rest of the macro.
+162 | Chapter 8: Important C Syntax that Textbooks Often Do Not Cover
+
+This rule is not adhered to as religiously as the parens rule—the max macro often
+appears in the wild—so bear in mind as a macro user that side effects inside calls
+to unknown macros should be kept to a minimum.
+• Curly braces for blocks. Here’s a simple block macro:
+#define doubleincrement(a, b) \     Needs curly braces.
+    (a)++;                    \  
+    (b)++;
+We can make it do the wrong thing by putting it after an if statement:
+int x=1, y=0;
+if (x>y)
+    doubleincrement(x, y);
+Adding some indentation to make the error obvious, this expands to:
+int x=1, y=0;
+if (x>y)
+    (x)++;
+(y)++;
+Another potential pitfall: what if your macro declares a variable total, but the
+user defined a total already? Variables declared in the block can conflict with
+variables declared outside the block. Example 8-1 has the simple solution to both
+problems: put curly braces around your macro.
+Putting the whole macro in curly braces allows us to have an intermediate vari‐
+able named total that lives only inside the scope of the curly braces around the
+macro, and it therefore in no way interferes with the total declared in main.
+Example 8-1. We can control the scope of variables with curly braces, just as with
+typical nonmacro code (curly.c)
+#include <stdio.h>
+#define sum(max, out) {             \
+    int total=0;                    \
+    for (int i=0; i<= max; i++)     \
+        total += i;                 \
+    out = total;                    \
+}
+int main(){
+    int out;
+    int total = 5;
+    sum(5, out);
+    printf("out= %i original total=%i\n", out, total);
+}
+Cultivate Robust and Flourishing Macros | 163
+
+But there is one small glitch remaining. Getting back to the simple doubleincre
+ment macro, this code:
+#define doubleincrement(a, b) { \
+    (a)++;                      \
+    (b)++;                      \
+}
+if (a>b) doubleincrement(a, b);
+else     return 0;
+expands to this:
+if (a>b) {
+    (a)++;
+    (b)++;
+};
+else     return 0;
+The extra semicolon just before the else confuses the compiler. Users will get a
+compiler error, which means that they cannot ship erroneous code, but the solu‐
+tion of removing the semicolon or wrapping the statement in a seemingly extra‐
+neous set of curly braces will not be apparent and makes for a not-transparent
+UI. To tell you the truth, there’s not much you can do about this. The common
+solution to this is to wrap the macro still further in a run-once do-while loop:
+#define doubleincrement(a, b) do { \
+    (a)++;                         \
+    (b)++;                         \
+} while(0)
+if (a>b) doubleincrement(a, b);
+else     return 0;
+In this case, the problem is solved, and we have a macro that users won’t know is
+a macro. But what if we have a macro which has a break either built in or some‐
+how provided by the user? Here is another assertion macro, and a usage which
+won’t work:
+#define AnAssert(expression, action) do { \
+    if (!(expression)) action;            \
+} while(0)
+double an_array[100]; 
+double total=0;
+…
+for (int i=0; i< 100; i++){
+    AnAssert(!(isnan(an_array[i])), break);
+    total += an_array[i];
+}
+164 | Chapter 8: Important C Syntax that Textbooks Often Do Not Cover
+
+1 There is also the option of wrapping the block in if (1){ … } else (void)0 , which again absorbs a semico‐
+lon. This technically works, but triggers warnings when the macro is itself embedded in an if-else statement
+when using the -Wall compiler flag, and so is also not transparent to users.
+The user is unaware that the break statement provided is embedded in an internal-to-
+macro do-while loop, and thus may compile and run incorrect code. In cases where a
+do-while wrapper would break the expected behavior of break, it is probably easier
+to leave off the do-while wrapper and warn users about the quirk regarding semico‐
+lons before an else.1
+Using gcc -E curly.c, we see that the preprocessor expands the sum macro as shown
+next, and following the curly braces shows us that there’s no chance that the total in
+the macro’s scope will interfere with the total in the main scope. So the code would
+print total as 5:
+int main(){
+    int out;
+    int total = 5;
+    { int total=0; for (int i=0; i<= 5; i++) total += i; out = total; };
+    printf("out= %i total=%i\n", out, total);
+}
+Limiting a macro’s scope with curly braces doesn’t protect us from
+all name clashes. In the previous example, what would happen if we
+were to write int out, i=5; sum(i, out);?
+If you have a macro that is behaving badly, use the -E flag for gcc, Clang, or icc to
+only run the preprocessor, printing the expanded version of everything to stdout.
+Because that includes the expansion of #include <stdio.h> and other voluminous
+boilerplate, I usually redirect the results to a file or to a pager, with a form like gcc -E
+mycode.c |less, and then search the results for the macro expansion I’m trying to
+debug.
+That’s about it for macro caveats. The basic principle of keeping macros simple still
+makes sense, and you’ll find that macros in production code tend to be one-liners
+that prep the inputs in some way and then call a standard function to do the real
+work. The debugger and non-C systems that can’t parse macro definitions themselves
+don’t have access to your macro, so whatever you write should still have a way of
+being usable without the macros. “Linkage with static and extern” on page 174  will have
+one suggestion for reducing the hassle when writing down simple functions.
+Cultivate Robust and Flourishing Macros | 165
+
+The Preprocessor
+The token reserved for the preprocessor is the octothorp, #, and the preprocessor
+makes three entirely different uses of it: to mark directives, to stringize an input, and
+to concatenate tokens.
+Y ou know that a preprocessor directive like #define begins with a # at the head of the
+line.
+As an aside, whitespace before the # is ignored [K&R 2nd ed. §A12, p. 228], which
+has some typographical utility. For example, you can put throwaway macros in the
+middle of a function, just before they get used, and indent them to flow with the
+function. According to the old school, putting the macro right where it gets used is
+against the “correct” organization of a program (which puts all macros at the head of
+the file), but having it right there makes it easy to refer to and makes the throwaway
+nature of the macro evident. In “OpenMP” on page 292 , we’ll annotate for loops with
+#pragmas, and putting the # flush with the left margin would produce an unreadable
+mess.
+The next use of the # is in a macro: it turns a macro argument into a string.
+Example 8-2 shows a program demonstrating a point about the use of sizeof (see the
+sidebar), though the main focus is on the use of the preprocessor macro.
+Example 8-2. In which text is both printed and evaluated (sizesof.c)
+#include <stdio.h>
+#define Peval(cmd) printf(#cmd ": %g\n", cmd);
+int main(){
+    double *plist = (double[]){1, 2, 3};        
+    double list[] = {1, 2, 3};
+    Peval(sizeof(plist)/(sizeof(double)+0.0));
+    Peval(sizeof(list)/(sizeof(double)+0.0));
+}
+This is a compound literal. If you’re unfamiliar with them, I’ll introduce them to
+you later. When considering how sizeof treats plist, bear in mind that plist is
+a pointer to an array, not the array itself.
+When you try it, you’ll see that the input to the macro is printed as plain text, and
+then its value is printed, because #cmd is equivalent to "cmd" as a string. So
+Peval(list[0]) would expand to:
+printf("list[0]" ": %g\n", list[0]);
+166 | Chapter 8: Important C Syntax that Textbooks Often Do Not Cover
+
+
+Does that look malformed to you, with the two strings "list[0]" ": %g\n" next to
+each other? The next preprocessor feature is that if two literal strings are adjacent, the
+preprocessor merges them into one: "list[0]: %g\n". And this isn’t just in macros:
+printf("You can use the preprocessor's string "
+       "concatenation to break long strings of text "
+       "in your program. I think this is easier than "
+       "using backslashes, but be careful with spacing.");
+The Limits of sizeof
+Did you try the sample code? It is based on a common trick in which you can get the
+size of an automatic or static array by dividing its total size by the size of one element
+(see c-faq and K&R 1st ed. p. 126, 2nd ed. p 135), e.g.:
+//This is not reliable:
+#define arraysize(list) sizeof(list)/sizeof(list[0])
+The sizeof operator (it’s a C keyword, not a plain function) refers to the automati‐
+cally allocated variable (which might be an array or a pointer), not to the data a
+pointer might be pointing to. For an automatic array like double list[100] , the
+compiler had to allocate a hundred doubles, and will have to make sure that much
+space (probably 800 bytes) is not trampled by the next variable to go on the stack. For
+manually allocated memory ( double *plist; plist = malloc(sizeof(double
+*100));), the pointer on the stack is maybe 8 bytes long (certainly not 100), and
+sizeof will return the length of that pointer, not the length of what it is pointing to.
+Some cats, when you point to a toy, will go and inspect the toy; some cats will sniff
+your finger.
+Conversely, you might want to join together two things that are not strings. Here, use
+two octothorps, which I herein dub the hexadecathorp: ##. If the value of name is LL,
+then when you see name ## _list , read it as LL_list, which is a valid and usable
+variable name.
+Gee, you comment, I sure wish every array had an auxiliary variable that gave its
+length. OK, Example 8-3 writes a macro that declares a local variable ending in _len
+for each list you tell it to care about. It’ll even make sure every list has a terminating
+marker, so you don’t even need the length.
+That is, this macro is total overkill, and I don’t recommend it for immediate use, but
+it does demonstrate how you can generate lots of little temp variables that follow a
+naming pattern that you choose.
+Cultivate Robust and Flourishing Macros | 167
+
+Example 8-3. Creating auxiliary variables using the preprocessor (preprocess.c)
+#include <stdio.h>
+#include <math.h> //NAN
+#define Setup_list(name, ...)                               \
+    double *name ## _list = (double []){__VA_ARGS__, NAN};  \ 
+    int name ## _len = 0;                                   \
+    for (name ## _len =0;                                   \
+            !isnan(name ## _list[name ## _len]);            \
+            ) name ## _len ++;
+int main(){
+    Setup_list(items, 1, 2, 4, 8);                           
+    double sum=0;
+    for (double *ptr= items_list; !isnan(*ptr); ptr++)       
+        sum += *ptr;
+    printf("total for items list: %g\n", sum);
+    #define Length(in) in ## _len                            
+    sum=0;
+    Setup_list(next_set, -1, 2.2, 4.8, 0.1);
+    for (int i=0; i < Length(next_set); i++)                 
+        sum += next_set_list[i];
+    printf("total for next set list: %g\n", sum);
+}
+The lefthand side demonstrates the use of ## to produce a variable name follow‐
+ing the given template. The right-hand side foreshadows Chapter 10, which dem‐
+onstrates uses of variadic macros.
+Generates items_len and items_list.
+Here is a loop using the NaN marker.
+Some systems let you query an array for its own length using a form like this.
+Here is a loop using the next_set_len length variable.
+As a stylistic aside, there has historically been a custom to indicate that a function is
+actually a macro by putting it in all caps, as a warning to be careful to watch for the
+surprises associated with text substitution. I think this looks like yelling, and prefer to
+mark macros by capitalizing the first letter. Others don’t bother with the capitaliza‐
+tion thing at all.
+ 
+168 | Chapter 8: Important C Syntax that Textbooks Often Do Not Cover
+
+
+2 On the validity of blank macro arguments, see C99 and C11 §6.10.3(4), which explicitly allow “arguments
+consisting of no preprocessing tokens. ”
+Macro Arguments Are Optional
+Here’s a sensible assertion-type macro that returns if an assertion fails:
+#define Testclaim(assertion, returnval) if (!(assertion))         \
+          {fprintf(stderr, #assertion " failed to be true.  \
+          Returning " #returnval "\n"); return returnval;}  
+Sample usage:
+int do_things(){
+    int x, y;
+    …
+    Testclaim(x==y, -1);
+    …
+    return 0;
+}
+But what if you have a function that has no return value? In this case, you can leave
+the second argument blank:
+void do_other_things(){ 
+    int x, y; 
+    …  
+    Testclaim(x==y, );
+    …  
+    return; 
+}
+Then the last line of the macro expands to return ;, which is valid and appropriate
+for a function that returns void.2
+If so inclined, you could even use this to implement default values:
+#define Blankcheck(a) {int aval = (#a[0]=='\0') ? 2 : (a+0);  \
+        printf("I understand your input to be %i.\n", aval); \
+        }
+//Usage:
+Blankcheck(0); //will set aval to zero.
+Blankcheck( ); //will set aval to two.
+Cultivate Robust and Flourishing Macros | 169
+
+Test Macros
+The set of things that can run a C program is very diverse—from Linux PCs to Ardu‐
+ino microcontrollers to GE refrigerators. Y our C code finds out the capabilities of the
+compiler and target platform via test macros, which may be defined by the compiler,
+-D…  flags in the compilation command, or #included files listing local capabilities,
+like unistd.h on POSIX systems or windows.h (and the headers it calls in) on
+Windows.
+Once you have a handle on what macros can be tested for, you can use the preproces‐
+sor to handle diverse environments.
+gcc and clang will give you a list of defined macros via the -E -dM flags (-E: run only
+the preprocessor; -dM: dump macro values). On the box I’m writing on,
+echo "" | clang -dM -E -xc -
+produces 157 macros.
+It would be impossible to write down a complete list of feature macros, including
+those defined for the hardware, the brand of standard C library, and the compiler, but
+Table 8-1 lists some of the more common and stable macros and their meaning. I
+chose macros that are relevant to this book or are broad checks for system type. The
+ones that begin with __STDC_…  are defined by the C standard.
+Table 8-1. Some commonly defined feature macros
+Macro Meaning
+_POSIX_C_SOURCE Conforms with IEEE 1003.1, aka ISO/IEC 9945. Usually set to a revision date.
+_WINDOWS A Windows box, with the windows.h header and everything defined therein.
+__MACOSX__ A Mac running OS X.
+__STDC_HOSTED__ The program is being compiled for a computer with an operating system that will call main.
+__STDC_IEC_559__ Conforms to IEEE 754, the floating-point standard that eventually became ISO/IEC/IEEE 60559.
+Notably, the processor can represent NaN, INFINITY, and -INFINITY.
+__STDC_VERSION__ The version of the standard the compiler implements: many use 199409L for C89 (as fixed in a
+1995 revision), 199901L for C99, 201112L for C11 as of this writing.
+__STDC_NO_ATOMICS__ Set to 1 if the implementation does not support _Atomic variables and does not provide
+stdatomic.h
+__STDC_NO_COMPLEX__ Set to 1 if the implementation does not support complex types.
+170 | Chapter 8: Important C Syntax that Textbooks Often Do Not Cover
+
+Macro Meaning
+__STDC_NO_VLA__ Set to 1 if the implementation does not support variable-length arrays.
+__STDC_NO_THREADS__ Set to 1 if the implementation does not support the C-standard threads.h and the elements
+defined therein. You may be able to use POSIX threads, OpenMP , fork, and other alternatives.
+One of Autoconf ’s key strengths is generating macros to describe capabilities. Let us
+say that you are using Autoconf, that your config.ac file includes a line with this
+macro:
+AC_CHECK_FUNCS([strcasecmp asprintf])
+and that the system where ./configure was run has (POSIX-standard) strcasecmp
+but is missing (GNU/BSD-standard) asprintf. Then Autoconf will produce a header
+named config.h including these two lines:
+#define HAVE_STRCASECMP 1
+/* #undef HAVE_ASPRINTF */
+Y ou can then accommodate all options using the #ifdef (if defined) or #ifndef (if
+not defined) preprocessor directives, like:
+#include "config.h"
+#ifndef HAVE_ASPRINTF
+[paste the source code for asprintf (Example 9-3) here.]
+#endif
+There are times when there is nothing to be done about a missing feature but to stop,
+in which case you can use the #error preprocessor directive:
+#ifndef HAVE_ASPRINTF
+    #error "HAVE_ASPRINTF undefined. I simply refuse to " \
+           "compile on a system without asprintf."
+#endif
+Since C11, there is also the _Static_assert keyword. A static assertion takes two
+arguments: the static expression to be tested, and a message to be sent to the person
+compiling the program. A C11-compliant assert.h header defines the less typographi‐
+cally awkward static_assert to expand to the _Static_assert keyword [C11
+§7.2(3)]. Sample usage:
+#include <limits.h> //INT_MAX
+#include <assert.h>
+_Static_assert(INT_MAX < 33000L, "Your compiler uses very short integers.");
+#ifndef HAVE_ASPRINTF
+static_assert(0, "HAVE_ASPRINTF undefined. I still refuse to "
+Cultivate Robust and Flourishing Macros | 171
+
+3 See the Microsoft Developer Network.
+4 If the types are the same, then the duplicate typedefs are not a problem, as per C11 §6.7(3): “ A typedef name
+may be redefined to denote the same type as it currently does, provided that type is not a variably modified
+type. ”
+                  "compile on a system without asprintf.");
+#endif
+The Ls at the end of 33000L and some of the year-month values above indicate that
+the given numbers should be read as a long int, in case you are on a compiler where
+integers this large overflow on a regular int.
+This may be a more convenient form than the #if/#error/#endif form, but because
+it was introduced in a standard published in December 2011, it is itself a portability
+issue. For example, the designers of Visual Studio implement a _STATIC_ASSERT
+macro which only takes one argument (the assertion), and do not recognize the stan‐
+dard _Static_assert.3
+Also, the #ifdef/#error/#endif setup and _Static_assert are largely equivalent:
+The C standard indicates that both check constant-expressions and print a string-
+literal, though one should do so in the preprocessing phase and one during compila‐
+tion. [C99 §6.10.1(2) and C11 §6.10.1(3); C11 §6.7.10] So as of this writing, it is prob‐
+ably safest to stick to using the preprocessor to stop on missing capabilities.
+Header Guards
+What if you were to paste the same typedef for the same struct into a file? For
+instance, you could put
+typedef struct {
+    int a;
+    double b;
+} ab_s;
+typedef struct {
+    int a;
+    double b;
+} ab_s;
+into a file named header.h.
+A human can easily verify that these structs are the same, but the compiler is required
+to read any new struct declaration in a file as a new type [C99 §6.7.2.1(7) and C11
+§6.7.2.1(8)]. So the above code won’t compile, as ab_s is redeclared to be two separate
+(albeit equal) types.4
+172 | Chapter 8: Important C Syntax that Textbooks Often Do Not Cover
+
+We can achieve the error of double-declaring by listing the typedef only once, but
+then including the header twice, like
+#include "header.h"
+#include "header.h"
+Because include files frequently include other include files, this error can crop up in
+subtle ways involving longer chains of headers within headers. The C-standard solu‐
+tion to ensure that this cannot happen is generally referred to as an include guard, in
+which we define a variable specific to the file, and then wrap the rest of the file in an
+#ifndef:
+#ifndef Already_included_head_h
+#define Already_included_head_h 1
+[paste all of header.h here]
+#endif
+The first time through, the variable is not defined and the file is parsed; the second
+time through the variable is defined and so the rest of the file is skipped.
+This form has been in use since forever (see K & R 2nd ed., §4.11.3), but it is slightly
+easier to use the once pragma. At the head of the file to be included only once, add
+#pragma once
+and the compiler will understand that the file is not to be double-included. Pragmas
+are compiler-specific, with only a few defined in the C standard. However, every
+major compiler, including gcc, clang, Intel, C89-mode Visual Studio, and several
+others, all understand #pragma once.
+Comment Out Code with the Preprocessor
+A block surrounded by #if 0  and #endif is ignored, so you can use this form to
+comment out a block of code. Unlike comments via /* … */ , this style of comment‐
+ing can be nested:
+#if 0
+    ...
+    #if 0
+        /* code that was already ignored */
+    #endif
+    ...
+#endif
+But if the nesting is not correct, like
+#if 0
+    ...
+    #ifdef This_line_has_no_matching_endif
+Cultivate Robust and Flourishing Macros | 173
+
+5 This is from C99 and C11 §6.2.3, which is actually about resolving symbols across different scopes, not just
+files. But trying crazy linkage tricks across different scopes within one file is generally not done.
+    ...
+#endif
+you will get an error as the preprocessor matches the #endif with the wrong #if.
+Linkage with static and extern
+In this section, we write code that will tell the compiler what kind of advice it should
+give to the linker. The compiler works one .c file at a time, (typically) producing
+one .o file at at a time, then the linker joins those .o files together to produce one
+library or executable.
+What happens if there are two declarations in two separate files for the variable x? It
+could be that the author of one file just didn’t know that the author of the other file
+had chosen x, so the two xes should be stored in two separate spaces. Or perhaps the
+authors were well aware that they are referring to the same variable, and the linker
+should take all references of x to be pointing to the same spot in memory.
+External linkage means that symbols that match across files should be treated as the
+same thing by the linker. The extern keyword will be useful to indicate external link‐
+age (see later).5
+Internal linkage indicates that a file’s instance of a variable x or a function f() is its
+own and matches only other instances of x or f() in the same scope (which for things
+declared outside of any functions would be file scope). Use the static keyword to
+indicate internal linkage.
+It’s funny that external linkage has the extern keyword, but instead of something sen‐
+sible like intern for internal linkage, there’s static. In “ Automatic, Static, and Man‐
+ual Memory” on page 123, I discussed the three types of memory model: static, auto‐
+matic, and manual. Using the word static for both linkage and memory model is
+joining together two concepts that may at one time have overlapped for technical rea‐
+sons, but are now distinct.
+• For file scope variables, static affects only the linkage:
+— The default linkage is external, so use the static keyword to change this to
+internal linkage.
+— Any variable in file scope will be allocated using the static memory model,
+regardless of whether you used static int x , extern int x , or just plain
+int x.
+174 | Chapter 8: Important C Syntax that Textbooks Often Do Not Cover
+
+• For block scope variables, static affects only the memory model:
+— The default linkage is internal, so the static keyword doesn’t affect linkage.
+Y ou could change the linkage by declaring the variable to be extern, but this
+is rarely done.
+— The default memory model is automatic, so the static keyword changes the
+memory model to static.
+• For functions, static affects only the linkage:
+— Functions are only defined in file scope (though gcc offers nested functions as
+an extension). As with file-scope variables, the default linkage is external, but
+use the static keyword for internal linkage.
+— There’s no confusion with memory models, because functions are always
+static, like file-scope variables.
+The norm for declaring a function to be shared across .c files is to put the header in
+a .h file to be reincluded all over your project, and put the function itself in one .c file
+(where it will have the default external linkage). This is a good norm, and is worth
+sticking to, but it is reasonably common for authors to want to put one- or two-line
+utility functions (like max and min) in a .h file to be included everywhere. Y ou can do
+this by preceding the declaration of your function with the static keyword, for
+example:
+//In common_fns.h:
+static long double max(long double a, long double b){
+    (a > b) ? a : b;
+}
+When you #include "common_fns.h" in each of a dozen files, the compiler will pro‐
+duce a new instance of the max function in each of them. But because you’ve given the
+function internal linkage, none of the files has made public the function name max, so
+all dozen separate instances of the function can live independently with no conflicts.
+Such redeclaration might add a few bytes to your executable and a few milliseconds
+to your compilation time, but that’s irrelevant in typical environments.
+Externally Linked Variables in Header Files
+The extern keyword is a simpler issue than static, because it is only about linkage,
+not memory models. The typical setup for a variable with external linkage:
+• In a header to be included anywhere the variable will be used, declare your vari‐
+able with the extern keyword. E.g., extern int x.
+Linkage with static and extern | 175
+
+• In exactly one .c file, declare the variable as usual, with an optional initializer.
+E.g., int x=3. As with all static-memory variables, if you leave off the initial value
+(just int x), the variable is initialized to zero or NULL.
+That’s all you have to do to use variables with external linkage.
+Y ou may be tempted to put the extern declaration not in a header, but just as a loose
+declaration in your code. In file1.c, you have declared int x, and you realize that you
+need access to x in file2.c, so you throw a quick extern int x at the top of the file.
+This will work—today. Next month, when you change file1.c to declare double x, the
+compiler’s type checking will still find file2.c to be entirely internally consistent. The
+linker blithely points the routine in file2.c to the location where the double named x
+is stored, and the routine blithely misreads the data there as an int. Y ou can avoid
+this disaster by leaving all extern declarations in a header to #include in both file1.c
+and file2.c. If any types change anywhere, the compiler will then be able to catch the
+inconsistency.
+Under the hood, the system is doing a lot of work to make it easy for you to declare
+one variable several times while allocating memory for it only once. Formally, a dec‐
+laration marked as extern is a declaration (a statement of type information so the
+compiler can do consistency checking), and not a definition (instructions to allocate
+and initialize space in memory). But a declaration without the extern keyword is a
+tentative definition: if the compiler gets to the end of the unit (defined below) and
+doesn’t see a definition, then the tentative definitions get turned into a single defini‐
+tion, with the usual initialization to zero or NULL. The standard defines unit in that
+sentence as a single file, after #includes are all pasted in [a translation unit; see C99
+and C11 §6.9.2(2)].
+Compilers like gcc and clang typically read unit to mean the entire program, mean‐
+ing that a program with several non- extern declarations and no definitions rolls all
+these tentative definitions up into a single definition. Even with the --pedantic flag,
+gcc doesn’t care whether you use the extern keyword or leave it off entirely. In prac‐
+tice, that means that the extern keyword is largely optional: your compiler will read a
+dozen declarations like int x=3 as a single definition of a single variable with exter‐
+nal linkage. This is technically nonstandard, but K&R (2nd ed, p 227) describe this
+behavior as “usual in UNIX systems and recognized as a common extension by the
+[ANSI ’89] Standard. ” ( Harbison, 1991) §4.8 documents four distinct interpretations
+of the rules for externs.
+This means that if you want two variables with the same name in two files to be dis‐
+tinct, but you forget the static keyword, a compiler may link those variables
+together as a single variable with external linkage; subtle bugs can easily ensue. So be
+careful to use static for all file-scope variables intended to have internal linkage.
+176 | Chapter 8: Important C Syntax that Textbooks Often Do Not Cover
+
+The const Keyword
+The const keyword is fundamentally useful, but the rules around const have several
+surprises and inconsistencies. This segment will point them out so they won’t be sur‐
+prises anymore, which should make it easier for you to use const wherever good style
+advises that you do.
+Early in your life, you learned that copies of input data are passed to functions, but
+you can still have functions that change input data by sending in a copy of a pointer to
+the data. When you see that an input is plain, not-pointer data, then you know that
+the caller’s original version of the variable won’t change. When you see a pointer
+input, it’s unclear. Lists and strings are naturally pointers, so the pointer input could
+be data to be modified, or it could just be a string.
+The const keyword is a literary device for you, the author, to make your code more
+readable. It is a type qualifier indicating that the data pointed to by the input pointer
+will not change over the course of the function. It is useful information to know when
+data shouldn’t change, so do use this keyword where possible.
+The first caveat: the compiler does not lock down the data being pointed to against all
+modification. Data that is marked as const under one name can be modified using a
+different name. In Example 8-4, a and b point to the same data, but because a is not
+const in the header for set_elmt, it can change an element of the b array. See
+Figure 8-1.
+Example 8-4. Data that is marked as const under one name can be modified using a
+different name (constchange.c)
+void set_elmt(int *a, int const *b){
+    a[0] = 3;
+}
+int main(){
+    int a[10] = {};   
+    int const *b = a;
+    set_elmt(a, b);
+}                     
+Initialize the array to all zeros.
+This is a do-nothing program intended only to compile and run without errors.
+If you want to verify that b[0] did change, you can run this in your debugger,
+break at the last line, and print the value of b.
+So const is a literary device, not a lock on the data.
+The const Keyword | 177
+
+
+Figure 8-1. We can modify the data via a, even though b is const; this is valid
+Noun-Adjective Form
+The trick to reading declarations is to read from right to left. Thus:
+int const
+A constant integer
+int const *
+A (variable) pointer to a constant integer
+int * const
+A constant pointer to a (variable) integer
+int * const *
+A pointer to a constant pointer to an integer
+int const * *
+A pointer to a pointer to a constant integer
+int const * const *
+A pointer to a constant pointer to a constant integer
+Y ou can see that the const always refers to the text to its left, just as the * does.
+Y ou can switch a type name and const, and so write either int const or const int
+(though you can’t do this switch with const and *). I prefer the int const  form
+because it provides consistency with the more complex constructions and the right-
+to-left rule. There’s a custom to use the const int  form, perhaps because it reads
+more easily in English or because that’s how it’s always been done. Either works.
+What About restrict and inline?
+I wrote some sample code both using the restrict and inline keywords and not
+using them, so that I could demonstrate to you the speed difference that these key‐
+words make.
+I had high hopes, and in years past, I found real gains from using restrict in
+numeric routines. But when I wrote up the tests here in the present day, the difference
+in speed with and without the keywords was minuscule.
+178 | Chapter 8: Important C Syntax that Textbooks Often Do Not Cover
+
+As per my recommendations throughout the book, I set CFLAGS=-g -Wall -O3 when
+compiling, and that means gcc threw every optimization trick it knew at my sample
+programs, and those optimizations knew when to treat pointers as restrict and
+when to inline functions without my explicitly instructing the compiler.
+Tension
+In practice, you will find that const sometimes creates tension that needs to be
+resolved: when you have a pointer that is marked const but want to send it as an
+input to a function that does not have a const marker in the right place. Maybe the
+function author thought that the keyword was too much trouble, or believed the chat‐
+ter about how shorter code is always better code, or just forgot.
+Before proceeding, you’ll have to ask yourself if there is any way that the pointer
+could change in the const-less function being called. There might be an edge case
+where something gets changed, or some other odd reason. This is stuff worth know‐
+ing anyway.
+If you’ve established that the function does not break the promise of const-ness that
+you made with your pointer, then it is entirely appropriate to cheat and cast your
+const pointer to a non-const for the sake of quieting the compiler.
+//No const in the header this time...
+void set_elmt(int *a, int *b){
+    a[0] = 3;
+}
+int main(){
+    int a[10];
+    int const *b = a;
+    set_elmt(a, (int*)b);   //...so add a type-cast to the call.
+}
+The rule seems reasonable to me. Y ou can override the compiler’s const-checking, as
+long as you are explicit about it and indicate that you know what you are doing.
+If you are worried that the function you are calling won’t fulfill your promise of
+const-ness, then you can take one step further and make a full copy of the data, not
+just an alias. Because you don’t want any changes in the variable anyway, you can
+throw out the copy afterward.
+Depth
+Let us say that we have a struct type—name it counter_s—and we have a function
+that takes in such a struct, of the form f(counter_s const *in) . Can the function
+modify the elements of the structure?
+The const Keyword | 179
+
+Let’s try it: Example 8-5 generates a struct with two pointers, and in ratio, that struct
+becomes const, yet when we send one of the pointers held by the structure to the
+const-less subfunction, the compiler doesn’t complain.
+Example 8-5. The elements of a const struct are not const (conststruct.c)
+#include <assert.h>
+#include <stdlib.h>  //assert
+typedef struct {
+    int *counter1, *counter2;
+} counter_s;
+void check_counter(int *ctr){ assert(*ctr !=0); }
+double ratio(counter_s const *in){                   
+    check_counter(in->counter2);                     
+    return *in->counter1/(*in->counter2+0.0);
+}
+int main(){
+    counter_s cc = {.counter1=malloc(sizeof(int)),   
+                   .counter2=malloc(sizeof(int))};
+    *cc.counter1 = *cc.counter2 = 1;
+    ratio(&cc);
+}
+The incoming struct is marked as const.
+We send an element of the const struct to a function that takes not-const inputs.
+The compiler does not complain.
+This is declaration via designated initializers—coming soon.
+In the definition of your struct, you can specify that an element be const, though this
+is typically more trouble than it is worth. If you really need to protect only the lowest
+level in your hierarchy of types, your best bet is to put a note in the documentation.
+The char const ** Issue
+Example 8-6 is a simple program to check whether the user gave Iggy Pop’s name on
+the command line. Sample usage from the shell (recalling that $? is the return value
+of the just-run program):
+iggy_pop_detector Iggy Pop; echo $?      #prints 1
+iggy_pop_detector Chaim Weitz; echo $?   #prints 0
+180 | Chapter 8: Important C Syntax that Textbooks Often Do Not Cover
+
+
+Example 8-6. Ambiguity in the standard causes all sorts of problems for the pointer-to-
+pointer-to-const (iggy_pop_detector.c)
+#include <stdbool.h>
+#include <strings.h> //strcasecmp (from POSIX)
+bool check_name(char const **in){  
+    return   (!strcasecmp(in[0], "Iggy") && !strcasecmp(in[1], "Pop"))
+           ||(!strcasecmp(in[0], "James") && !strcasecmp(in[1], "Osterberg"));
+}
+int main(int argc, char **argv){
+    if (argc < 2) return 0;
+    return check_name(&argv[1]);
+}
+If you haven’t seen Booleans before, I’ll introduce you to them in a sidebar later.
+The check_name function takes in a pointer to constant string, because there is no
+need to modify the input strings. But when you compile it, you’ll find that you get a
+warningclang says: “passing char ** to parameter of type const char **  discards
+qualifiers in nested pointer types. ” In a sequence of pointers, all the compilers I could
+find will convert to const what you could call the top-level pointer (casting to char *
+const * ), but complain when asked to const-ify what that pointer is pointing to
+(char const **, aka const char **).
+Again, you’ll need to make an explicit cast—replace check_name(&argv[1]) with:
+check_name((char const**)&argv[1]);
+Why doesn’t this entirely sensible cast happen automatically? We need some creative
+setup before a problem arises, and the story is inconsistent with the rules to this
+point. So the explanation is a slog; I will understand if you skip it.
+The code in Example 8-7 creates the three links in the diagram: the direct link from
+constptr -> fixed , and the two steps in the indirect link from constptr -> var
+and var -> fixed . In the code, you can see that two of the assignments are made
+explicitly: constptr -> var and constptr -> -> fixed. But because *constptr ==
+var, that second link implicitly creates the var -> fixed  link. When we assign
+*var=30, that assigns fixed = 30.
+Example 8-7. We can modify the data via an alternate name, even though it is const via
+one name—this is deemed to be illegal. The relationships among the variables are
+displayed in Figure 8-2. (constfusion.c)
+#include <stdio.h>
+int main(){
+    int *var;
+The const Keyword | 181
+
+
+6 The code here is a rewrite of the example in C99 and C11 §6.5.16.1(6), where the line analogous to
+constptr=&var is marked as a constraint violation. Whether it is a constraint violation seems to depend on
+how one reads “both operands [on either side of an =] are pointers to qualified or unqualified versions of
+compatible types” in the “constraints” section of C99 and C11 §6.5.16.1. I’m not the only one who thinks it’s
+ambiguous: compilers are supposed to throw an error and refuse to compile the program on constraint viola‐
+tions, but gcc and clang mark this form with a warning and continue.
+    int const **constptr = &var; // the line that sets up the failure
+    int const fixed = 20;
+    *constptr = &fixed;          // 100% valid
+    *var = 30;
+    printf("x=%i y=%i\n", fixed, *var);
+}
+Figure 8-2. The links among the variables in Example 8-7
+We would never allow int *var to point directly at int const fixed. We only man‐
+aged it via a sleight-of-pointer where var winds up implicitly pointing to fixed
+without explicitly stating it.
+Y our Turn: Is it possible to cause a failure of const like this one, but where the disal‐
+lowed type cast happens over the course of a function call, as per the Iggy Pop
+detector?
+As earlier, data that is marked as const under one name can be modified using a dif‐
+ferent name. So, really, it’s little surprise that we were able to modify the const data
+using an alternative name.6
+I enumerate this list of problems with const so that you can surmount them. As liter‐
+ature goes, it isn’t all that problematic, and the recommendation that you add const
+to your function declarations as often as appropriate still stands—don’t just grumble
+about how the people who came before you didn’t provide the right headers. After all,
+some day others will use your code, and you don’t want them grumbling about how
+they can’t use the const keyword because your functions don’t have the right headers.
+182 | Chapter 8: Important C Syntax that Textbooks Often Do Not Cover
+
+True and False
+C originally had no Boolean (true/false) type, instead using the convention that if
+something is zero or NULL, then it is false, and if it is anything else it is true. Thus,
+if(ptr!=NULL) and if(ptr) are equivalent.
+C99 introduced the _Bool type, which is technically unnecessary, because you can
+always use an integer to represent a true/false value. But to a human reading the code,
+the Boolean type clarifies that the variable can only take on true/false values, and so
+gives some indication of its intent.
+The string _Bool was chosen by the standards committee because it is in the space of
+strings reserved for additions to the language, but it is certainly awkward. The
+stdbool.h header defines three macros to improve readability: bool expands to _Bool,
+so you don’t have to use the unappealing underscore in your declarations; true
+expands to 1; false expands to 0.
+Just as the bool type is more for the human reader, the true and false macros can
+clarify the intent of an assignment: if I forgot that outcome was declared as bool, out
+come=true adds a reminder of intent that outcome=1 does not.
+However, there is really no reason to compare any expression to true or false: we all
+know to read if (x) to mean if x is true, then… , without the ==true explicitly written
+on the page. Further, given int x=2 , if (x)  does what everybody expects and if
+(x==true) doesn’t.
+The const Keyword | 183

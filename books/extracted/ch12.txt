@@ -1,0 +1,1206 @@
+CHAPTER 12
+Parallel Threads
+It’s 99 revolutions tonight.
+—Green Day, “99 Revolutions”
+Just about all the computers sold in the last few years—even many telephones—are
+multicore. If you are reading this on a keyboard-and-monitor computer, you may be
+able to find out how many cores your computer has via:
+• Linux: grep cores /proc/cpuinfo
+• Mac: sysctl hw.logicalcpu
+• Cygwin: env | grep NUMBER_OF_PROCESSORS
+A single-threaded program doesn’t make full use of the resources the hardware man‐
+ufacturers gave us. Fortunately, it doesn’t take much to turn a program into one with
+concurrent parallel threads—in fact, it often only takes one extra line of code. In this
+chapter, I will cover:
+• A quick overview of the several standards and specifications that exist for writing
+concurrent C code
+• The one line of OpenMP code that will make your for loops multithreaded
+• Notes on the compiler flags you’ll need to compile with OpenMP or pthreads
+• Some considerations of when it’s safe to use that one magic line
+• Implementing map-reduce, which requires extending that one line by another
+clause
+• The syntax for running a handful of distinct tasks in parallel, like the UI and
+backend of a GUI-based program
+289
+
+• C’s _Thread_local keyword, which makes thread-private copies of global static
+variables
+• Critical regions and mutexes
+• Atomic variables in OpenMP
+• A quick note on sequential consistency and why you want it
+• POSIX threads, and how they differ from OpenMP
+• Atomic scalar variables via C atoms
+• Atomic structs via C atoms
+This is another chapter based on what is missing in standard C textbooks. In my sur‐
+vey of the market, I could not find a single general C text that covered OpenMP . So
+here I will give you enough to get started—maybe even enough that you may never
+need to refer to the full books on threading theory.
+However, there are books dedicated to the topic of concurrent programming, many in
+C, covering a wealth of details that I don’t; see The Art of Concurrency: A Thread
+Monkey’s Guide to Writing Parallel Applications ; Multicore Application Programming:
+for W indows, Linux, and Oracle Solaris ; or Introduction to Parallel Computing (2nd
+Edition). I will use the default scheduling and the safest form of synchronization
+throughout, even though cases exist where you can do better by fine-tuning those
+things; neither will I wade into details of cache optimization, nor give you an exhaus‐
+tive list of useful OpenMP pragmas (which your Internet search engine will do just
+fine).
+The Environment
+ It wasn’t until the December 2011 revision that a threading mechanism was a part of
+standard C. That is late to the party, and others have already provided mechanisms.
+So you’ve got several options:
+• POSIX threads. The pthreads standard was defined in POSIX v1, circa 1995. The
+pthread_create function works by assigning a function of a certain form to each
+thread, so you have to write an appropriate function interface, and typically an
+accompanying struct.
+• Windows also has its own threading system, which works like pthreads. For
+example, the CreateThread function takes in a function and a pointer to parame‐
+ters much like pthread_create does.
+• OpenMP is a specification that uses #pragmas and a handful of library functions
+to tell the compiler when and how to thread. This is what you can use to turn a
+290 | Chapter 12: Parallel Threads
+
+1 Visual Studio supports version 2.0, and OpenMP is at version 4.0, but the basic pragmas covered here are not
+new.
+serial-running for loop into a threaded for loop with one line of code. The first
+OpenMP spec for C came out in 1998.
+• The specification for the C standard library now includes headers that define
+functions for threading and atomic variable operations.
+Which to use depends on your target environment, and your own goals and preferen‐
+ces. OpenMP is much easier to write and is therefore much less likely to harbor bugs
+than the other threading systems. It is supported by almost all major compilers—even
+Visual Studio—but clang support is still in the works as of this writing in late 2014. 1
+The compilers and standard libraries that support standard C threading and atoms
+are not yet universal. If you are unable to rely on OpenMP and its #pragmas, then
+pthreads are available for any POSIX-conformant host (even MinGW).
+There are other options, such as the MPI (message passing interface, for talking
+across networked nodes) or OpenCL (especially useful for GPU processing). On
+POSIX systems, you can use the fork system call to effectively produce two clones of
+your program that share memory but otherwise operate independently.
+The Ingredients
+Our syntactic needs are not great. In all cases, we will need:
+• A means of telling the compiler to set off several threads at once. To give an early
+example, (Nabokov-1962) includes this note on line 404: [And here time forked.]
+The remainder of the section vacillates between two threads.
+• A means of marking a point where the new threads cease to exist, and the main
+thread continues alone. In some cases, like the above early example, the barrier is
+implicit at the end of the segment, but some of the options will have an explicit
+gather-the-threads step.
+• A means of marking parts of the code that should not be threaded, because they
+can not be made thread-safe. For example, what would happen if thread one
+resized an array to size 20 at the same time that thread two is resizing it to size
+30? Even though a resize takes a microsecond to us humans, if we could slow
+down time, we would see that even a simple increment like x++ would be a series
+of finite-time operations that another thread could conflict with. Using OpenMP
+pragmas, these unshareable segments will be marked as critical regions ; in
+pthread-influenced systems these will be marked via mutexes (a crunching-
+together of mutual exclusion).
+The Environment | 291
+
+• Means of dealing with variables that may be simultaneously handled by multiple
+threads. Strategies include taking a global variable and making a thread-local
+copy, and syntax to put a mini-mutex around each use of a variable.
+OpenMP
+As an example, let us thread a word-counting program. I will borrow some string-
+handling utilities from Example 11-21 to produce a word-counting function. To get it
+out of the way of the parts about threading, the function is in its own file; see
+Example 12-1.
+Example 12-1. A word counter, which works by reading the entire file into memory and
+then breaking it at nonword characters (wordcount.c)
+#include "string_utilities.h"
+int wc(char *docname){
+    char *doc = string_from_file(docname);            
+    if (!doc) return 0;
+    char *delimiters = " `~!@#$%^&*()_-+={[]}| \\;:\",<>./?\n";
+    ok_array *words = ok_array_new(doc, delimiters);  
+    if (!words) return 0;
+    double out= words->length;
+    ok_array_free(words);
+    return out;
+}
+string_from_file reads the given document into a string and is borrowed from
+Example 9-6.
+Also borrowed from the string utility library, this function divides a string at the
+given delimiters. We just want the count from it.
+Example 12-2  calls the word-counting function with any list of files given on the
+command line. In that program, main is basically just a for loop calling wc, followed
+by a step to sum up the individual counts to a grand total.
+Example 12-2. By adding a line of code, we can run chunks of a for loop on different
+threads (openmp_wc.c)
+#include "stopif.h"
+#include "wordcount.c"
+int main(int argc, char **argv){
+    argc--;
+    argv++;                                           
+292 | Chapter 12: Parallel Threads
+
+
+    Stopif(!argc, return 0, "Please give some file names on the command line.");
+    int count[argc];
+    #pragma omp parallel for                          
+    for (int i=0; i< argc; i++){
+        count[i] = wc(argv[i]);
+        printf("%s:\t%i\n", argv[i], count[i]);
+    }
+    long int sum=0;
+    for (int i=0; i< argc; i++) sum+=count[i];
+    printf("Σ:\t%li\n", sum);
+}
+argv[0] is the name of the program, so step the argv pointer past it. The rest of
+the arguments on the command line are files to be word-counted.
+Having added this one line of code, the for loop now runs in parallel threads.
+The OpenMP instruction that makes this a threaded program is this line:
+#pragma omp parallel for
+indicating that the for loop immediately following should be broken down into seg‐
+ments and run across as many threads as the system running the program deems
+optimal. In this case, I’ve lived up to my promise, and turned a not-parallel program
+into a parallel program with one line of code.
+OpenMP works out how many threads your system can run and splits up the work
+accordingly. In cases where you need to set the number of threads to N manually, you
+can do so either by setting an environment variable before the program runs:
+export OMP_NUM_THREADS=N
+or by using a C function in your program:
+#include <omp.h>
+omp_set_num_threads(N);
+These facilities are probably most useful for fixing the thread count to N=1. If you
+want to return to the default of requesting as many threads as your computer has pro‐
+cessors, use:
+#include <omp.h>
+omp_set_num_threads(omp_get_num_procs());
+OpenMP | 293
+
+
+A macro defined via #define can’t expand to a #pragma, so what do
+you do if you want to parallelize a macro? That’s what the _Pragma
+operator is for [C99 and C11 §6.10.9]. The input to the operator is
+(in the language of the official standard) destringized and used as a
+pragma. For example:
+#include <stdio.h>
+#define pfor(...) _Pragma("omp parallel for") \
+    for(__VA_ARGS__)
+int main(){
+    pfor(int i=0; i< 1000; i++){
+        printf("%i\n", i);
+    }
+}
+Y ou can only have a single string inside the parens of the
+_Pragma( ). The workaround when you need more is to use a sub‐
+macro that treats all its inputs as a string. Here is a preprocessor
+block that uses this form to define an OMP_critical macro that
+expands to a header for an OpenMP critical block with the given
+tag (see below) if _OPENMP is defined, else it is replaced with noth‐
+ing.
+#ifdef _OPENMP
+   #define PRAGMA(x) _Pragma(#x)
+   #define OMP_critical(tag) PRAGMA(omp critical(tag))
+#else
+   #define OMP_critical(tag)
+#endif
+Compiling OpenMP , pthreads, and C atoms
+For gcc and clang (where clang support for OpenMP is still in progress on some
+platforms), compiling this requires adding an -fopenmp flag for the compilation. If
+you need a separate linking step, add -fopenmp to the link flags as well (the compiler
+will know if any libraries need to be linked and will do what you want). For pthreads,
+you will need to add a -pthread flag. C atomic support (in gcc, as of this writing)
+requires linking to the atomic library. So if you were using all three, you might add
+these lines to your makefile:
+CFLAGS=-g -Wall -O3 -fopenmp -pthread
+LDLIBS=-fopenmp -latomic
+If you are using Autoconf for your OpenMP project, you will need to add a line to
+your existing configure.ac script:
+AC_OPENMP
+294 | Chapter 12: Parallel Threads
+
+which generates an $OPENMP_CFLAGS variable, which you will then need to add to
+existing flags in Makefile.am. For example,
+AM_CFLAGS = $(OPENMP_CFLAGS) -g -Wall -O3 …
+AM_LDFLAGS = $(OPENMP_CFLAGS) $(SQLITE_LDFLAGS) $(MYSQL_LDFLAGS)
+So that took three lines of code, but now Autoconf will correctly compile your code
+on every known platform that supports OpenMP .
+The OpenMP standard requires that an _OPENMP variable be defined if the compiler
+accepts OpenMP pragmas. Y ou can use this to put #ifdef _OPENMP blocks into your
+code as needed.
+Once you have the program compiled as threaded_wc, try ./threaded_wc `find ~
+-type f`  to start a word-count of every file in your home directory. Y ou can open
+top in another window and see if multiple instances of wc crop up.
+Interference
+Now that we have the needed line of syntax to make the program multithreaded, are
+we guaranteed that it works? For easy cases where you can verify that every iteration
+of the loop does not interact with any other iteration, yes. But for other cases, we’ll
+need to be more cautious.
+To verify whether a team of threads will work, we need to know what happens with
+each variable, and the effects of any side effects.
+• If a variable is private to a thread, then we are guaranteed that it will behave as if
+in a single-threaded program, without interference. The iterator in the loop,
+named i in the above example, is made private to each thread (OpenMP 4.0
+§2.6). Variables declared inside of the loop are private to the given loop.
+• If a variable is being read by a number of threads and is never written by any of
+them at any point, then you are still safe. This isn’t quantum physics: reading a
+variable never changes its state (and I’m not covering C atomic flags, which
+actually can’t be read without setting them).
+• If a variable is written to by one thread and never read by any other thread, there
+is still no competition—the variable is effectively private.
+• If a variable is shared across threads, and it is written to by one thread, and it is
+read from or written to by any other thread, now you’ve got real problems, and
+the rest of this chapter is basically about this case.
+The first implication is that, where possible, we should avoid sharing written-to vari‐
+ables. Y ou can go back to the example and see one way of doing this: all the threads
+use the count array, but iteration i touches only element i in the array, so each array
+element is effectively thread-private. Further, the count array itself is not resized,
+OpenMP | 295
+
+freed, or otherwise changed during the loop, and likewise with argv. We’ll even get
+rid of the count array below.
+We don’t know what internal variables printf uses, but we can check the C standard
+to verify that all the operations in the standard library that operate on input and out‐
+put streams (almost everything in stdio.h) are thread-safe, so we can call printf
+without worrying about multiple calls stepping on each other (C11 §7.21.2(7) and
+(8)).
+When I wrote this sample, it took some care in writing to make sure that those condi‐
+tions were met. However, some of the considerations, such as avoiding global vari‐
+ables, are good advice even in the single-threaded world. Also, the post-C99 style of
+declaring variables at their first use is paying off, because a variable declared inside a
+segment to be threaded is unambiguously private to that thread.
+As an aside, OpenMP’s omp parallel for  pragma understands only simple loops:
+the iterator is of integer type, it is incremented or decremented by a fixed (loop-
+invariant) amount every step, and the ending condition compares the iterator to a
+loop-invariant value or variable. Anything that involves applying the same routine to
+each element of a fixed array fits this form.
+Map-reduce
+The word-count program has a very common form: each thread does some inde‐
+pendent task mapping inputs to outputs, but we are really interested in reducing all
+those individual outputs down to a single aggregate. OpenMP supports this sort of
+map-reduce workflow via an addendum to the above pragma. Example 12-3 replaces
+the count array with a single variable, total_wc, and adds reduction(+:total_wc)
+to the OpenMP pragma. From here, the compiler does the work to efficiently com‐
+bine each thread’s total_wc to a grand total.
+Example 12-3. Adapting a for loop to implement a map-reduce workflow requires
+extending the #pragma omp parallel for line by another clause. (mapreduce_wc.c)
+#include "stopif.h"
+#include "wordcount.c"
+int main(int argc, char **argv){
+    argc--;
+    argv++;
+    Stopif(!argc, return 0, "Please give some file names on the command line.");
+    long int total_wc = 0;
+    #pragma omp parallel for  \
+     reduction(+:total_wc)                       
+    for (int i=0; i< argc; i++){
+        long int this_count = wc(argv[i]);
+296 | Chapter 12: Parallel Threads
+
+        total_wc += this_count;
+        printf("%s:\t%li\n", argv[i], this_count);
+    }
+    printf("Σ:\t%li\n", total_wc);
+}
+Add a reduction clause to the pragma omp parallel for to tell the compiler that
+this variable holds a sum across all threads.
+Again, there are restrictions: the + operator in reduction(+:variable) can only be
+replaced by one of a few a basic arithmetic (+, *, -), bitwise (&, |, ^), or logical (&&, ||)
+operations. Otherwise, you’ll have to go back to something like the count array above
+and write your own post-thread reduction (see Example 12-5 for an example to calcu‐
+late a maximum). Also, don’t forget to initialize the reduction variable before the
+team of threads runs.
+Multiple Tasks
+Instead of having an array and applying the same operation to every array element,
+you may have two entirely distinct operations, and they are independent and could
+run in parallel. For example, programs with a user interface often put the UI on one
+thread and the backend processing on another, so that slowdown in processing
+doesn’t make the UI seize up. Naturally, the pragma for this is the parallel sections
+pragma:
+#pragma omp parallel sections
+{
+    #pragma omp section
+    {   
+    //Everything in this block happens only in one thread
+    UI_starting_fn();
+    }
+    #pragma omp section
+    {   
+    //Everything in this block happens only in one other thread
+    backend_starting_fn();
+    }
+}
+Here are a few more features of OpenMP that I didn’t cover but that you may enjoy:
+simd
+Single instruction, multiple data. Some processors have a facility to apply the same
+operation to every element of a vector. This is not available on all processors, and is
+distinct from multiple threads, which run on multiple cores. See #pragma omp simd.
+OpenMP | 297
+
+
+Also see your compiler manual, because some compilers auto-SIMDify some opera‐
+tions when possible.
+#pragma omp task
+When the number of tasks is not known ahead of time, you can use #pragma omp
+task to set off a new thread. For example, you may be running through a tree struc‐
+ture with a single thread, and at each terminal node, use #pragma omp task  to start
+up a new thread to process the leaf.
+#pragma omp cancel
+Y ou may be searching for something with multiple threads, and when one thread
+finds the goal, there is no point having the other threads continue. Use #pragma omp
+cancel (pthread equivalent: pthread_cancel) to call off the other threads.
+Also, I must add one more caveat, lest some readers go out and put a #pragma over
+every single for loop in everything: there is overhead to generating a thread. This
+code:
+int x = 0;
+#pragma omp parallel for reduction(+:x)
+for (int i=0; i< 10; i++){
+    x++;
+}
+will spend more time generating thread info than incrementing x, and would almost
+certainly be faster unthreaded. Use threading liberally, but keep an eye on the clock
+and verify that your changes actually improve performance.
+The fact that each thread creation and destruction has some overhead also gives us a
+rule of thumb that fewer thread creations is better than more. For example, if you
+have a loop nested inside another loop, it is typically better to parallelize the outer
+loop rather than the inner loop.
+If you have verified that none of your threaded segments write to a shared variable,
+and all functions called are also thread-safe, then you can stop reading now. Insert
+#pragma omp  parallel for  or parallel sections  at the appropriate points, and
+enjoy your speed gains. The rest of this chapter, and in fact the majority of writing on
+threading, will be focused on strategies for modifying shared resources.
+Thread Local
+ Static variables—even those declared inside of your #pragma omp parallel region—
+are shared across all threads by default. Y ou can generate a separate private copy for
+each thread by adding a threadprivate clause to the pragma. For example,
+static int state;
+#pragma omp parallel for threadprivate(state)
+298 | Chapter 12: Parallel Threads
+
+for (int i=0; i< 100; i++)
+    …
+With some commonsense caveats, the system retains your set of threadprivate vari‐
+ables, so if static_x was 2.7 in thread 4 at the end of one parallel region, it will still
+be 2.7 in thread 4 at the start of the next parallel region with four threads (OpenMP
+§2.14.2). There is always a master thread running; outside of the parallel region, the
+master thread retains its copy of the static variable.
+C’s _Thread_local keyword splits off static variables in a similar manner. In C, a
+thread-local static variable’s “lifetime is the entire execution of the thread for which it
+is created, and its stored value is initialized when the thread is started” [C11
+§6.2.4(4)]. If we read thread 4 in one parallel region to be the same thread as thread 4
+in another parallel region, then this behavior is identical to the OpenMP behavior; if
+they are read to be separate threads, then the C standard specifies that thread-local
+storage is re-initialized at every parallel region.
+There is still a master thread that exists outside of any parallel regions [it’s not stated
+explicitly, but C11 §5.1.2.4(1) implies this], so a thread-private static variable in the
+master thread looks a lot like a traditional lifetime-of-the-program static variable.
+gcc and clang offer the __thread keyword, which was a gcc extension before the
+standard added the _Thread_local keyword. Within a function, you can use either
+of:
+static __thread int i;      //GCC/clang-specific; works today.
+// or
+static _Thread_local int i; //C11, when your compiler implements it.
+Outside a function, the static keyword is optional, because it is the default. The
+standard requires a threads.h header that defines thread_local as an alias for
+_Thread_local, much like stdbool.h defines bool as an alias for _Bool.
+Y ou can check for which to use via a block of preprocessor conditions, like this one,
+which sets the string threadlocal to the right thing for the given situation.
+#undef threadlocal
+#if __STDC_VERSION__ > 201100L
+    #define threadlocal _Thread_local
+#elif defined(__APPLE__)
+    #define threadlocal             //as of this writing, not yet implemented.
+#elif (defined(__GNUC__) || defined(__clang__)) && !defined(threadlocal)
+    #define threadlocal __thread
+#else
+    #define threadlocal
+#endif
+Thread Local | 299
+
+Localizing Nonstatic Variables
+If a variable is to be split into private copies across all threads, we have to establish
+how the variable is to be initialized in each thread, and what is to be done with it on
+exit from the threaded region. The threadprivate() clause instructs OpenMP to ini‐
+tialize the static variable using the inital value of the variable, and to hold on to the
+copies on exit from the threaded region for reuse next time the region is entered.
+Y ou already saw another such clause: the reduction(+:var) clause tells OpenMP to
+initialize each thread’s copy with 0 (or 1 for multiplication), let each thread do its
+internal additions and subtractions, and then on exit add all the private copies to the
+original value of var.
+Nonstatic variables declared outside the parallel region are shared by default. Y ou can
+make private copies of localvar available to each thread by adding a firstpri
+vate(localvar) clause to your #pragma omp parallel line. A copy is made for each
+thread, and initialized with the value of the variable at the start of the thread. At the
+end they are all destroyed, and the original variable is untouched. Add lastpri
+vate(localvar) to copy the final value of the variable in the last thread (the one with
+the highest index in a for loop, or the last in a list of sections) back to the outside-
+the-region variable. It is not uncommon to have the same variable in both the first
+private and lastprivate clauses.
+Shared Resources
+To this point, I’ve stressed the value of using private variables and presented a means
+of multiplexing a single static variable into a set of thread-local private variables. But
+sometimes, a resource really does need to be shared, and the critical region is the sim‐
+plest means of protecting it. It marks a segment of code that should only be executed
+by a single thread at a time. As with most other OpenMP constructs, it operates on
+the subsequent block:
+#pragma omp critical (a_private_block)
+{
+    //interesting code here.
+}
+We are guaranteed that this block will be entered by only one thread at a time. If
+another thread gets to this point when there is already a thread in the critical region,
+then the recently arrived thread waits at the head of the region until the thread cur‐
+rently executing the critical region exits the region.
+This is called blocking, and a blocked thread is inactive for some period of time. This
+is time-inefficient, but it is far better to have inefficient code than incorrect code.
+300 | Chapter 12: Parallel Threads
+
+The (a_private_block), with the parens, is a name that allows you to link together
+critical regions, such as to protect a single resource used at different points in the
+code. If you do not want a structure to be read while another thread is writing to the
+structure, you could use this form:
+#pragma omp critical (delicate_struct_region)
+{
+    delicate_struct_update(ds);
+}
+[other code here]
+#pragma omp critical (delicate_struct_region)
+{
+    delicate_struct_read(ds);
+}
+We are guaranteed that there will be at most one thread in the overall critical region
+that is the sum of the two segments, and so there will never be a call to deli
+cate_struct_update simultaneous to delicate_struct_read. The intermediate
+code will thread as usual.
+The name is technically optional, but all unnamed critical regions
+are treated as part of the same group. This is a common form for
+short programs (like sample code you might find on the Internet)
+but probably not what you want in nontrivial code. By naming
+every critical region, you can prevent accidentally linking two seg‐
+ments together.
+Consider the problem of finding how many factors (prime and nonprime) a number
+has. For example, the number 18 is evenly divisible by six positive integers: 1, 2, 3, 6,
+9, and 18. The number 13 has two factors, 1 and 13, meaning that it is a prime num‐
+ber.
+It is easy to find prime numbers—there are 664,579 of them under 10 million. But
+there are only 446 numbers under 10 million with exactly 3 factors, 6 with exactly 7
+factors, and one with exactly 17 factors. Other patterns are easier to find: there are
+2,228,418 numbers under 10 million with exactly 8 factors.
+Example 12-4 is a program to find those factor counts, threaded via OpenMP . The
+basic story involves two arrays. The first is a 10-million-element array, factor_ct.
+Initialize it to 2 for all values larger than 1, because every number is divisible by 1 and
+itself. Then, add 1 to each array element whose index is divisible by 2 (i.e., every even
+number). Then add 1 to the array elements for indices divisible by 3, and so on, up to
+5 million (which would only add a tally to slot 10 million, if it were in the array). At
+Shared Resources | 301
+
+the end of that procedure, we know how many factors every number has. Y ou can
+insert a for loop to fprintf this array to a file if so desired.
+Then, set up another array to tally how many numbers have 1, 2, … factors. Before
+doing this, we have to find the maximum factor count, so we know how big an array
+to set up; then we can go through the factor_ct array and take the tally.
+Each step is clearly a candidate for parallelization via #pragma omp parallel for ,
+but conflicts may easily arise. The thread marking multiples of 5 and the thread
+marking multiples of 7 may both want to increment factor_ct[35] at the same time.
+To prevent a write conflict, say that we mark the line where we add 1 to the count of
+factors for item i as a critical region:
+#pragma omp critical (factor)
+factor_ct[i]++;
+These pragmas operate on the block of code immediately follow‐
+ing. Blocks are typically marked by curly braces, but if there are no
+curly braces, then one line of code is its own block.
+When one thread wants to increment factor_ct[30], it needlessly blocks the other
+thread that wants to increment factor_ct[33]. Critical regions are about certain
+blocks of code, and they make sense if some blocks are associated with one resource,
+but we are really trying to protect 10 million separate resources, which brings us to
+mutexes and atomic variables.
+Mutex is short for mutual exclusion, and it is used to block threads much like the mul‐
+tipart critical regions above. However, the mutex is a struct like any other, so we can
+have an array of 10 million of them. Locking mutex i before writing to element i, and
+releasing mutex i after the write is complete gives us an element i-specific critical
+region. In code, it would look something like this:
+omp_lock_t locks[1e7];
+for (long int i=0; i< lock_ct; i++)
+    omp_init_lock(&locks[i]);
+#pragma omp parallel for
+for (long int scale=2; scale*i < max; scale++) {
+        omp_set_lock(&locks[scale*i]);
+        factor_ct[scale*i]++;
+        omp_unset_lock(&locks[scale*i]);
+    }
+The omp_set_lock function is really a wait-and-set function: if the mutex is
+unlocked, then lock it and continue; if the mutex is already locked, block the thread
+302 | Chapter 12: Parallel Threads
+
+and wait, then continue when the thread that has the lock reaches omp_unset_lock
+and gives the all-clear.
+As desired, we have effectively generated 10 million distinct critical regions. The only
+problem is that the mutex struct itself takes up space, and allocating 10 million of
+them may be more work than the basic math itself. The solution I present in the code
+is to use only 128 mutexes and lock mutex i % 128 . That means any two threads
+working with two different numbers have about a 1-in-128 chance of needlessly
+blocking each other. That’s not terrible, and on my test boxes is a major speedup from
+allocating and using 10 million mutexes.
+Pragmas are baked into a compiler that understands them, but mutexes are plain C
+structs, so this example needs to #include <omp.h> to get their definition.
+Example 12-4 presents the code; the part about finding the largest number of factors
+is in a separate listing below.
+Example 12-4. Generate an array of factor tallies, find the largest element in that array,
+then tally how many numbers have 1, 2, … factors. (openmp_atoms.c)
+#include <omp.h>
+#include <stdio.h>
+#include <stdlib.h> //malloc
+#include <string.h> //memset
+#include "openmp_getmax.c"                                    
+int main(){
+    long int max = 1e7;
+    int *factor_ct = malloc(sizeof(int)*max);
+    int lock_ct = 128;
+    omp_lock_t locks[lock_ct];
+    for (long int i=0; i< lock_ct; i++) 
+        omp_init_lock(&locks[i]);
+    factor_ct[0] = 0;                                         
+    factor_ct[1] = 1;
+    for (long int i=2; i< max; i++)
+        factor_ct[i] = 2;
+    #pragma omp parallel for
+    for (long int i=2; i<= max/2; i++)
+        for (long int scale=2; scale*i < max; scale++) {
+                omp_set_lock(&locks[scale*i % lock_ct]);      
+                factor_ct[scale*i]++;
+                omp_unset_lock(&locks[scale*i % lock_ct]);    
+            }
+    int max_factors = get_max(factor_ct, max);
+Shared Resources | 303
+
+    long int tally[max_factors+1];
+    memset(tally, 0, sizeof(long int)*(max_factors+1));
+    #pragma omp parallel for
+    for (long int i=0; i< max; i++){
+        int factors = factor_ct[i];
+        omp_set_lock(&locks[factors % lock_ct]);              
+        tally[factors]++;
+        omp_unset_lock(&locks[factors % lock_ct]);
+    }
+    for (int i=0; i<=max_factors; i++) 
+        printf("%i\t%li\n", i, tally[i]);
+}
+See next listing.
+Initialize. Define 0 and 1 as nonprime.
+Lock the mutex just before reading or writing a variable that will be modified.
+Unlock the mutex just after reading or writing a variable that will be modified.
+I am recycling the set of mutexes to save an initalization step, but this is a distinct
+mutex use from the one above.
+Example 12-5 finds the maximum value within the factor_ct list. Because OpenMP
+doesn’t provide a max reduction, we have to maintain an array of maxes and then find
+the max among those. The array is omp_get_max_threads() long. A thread can use
+omp_get_thread_num() to find its own index.
+Example 12-5. Parallelized search for the maximum element in an array
+(openmp_getmax.c)
+int get_max(int *array, long int max){
+    int thread_ct = omp_get_max_threads();
+    int maxes[thread_ct];
+    memset(maxes, 0, sizeof(int)*thread_ct);
+    #pragma omp parallel for
+    for (long int i=0; i< max; i++){
+        int this_thread = omp_get_thread_num();
+        if (array[i] > maxes[this_thread])
+            maxes[this_thread] = array[i];
+    }
+    int global_max=0;
+    for (int i=0; i< thread_ct; i++)
+        if (maxes[i] > global_max)
+304 | Chapter 12: Parallel Threads
+
+
+2 By the way, the C standard dictates that C atoms have infinite half-life: “ Atomic variables shall not decay” [C11
+7.17.3(13), footnote].
+            global_max = maxes[i];
+    return global_max;
+}
+In the examples here, each mutex wraps a single block of code, but as with the pair of
+critical regions above, you could use one mutex to protect a resource at several points
+in a code base.
+omp_set_lock(&delicate_lock);
+delicate_struct_update(ds);
+omp_unset_lock(&delicate_lock);
+[other code here]
+omp_set_lock(&delicate_lock);
+delicate_struct_read(ds);
+omp_unset_lock(&delicate_lock);
+Atoms
+An atom is a small, indivisible element. 2 Atomic operations often work via features of
+the processor, and OpenMP limits them to acting on scalars: almost always an integer
+or floating-point number, or sometimes a pointer (i.e., a memory address). C will
+provide atomic structs, but even then you will typically need to use a mutex to protect
+the struct.
+However, the case of simple operations on a scalar is a common one, and in that case
+we can dispense with mutexes and use atomic operations to effectively put an implicit
+mutex around every use of a variable.
+Y ou’ll have to use a pragma that tells OpenMP what you want to do with your atom:
+#pragma omp atomic read
+out = atom;
+#pragma omp atomic write seq_cst
+atom = out;
+#pragma omp atomic update seq_cst 
+atom ++;      //or atom--
+#pragma omp atomic update
+//or any binary operation: atom *= x, atom /=x, ...
+atom -= x;
+#pragma omp atomic capture seq_cst
+Shared Resources | 305
+
+//an update-then-read
+out = atom *= 2;
+The seq_cst is optional but recommended (if your compiler supports it); I’ll get to it
+in a moment.
+From there, it is up to the compiler to build the right instructions to make sure that a
+read from an atom in one part of the code is unaffected by a write to an atom in
+another part of the code.
+In the case of the factor-counter, all the resources protected by mutexes are scalars, so
+we didn’t need to use mutexes. Atoms make Example 12-6 shorter and more readable
+than the mutex version in Example 12-4.
+Example 12-6. Replacing mutexes with atoms (atomic_factors.c)
+#include <omp.h>
+#include <stdio.h>
+#include <stdlib.h> //malloc
+#include <string.h> //memset
+#include "openmp_getmax.c"
+int main(){
+    long int max = 1e7;
+    int *factor_ct = malloc(sizeof(int)*max);
+    factor_ct[0] = 0;
+    factor_ct[1] = 1;
+    for (long int i=2; i< max; i++)
+        factor_ct[i] = 2;
+    #pragma omp parallel for
+    for (long int i=2; i<= max/2; i++)
+        for (long int scale=2; scale*i < max; scale++) {
+                #pragma omp atomic update
+                factor_ct[scale*i]++;
+            }
+    int max_factors = get_max_factors(factor_ct, max);
+    long int tally[max_factors+1];
+    memset(tally, 0, sizeof(long int)*(max_factors+1));
+    #pragma omp parallel for
+    for (long int i=0; i< max; i++){
+        #pragma omp atomic update
+        tally[factor_ct[i]]++;
+    }
+    for (int i=0; i<=max_factors; i++) 
+306 | Chapter 12: Parallel Threads
+
+        printf("%i\t%li\n", i, tally[i]);
+}
+Sequential consistency
+A good compiler will reorder the sequence of operations in a manner that is mathe‐
+matically equivalent to the code you wrote, but that runs faster. If a variable is initial‐
+ized on line 10 but first used on line 20, maybe it’s faster to do an initialize-and-use on
+line 20 than to execute two separate steps. Here is a two-threaded example, taken
+from C11 §7.17.3(15) and reduced to more readable pseudocode:
+x = y = 0;
+// Thread 1:
+r1 = load(y);
+store(x, r1);
+// Thread 2:
+r2 = load(x);
+store(y, 42);
+Reading the page, it seems like r2 can’t be 42, because 42 is stored in y on the line
+subsequent to the one where r2 is assigned. If thread 1 executed entirely before thread
+2, between the two lines of thread 2, or entirely afterward, then r2 can’t be 42. But the
+compiler could swap the two lines of thread 2, because one line is about r2 and x, and
+the other is about y, so there is no dependency that requires one to happen before the
+other. So this sequence is valid:
+x = y = 0;
+store(y, 42);  //thread 2
+r1 = load(y);  //thread 1
+store(x, r1);  //thread 1
+r2 = load(x);  //thread 2
+Now all of y, x, r1, and r2 are 42.
+The C standard goes on with even more perverse cases, even commenting that one of
+them “is not useful behavior, and implementations should not allow it. ”
+So that’s what the seq_cst clause is about: it tells the compiler that atomic operations
+in a given thread should occur in the order listed in the code file. It was added in
+OpenMP 4.0, to take advantage of C’s sequentially consistent atoms, and your com‐
+piler may not support it yet. In the meantime, keep an eye out for the sort of subtle‐
+ties that could happen when the compiler shuffles your within-a-thread independent
+lines of code.
+Shared Resources | 307
+
+Pthreads
+Now let’s translate the above example to use pthreads. We have similar elements: a
+means of dispersing threads and gathering them, and mutexes. Pthreads don’t give
+you atomic variables, but plain C does; see below.
+The big difference in the code is that the pthread_create function to set a new
+thread running takes in (among other elements) a single function of the form void
+*fn(void *in), and because that function takes in one void pointer, we have to write
+a function-specific struct to take in the data. The function also returns another struct,
+though if you are defining an ad hoc typedef for a function, it is usually easier to
+include output elements in the typedef for the input struct than to typedef a special
+input struct and a special output struct.
+Before presenting the full example, let me cut out one of the key sections (meaning
+some variables will be undefined for now):
+tally_s thread_info[thread_ct];
+for (int i=0; i< thread_ct; i++){
+    thread_info[i] = (tally_s){.this_thread=i, .thread_ct=thread_ct,
+                               .tally=tally, .max=max, .factor_ct=factor_ct, 
+                               .mutexes=mutexes, .mutex_ct=mutex_ct};
+    pthread_create(&threads[i], NULL, add_tally, &thread_info[i]);
+}
+for (int t=0; t< thread_ct; t++)
+    pthread_join(threads[t], NULL);
+The first for loop generates a fixed number of threads (so it is hard to have pthreads
+dynamically generate a thread count appropriate to different situations). It first sets
+up the needed struct, and then it calls pthread_create to call the add_tally func‐
+tion, sending in the purpose-built struct. At the end of that loop, there are thread_ct
+threads at work.
+The next for loop is the gather step. The pthread_join function blocks until the
+given thread has concluded its work. Thus, we can’t go past this for loop until all
+threads are done, at which point the program is back to the single main thread.
+OpenMP mutexes and pthread mutexes behave very much alike. In the limited exam‐
+ples here, changing to pthread mutexes is merely a question of changing names.
+Example 12-7 shows the program rewritten with pthreads. Breaking each subroutine
+into a separate thread, defining a function-specific struct, and the disperse-and-
+gather routines add a lot of lines of code (and I’m still recycling the OpenMP get_max
+function).
+308 | Chapter 12: Parallel Threads
+
+Example 12-7. The factors example via pthreads (pthread_factors.c)
+#include <omp.h>    //get_max is still OpenMP
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h> //malloc
+#include <string.h> //memset
+#include "openmp_getmax.c"
+typedef struct {
+    long int *tally;
+    int *factor_ct;
+    int max, thread_ct, this_thread, mutex_ct;
+    pthread_mutex_t *mutexes;
+} tally_s;
+void *add_tally(void *vin){
+    tally_s *in = vin;                                                 
+    for (long int i=in->this_thread; i < in->max; i += in->thread_ct){
+        int factors = in->factor_ct[i];
+        pthread_mutex_lock(&in->mutexes[factors % in->mutex_ct]);      
+        in->tally[factors]++;
+        pthread_mutex_unlock(&in->mutexes[factors % in->mutex_ct]);
+    }
+    return NULL;
+}
+typedef struct {
+    long int i, max, mutex_ct;
+    int *factor_ct;
+    pthread_mutex_t *mutexes ;
+} one_factor_s;
+void *mark_factors(void *vin){
+    one_factor_s *in = vin;
+    long int si = 2*in->i;
+    for (long int scale=2; si < in->max; scale++, si=scale*in->i) {
+        pthread_mutex_lock(&in->mutexes[si % in->mutex_ct]);
+        in->factor_ct[si]++;
+        pthread_mutex_unlock(&in->mutexes[si % in->mutex_ct]);
+    }
+    return NULL;
+}
+int main(){
+    long int max = 1e7;
+    int *factor_ct = malloc(sizeof(int)*max);
+    int thread_ct = 4, mutex_ct = 128;
+    pthread_t threads[thread_ct];
+    pthread_mutex_t mutexes[mutex_ct];
+Pthreads | 309
+
+    for (long int i=0; i< mutex_ct; i++) 
+        pthread_mutex_init(&mutexes[i], NULL);
+    factor_ct[0] = 0;
+    factor_ct[1] = 1;
+    for (long int i=2; i< max; i++)
+        factor_ct[i] = 2;
+    one_factor_s x[thread_ct];
+    for (long int i=2; i<= max/2; i+=thread_ct){
+        for (int t=0; t < thread_ct && t+i <= max/2; t++){//extra threads do no harm.
+            x[t] = (one_factor_s){.i=i+t, .max=max, 
+                            .factor_ct=factor_ct, .mutexes=mutexes, .mutex_ct=mutex_ct};
+            pthread_create(&threads[t], NULL, mark_factors, &x[t]);    
+        }
+        for (int t=0; t< thread_ct; t++)
+            pthread_join(threads[t], NULL);                            
+    }
+    FILE *o=fopen("xpt", "w");
+    for (long int i=0; i < max; i ++){
+        int factors = factor_ct[i];
+        fprintf(o, "%i %li\n", factors, i);
+    }
+    fclose(o);
+    int max_factors = get_max(factor_ct, max);
+    long int tally[max_factors+1];
+    memset(tally, 0, sizeof(long int)*(max_factors+1));
+    tally_s thread_info[thread_ct];
+    for (int i=0; i< thread_ct; i++){
+        thread_info[i] = (tally_s){.this_thread=i, .thread_ct=thread_ct,
+                                   .tally=tally, .max=max, .factor_ct=factor_ct, 
+                                   .mutexes=mutexes, .mutex_ct=mutex_ct};
+        pthread_create(&threads[i], NULL, add_tally, &thread_info[i]);
+    }
+    for (int t=0; t< thread_ct; t++)
+        pthread_join(threads[t], NULL);
+    for (int i=0; i<=max_factors; i++) 
+        printf("%i\t%li\n", i, tally[i]);
+}
+In addition to being required for the pthread_create form, the throwaway type‐
+def, tally_s, adds safety. I still have to be careful to write the inputs and outputs
+to the pthread system correctly, but the internals of the struct get type-checked,
+both in main and here in the wrapper function. Next week, when I change tally
+to an array of plain ints, the compiler will warn me if I don’t do the change cor‐
+rectly.
+310 | Chapter 12: Parallel Threads
+
+
+Pthread mutexes and OpenMP mutexes look a lot alike.
+Here is the thread-creation step. An array of thread info pointers was declared
+just before the loop. Then, the loop fills the next thread info pointer, creates a
+new thread with pthread_create, and sends the just-filled thread info pointer to
+the function the new thread will run. The second argument controls some
+threading attributes which this intro-level chapter doesn’t cover.
+This second loop gathers outputs. The second argument to pthread_join is an
+address where we could write the output from the threaded function ( mark_fac
+tors).
+The curly brace at the end of a for loop ends the scope, so any
+locally declared variables are tossed out. Normally, we don’t get to
+the end of scope until all called functions have returned, but the
+entire point of pthread_create is that the main function continues
+while the thread runs. Thus, this code fails:
+for (int i=0; i< 10; i++){
+    tally_s thread_info = {...};
+    pthread_create(&threads[i], 
+        NULL, add_tally, &thread_info);
+}
+because what is at &thread_info will be thrown out by the time
+add_tally gets around to putting it to use. Moving the declaration
+outside the loop:
+tally_s thread_info;
+for (int i=0; i< 10; i++){
+    thread_info = (tally_s) {...};
+    pthread_create(&threads[i], 
+        NULL, add_tally, &thread_info);
+}
+also doesn’t work, because what is stored at thread_info changes
+on the second iteration of the loop, even while the first iteration is
+looking at that location. Thus, the example sets up an array of func‐
+tion inputs, which guarantees that one thread’s info will persist and
+not be changed while the next thread is being set up.
+What does pthreads give us for all that extra work? There are more options. For
+example, the pthread_rwlock_t is a mutex that blocks reads or writes if any thread is
+writing to the thread, but does not block multiple simultaneous reads. The
+pthread_cont_t is a semaphore that can be used to block and unblock multiple
+threads at once on a signal, and could be used to implement read-write locks or gen‐
+eral mutexes. But with great power comes great ways to screw things up. It is easy to
+Pthreads | 311
+
+
+write fine-tuned pthreaded code that runs better than OpenMP on the test computer
+and is all wrong for next year’s computer.
+The OpenMP spec makes no mention of pthreads, and the POSIX spec makes no
+mention of OpenMP , so there is no pseudolegal document that requires the meaning
+of thread used by OpenMP to match the meaning of thread in POSIX. However, the
+authors of your compiler had to find some means of implementing OpenMP , POSIX
+or Windows, and C thread libraries, and they were working too hard by far if they
+developed distinct threading procedures for each specification. Further, your com‐
+puter’s processor does not have pthread cores and separate OpenMP cores: it has one
+set of machine instructions to control threads, and it is up to the compiler to reduce
+the syntax of all the standards and specifications into that single set of instructions.
+Therefore, it is not unreasonable to mix and match, generating threads via an easy
+OpenMP #pragma and using pthread mutexes or C atoms to protect resources, or
+starting with OpenMP and then adopting one segment to pthreads as needed.
+C atoms
+The C standard includes two headers, stdatomic.h and threads.h, which specify func‐
+tions and types for atomic variables and threads. Here, I will give an example with
+pthreads to do the threading and C atoms to protect the variables.
+There are two reasons why I’m not using C threads. First, I only put sample programs
+in this book after testing them, and as of this writing, I couldn’t get a compiler/stan‐
+dard library pair that implements threads.h. This is understandable, because of the
+second reason: C threads are modeled on C++ threads, which are modeled on a least-
+common-denominator between Windows and POSIX threads, and so C threads are
+largely a relabeling without the addition of many especially exciting features. C atoms
+do bring new things to the table, though.
+Given a type my_type, be it a struct, a scalar, or whatever, declare it to be atomic via:
+_Atomic(my_type) x
+In the next round or two of compiler releases,
+_Atomic my_type x
+will work. This form makes it clearer that _Atomic is a type qualifier, like const. For
+the integer types defined in the standard, you can reduce this to atomic_int x ,
+atomic_bool x, et cetera.
+Simply declaring the variable as atomic gives you a few things for free: x++, --x, x *=
+y, and other simple binary operation/assignment steps work in a thread-safe manner
+[C11 §6.5.2.4(2) and §6.5.16.2(3)]. These operations, and all the thread-safe opera‐
+tions below, are all seq_cst, as discussed in the context of the OpenMP atoms in
+312 | Chapter 12: Parallel Threads
+
+“Sequential consistency” on page 307 (in fact, a note in OpenMP v4.0 §2.12.6 says
+that OpenMP atoms and C11 atoms should have similar behavior). However, other
+operations will have to happen via atom-specific functions:
+• Initialize with atomic_init(&your_var, starting_val), which sets the starting
+value “while also initializing any additional state that the implementation might
+need to carry for the atomic object” [C11 §7.17.2.2(2)]. This is not thread-safe, so
+do it before you disperse new threads, or wrap it in a mutex or critical region.
+There is also the ATOMIC_VAR_INIT macro that can be used on a declaration line
+to the same effect, so you can use either:
+_Atomic int i = ATOMIC_VAR_INIT(12);
+//or
+_Atomic int x;
+atomic_init(&x, 12);
+• Use atomic_store(&your_var, x) to assign x to your_var thread-safely.
+• Use x = atomic_load(&your_var) to thread-safely read the value of your_var
+and assign it to x.
+• Use x = atomic_exchange(&your_var, y) to write y to your_var and copy the
+previous value to x.
+• Use x = atomic_fetch_add(&your_var, 7) to add 7 to your_var and set x to the
+preaddition value; atomic_fetch_sub subtracts (but there is no
+atomic_fetch_mul or atomic_fetch_div).
+There is a lot more to atomic variables, partly because the C committee is hoping that
+future implementations of threading libraries will use these atomic variables to pro‐
+duce mutexes and other such constructs within standard C. Because I assume that
+you are not designing your own mutexes, I won’t cover those facilities (such as the
+atomic_compare_exchange_weak and _strong functions, which implement compare-
+and-swap operations).
+Example 12-8 shows the example rewritten with atomic variables. I use pthreads for
+the threading, so it is still verbose, but the verbiage about mutexes is eliminated.
+Example 12-8. The factors example via C atomic variables (c_factors.c)
+#include <pthread.h>
+#include <stdatomic.h>
+#include <stdlib.h> //malloc
+#include <string.h> //memset
+#include <stdio.h>
+int get_max_factors(_Atomic(int) *factor_ct, long int max){
+    //single-threading to save verbiage.
+C atoms | 313
+
+    int global_max=0;
+    for (long int i=0; i< max; i++){
+        if (factor_ct[i] > global_max)
+            global_max = factor_ct[i];
+    }
+    return global_max;
+}
+typedef struct {
+    _Atomic(long int) *tally;
+    _Atomic(int) *factor_ct;
+    int max, thread_ct, this_thread;
+} tally_s;
+void *add_tally(void *vin){
+    tally_s *in = vin;
+    for (long int i=in->this_thread; i < in->max; i += in->thread_ct){
+        int factors = in->factor_ct[i];
+        in->tally[factors]++;                                      
+    }
+    return NULL;
+}
+typedef struct {
+    long int i, max;
+    _Atomic(int) *factor_ct;
+} one_factor_s;
+void *mark_factors(void *vin){
+    one_factor_s *in = vin;
+    long int si = 2*in->i;
+    for (long int scale=2; si < in->max; scale++, si=scale*in->i) {
+        in->factor_ct[si]++;
+    }
+    return NULL;
+}
+int main(){
+    long int max = 1e7;
+    _Atomic(int) *factor_ct = malloc(sizeof(_Atomic(int))*max);    
+    int thread_ct = 4;
+    pthread_t threads[thread_ct];
+    atomic_init(factor_ct, 0);
+    atomic_init(factor_ct+1, 1);
+    for (long int i=2; i< max; i++)
+        atomic_init(factor_ct+i, 2);
+    one_factor_s x[thread_ct];
+    for (long int i=2; i<= max/2; i+=thread_ct){
+        for (int t=0; t < thread_ct && t+i <= max/2; t++){
+314 | Chapter 12: Parallel Threads
+
+            x[t] = (one_factor_s){.i=i+t, .max=max, 
+                            .factor_ct=factor_ct};
+            pthread_create(&threads[t], NULL, mark_factors, x+t);
+        }
+        for (int t=0; t< thread_ct && t+i <=max/2; t++)
+            pthread_join(threads[t], NULL);
+    }
+    int max_factors = get_max_factors(factor_ct, max);
+    _Atomic(long int) tally[max_factors+1];
+    memset(tally, 0, sizeof(long int)*(max_factors+1));
+    tally_s thread_info[thread_ct];
+    for (int i=0; i< thread_ct; i++){
+        thread_info[i] = (tally_s){.this_thread=i, .thread_ct=thread_ct,
+                        .tally=tally, .max=max,
+                        .factor_ct=factor_ct};
+        pthread_create(&threads[i], NULL, add_tally, thread_info+i);
+    }
+    for (int t=0; t< thread_ct; t++)
+        pthread_join(threads[t], NULL);
+    for (int i=0; i<max_factors+1; i++) 
+        printf("%i\t%li\n", i, tally[i]);
+}
+Before, we had a mutex or a #pragma omp atomic  preface protecting this line.
+Because the elements of the tally array are declared atomic, we are guaranteed
+that simple arithmetic like the increment here will be thread-safe by itself.
+The _Atomic keyword is a type qualifier, like const. But unlike with const, the
+size of an atomic int need not be the same as the size of a plain int [C11
+§6.2.5(27)].
+Atomic structs
+Structs can be atomic. However, “accessing a member of an atomic structure or union
+object results in undefined behavior” [C11 §6.5.2.3(5)] This dictates a certain proce‐
+dure for working with them:
+1. Copy the shared atomic struct to a not-atomic private struct of the same base
+type: struct_t private_struct = atomic_load(&shared_struct).
+2. Mess around with the private copy.
+3. Copy the modified private copy back to the atomic struct:
+atomic_store(&shared_struct, private_struct).
+If there are two threads that could modify the same struct, you still have no guarantee
+that your structs won’t change between the read in step 1 and the write in step 3. So
+C atoms | 315
+
+
+you will probably still need to ensure that only one thread is writing at a time, either
+by design or with mutexes. But you no longer need a mutex for reading a struct.
+Here is a dedicated prime finder. The knock-out method used in the examples to this
+point (a variant of the Sieve of Eratosthenes) has proven to be much faster for finding
+primes in my tests, but this version nicely demonstrates an atomic struct.
+I want to check that a candidate is not evenly divisible by any number less than itself.
+But if a candidate number is not divisible by 3 and not divisible by 5, then I know it is
+not divisible by 15, so I need only check whether a number is divisible by smaller
+primes. Further, there is no point checking past half of the candidate, because the
+largest possible factor is the one that satisfies 2 * factor = candidate. So, in pseudo‐
+code:
+for (candidate in 2 to a million){
+    is_prime = true
+    for (test in (the primes less than candidate/2))
+        if ((candidates/test) has no remainder)
+            is_prime = false
+}
+The only problem now is to keep that list of the primes less than candidate/2 .
+We need a size-modifiable list, which means that a realloc will be necessary. I am
+going to use a raw array with no end-marker, so I also need to keep the length. This is
+a perfect candidate for an atomic struct, because the array itself and the length must
+be kept in sync.
+In Example 12-9, prime_list is a struct to be shared across all threads. Y ou can see
+that its address is passed as a function argument a few times, but all other uses are in
+atomic_init, atomic_store, or atomic_load. The add_a_prime function is the only
+place where it is modified, and it uses the above workflow of copying to a local struct
+and working with the local. It is wrapped by a mutex, because simultaneous reallocs
+would be a disaster.
+The test_a_number function has one other notable detail: it waits until the
+prime_list has primes up to candidate/2 before proceeding, lest some factor be
+missed. It is a convenient feature of primes that this will work; you can check that this
+code won’t get into a deadlock, where every thread is waiting for every other. After
+that, the algorithm is as per the pseudocode above. Note that there are no mutexes
+anywhere in this part of the code, because it only uses atomic_load to read the struct.
+Example 12-9. Use an atomic struct to find primes (c_primes.c)
+#include <stdio.h>
+#include <stdatomic.h>
+#include <stdlib.h>  //malloc
+#include <stdbool.h>
+316 | Chapter 12: Parallel Threads
+
+#include <pthread.h>
+typedef struct {                                 
+    long int *plist;
+    long int length;
+    long int max;
+} prime_s;
+int add_a_prime(_Atomic (prime_s) *pin, long int new_prime){
+    prime_s p = atomic_load(pin);                
+    p.length++;
+    p.plist = realloc(p.plist, sizeof(long int) * p.length);
+    if (!p.plist) return 1;
+    p.plist[p.length-1] = new_prime;
+    if (new_prime > p.max) p.max = new_prime;
+    atomic_store(pin, p);
+    return 0;
+}
+typedef struct{
+    long int i;
+    _Atomic (prime_s) *prime_list;
+    pthread_mutex_t *mutex;
+} test_s;
+void* test_a_number(void *vin){
+    test_s *in = vin;
+    long int i = in->i;
+    prime_s pview;
+    do {
+        pview = atomic_load(in->prime_list);
+    } while (pview.max*2 < i);
+    bool is_prime = true;
+    for (int j=0; j < pview.length; j++)
+        if (!(i % pview.plist[j])){
+            is_prime = false;
+            break;
+        }
+    if (is_prime){
+        pthread_mutex_lock(in->mutex);           
+        int retval = add_a_prime(in->prime_list, i);
+        if (retval) {printf("Too many primes.\n"); exit(0);}
+        pthread_mutex_unlock(in->mutex);
+    }
+    return NULL;
+}
+int main(){
+    prime_s inits = {.plist=NULL, .length=0, .max=0};
+    _Atomic (prime_s) prime_list = ATOMIC_VAR_INIT(inits);
+C atoms | 317
+
+    pthread_mutex_t m;
+    pthread_mutex_init(&m, NULL);
+    int thread_ct = 3;
+    test_s ts[thread_ct];
+    pthread_t threads[thread_ct];
+    
+    add_a_prime(&prime_list, 2);
+    long int max = 1e6;
+    for (long int i=3; i< max; i+=thread_ct){
+        for (int t=0; t < thread_ct && t+i < max; t++){
+            ts[t] = (test_s) {.i = i+t, .prime_list=&prime_list, .mutex=&m};
+            pthread_create(threads+t, NULL, test_a_number,  ts+t);
+        }
+        for (int t=0; t< thread_ct && t+i <max; t++)
+            pthread_join(threads[t], NULL);
+    }
+    prime_s pview = atomic_load(&prime_list);
+    for (int j=0; j < pview.length; j++)
+        printf("%li\n", pview.plist[j]);
+}
+The list itself and the length of the list must stay consistent across reallocations,
+so we put them both in a struct and declare only atomic instances of the struct.
+This function uses the procedure of loading the atomic struct to a not-atomic
+local copy, modifying the copy, and then using atomic_store to copy back to the
+atomic version. It is not thread-safe, so it must be called by one thread at a time.
+Because add_a_prime is not thread-safe, wrap its call in a mutex.
+This chapter covered some of the many options for running code in parallel. With
+OpenMP , setting up the code to dispatch and gather threads is as easy as a single
+annotation. The hard part is tracking all the variables: every variable involved in the
+part to be threaded must be classified and handled.
+The easiest class of variables is read-only variables, followed by those that are gener‐
+ated and destroyed entirely within one thread and thus do not interact with other
+threads. This advises that we should write functions that do not modify any inputs
+(i.e., all pointers are marked as const) and do not otherwise have any side effects. We
+can run such functions in parallel without worry. In a sense, these functions have no
+concept of time or environment: given a sum function that does what it says, sum(2,
+2) always returns 4, no matter when or how often it is called and no matter what is
+going on elsewhere. In fact, there are some purely functional languages that strive to
+restrict the user to only this type of function.
+318 | Chapter 12: Parallel Threads
+
+
+State variables are variables that change over the course of a function’s evaluation.
+Once state variables are included, a function loses its timeless purity. Running a func‐
+tion to return a bank account balance today may show a large balance, but calling the
+same function in the same manner tomorrow may return a small balance. The philos‐
+ophy of the purely functional authors reduces to the simple rule that we should avoid
+state variables. But they are inevitable, because we are writing code to describe a
+world that is full of states. When reading purely functional authors, it is an amusing
+exercise to see how far they can get before they mention state. For example, Harold
+Abelson, et al.  get about a third of the way through (to page 217) before confessing
+that the world is full of stateful situations like bank account balances, pseudorandom
+number generators, and electric circuits.
+Most of this chapter has been about how to deal with state variables in a parallelized
+environment, after time forks. Y ou have several tools at your disposal to make time
+coherent again, including atomic operations, mutexes, and critical regions, which
+force the state to be updated in a sequential manner. Because they can take work to
+implement, verify, and debug, the easiest way to deal with state variables is to avoid
+them, and write as much as possible without state before writing the functions that
+deal with time and environment.
+C atoms | 319

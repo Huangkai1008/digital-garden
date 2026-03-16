@@ -1,0 +1,723 @@
+CHAPTER 7
+Inessential C Syntax that Textbooks Spend
+a Lot of Time Covering
+I believe it is good
+Let’s destroy it.
+—Porno for Pyros, “Porno for Pyros”
+C may be a relatively simple language, but the C standard is about 700 pages, so
+unless you want to devote your life to studying it, it is important to know which parts
+can be ignored.
+We can start with digraphs and trigraphs. If your keyboard is missing the { and }
+keys, you can use <% and %> as a replacement (like int main() <% … %> ). This was
+relevant in the 1990s, when keyboards around the world followed diverse customs,
+but today it is hard to find a keyboard anywhere that is missing curly braces. The tri‐
+graph equivalents from C99 and C11 §5.2.1.1(1), ??< and ??>, are so useless that the
+authors of gcc and clang didn’t bother to implement code to parse them.
+Obscure corners of the language like trigraphs are easy to ignore, because nobody
+mentions them. But other parts of the language got heavy mention in textbooks from
+decades past, to address requirements in C89 or deal with limitations of computing
+hardware of the 1900s. With fewer restrictions, we can streamline our code. If you get
+joy from deleting code and eliminating redundancies, this chapter is for you.
+Don’t Bother Explicitly Returning from main
+As a warm-up, let’s shave a line off every program you write.
+Y our program must have a main function, and it has to be of return type int, so you
+must absolutely have the following in your program:
+141
+
+1 By the way, there is one other way that this snippet shaves four keystrokes from the old requirements. In what
+even K& R 2nd ed. called “old style” declarations, having nothing inside the parens, like int main(), indicated
+no information about parameters, not definite information that there are zero parameters. Under the old
+rules, we would need int main(void) to be clear that main is taking no arguments. But since 1999, “ An empty
+list in a function declarator that is part of a definition of that function specifies that the function has no
+parameters” [C99 §6.7.5.3(14) and C11 §6.7.6.3(14)].
+int main(){ ... }
+Y ou would think that you therefore have to have a return statement that indicates
+what integer gets returned by main. However, the C standard states that “ … reaching
+the } that terminates the main function returns a value of 0” [C99 and C11
+§5.1.2.2(3)]. That is, if you don’t write return 0; as the last line of your main func‐
+tion, then it will be assumed.
+Recall that, after running your program, you can use echo $? to see its return value;
+you can use this to verify that programs that reach the end of main do indeed always
+return zero.
+Earlier, I showed you this version of hello.c, and you can now see how I got away with
+a main containing only one #include plus one line of code:1
+#include <stdio.h>
+int main(){ printf("Hello, world.\n"); }
+Y our Turn: Go through your programs and delete the return 0 line from the end of
+main; see if it makes any difference.
+Let Declarations Flow
+Think back to the last time you read a play. At the beginning of the text, there was the
+Dramatis Personæ , listing the characters. A list of character names probably didn’t
+have much meaning to you before you started reading, so if you’re like me you skip‐
+ped that page and went straight to the start of the play. When you are in the thick of
+the plot and you forget who Benvolio is, it’s nice to be able to flip back to the head of
+the play and get a one-line description (he is Romeo’s friend and Montague’s
+nephew), but that’s because you’re reading on paper. If the text were on a screen, you
+could search for Benvolio’s first appearance.
+In short, the Dramatis Personæ  is not very useful to readers. It would be better to
+introduce characters when they first appear.
+I see code like this pretty often:
+142 | Chapter 7: Inessential C Syntax that Textbooks Spend a Lot of Time Covering
+
+#include <stdio.h>
+int main(){
+    char *head;
+    int i;
+    double ratio, denom;
+    denom=7;
+    head = "There is a cycle to things divided by seven.";
+    printf("%s\n", head);
+    for (i=1; i<= 6; i++){
+        ratio = i/denom;
+        printf("%g\n", ratio);
+    }
+}
+It has three or four lines of introductory material (I’ll let you decide how to count the
+whitespace), followed by the routine.
+This is a throwback to ANSI C89, which required all declarations to be at the head of
+the block, due to technical limitations of early compilers. We still have to declare our
+variables, but we can minimize the burden on the author and reader by doing so at
+the first use:
+#include <stdio.h>
+int main(){
+    double denom = 7;
+    char *head = "There is a cycle to things divided by seven.";
+    printf("%s\n", head);
+    for (int i=1; i<= 6; i++){
+        double ratio = i/denom;
+        printf("%g\n", ratio);
+    }
+}
+Here, the declarations happen as needed, so the onus of declaration reduces to stick‐
+ing a type name before the first use. If you have color syntax highlighting, then the
+declarations are still easy to spot (and if you don’t have a text editor that supports
+color, you are seriously missing out—and there are dozens to hundreds to choose
+from!).
+When reading unfamiliar code, my first instinct when I see a variable is to go back
+and see where it was declared. If the declaration is at the first use or the line immedi‐
+ately before the first use, I’m saved from a few seconds of skimming back. Also, by the
+rule that you should keep the scope of a variable as small as possible, we’re pushing
+the active variable count on earlier lines that much lower, which might start to matter
+for a longer function. And, as a final benefit, the decaration-in-loop form will prove
+to be easier to parallelize with OpenMP , in Chapter 12.
+Let Declarations Flow | 143
+
+In this example, the declarations are at the beginning of their respective blocks, fol‐
+lowed by nondeclaration lines. This is just how the example turned out, but you can
+freely intermix declarations and nondeclarations.
+I left the declaration of denom at the head of the function, but we could move that into
+the loop as well, because it is only used inside the loop. We can trust that the compiler
+will know enough not to waste time and energy deallocating and reallocating the
+variable on every iteration of the loop [although this is what it theoretically does—see
+C99 and C11 §6.8(3)]. As for the index, it’s a disposable convenience for the loop, so
+it’s natural to reduce its scope to exactly the scope of the loop.
+Will This New Syntax Slow Down My Program?
+No.
+The compiler’s first step is to parse your code into a language-independent internal
+representation. This is how the gcc (GNU Compiler Collection) can produce compat‐
+ible object files for C, C++, ADA, and FORTRAN—by the end of the parsing step,
+they all look the same. Therefore, the grammatical conveniences provided by C99 to
+make your text more human-readable are typically abstracted away well before the
+executable is produced.
+Along the same lines, the target device that will run your program will see nothing
+but postcompilation machine instructions, so it will be indifferent as to whether the
+original code conformed to C89, C99, or C11.
+Set Array Size at Runtime
+Dovetailing with putting declarations wherever you want, you can allocate arrays to
+have a length determined at runtime, based on calculations before the declarations.
+Again, this wasn’t always true: a quarter-century ago, you either had to know the size
+of the array at compile time or use malloc.
+To take a real-world example I happened upon once, let’s say that you’ d like to create a
+set of threads, but the number of threads is set by the user on the command line. The
+author did this by getting the size of the array from the user via atoi(argv[1]) (i.e.,
+convert the first command-line argument to an integer), and then, having established
+that number at runtime, allocating an array of the right length.
+pthread_t *threads;
+int thread_count;
+thread_count = atoi(argv[1]);
+threads = malloc(thread_count * sizeof(pthread_t));
+...
+144 | Chapter 7: Inessential C Syntax that Textbooks Spend a Lot of Time Covering
+
+2 The C99 standard required conforming compilers to accept variable-length arrays (VLAs). The C11 standard
+took a step back and made it optional. Personally, I found this move to be out of character for the standards
+committee, which is normally meticulous about making sure that all existing code (even trigraphs!) will con‐
+tinue to compile into the future.
+Because VLAs are an optional part of the standard, we have to ask whether they are reliable. Compiler authors
+gain market share by writing compilers that work for as much existing code as possible, so it is not surprising
+that every major compiler that makes a serious effort to comply to the C11 standard does allow VLAs. Even if
+you are writing for an Arduino microcontroller (which is not a traditional stack-and-heap system), you will
+be using AVR-gcc, a variant of gcc that still handles VLAs. I consider code using VLAs to be reliable across a
+diverse range of platforms, and expect it to continue to be reliable in the future.
+Readers who wish to prepare for a standards-compliant compiler that opts out of supporting VLAs can use a
+feature test macro to check whether VLAs can be used; see “Test Macros” on page 170 .
+free(threads);
+But we can write this with less fuss:
+int thread_count = atoi(argv[1]);
+pthread_t threads[thread_count];
+...
+There are fewer places for anything to go wrong, and it reads like declaring an array,
+not initializing memory registers. We had to free the manually allocated array, but
+we can just drop the automatically allocated array on the floor, and it’ll get cleaned up
+when the program leaves the given scope.2
+Cast Less
+In the 1970s and 1980s, malloc returned a char* pointer and had to be cast (unless
+you were allocating a string), with a form like:
+//don't bother with this sort of redundancy:
+double* list = (double*) malloc(list_length * sizeof(double));
+Y ou don’t have to do this anymore, because malloc now gives you a void pointer,
+which the compiler will comfortably autocast to any pointer type. The easiest way to
+do the cast is to declare a new variable with the right type. For example, functions that
+have to take in a void pointer will typically begin with a form like:
+int use_parameters(void *params_in){
+    param_struct *params = params_in;   //Effectively casting pointer-to-NULL
+    ...                                 //to a pointer-to-param_struct. 
+}
+More generally, if it’s valid to assign an item of one type to an item of another type,
+then C will do it for you without your having to tell it to with an explicit cast. If it’s
+not valid for the given type, then you’ll have to write a function to do the conversion
+Cast Less | 145
+
+anyway. This isn’t true of C++, which depends more on types and therefore requires
+casts to be explicit.
+There remain two reasons to use C’s type-casting syntax to cast a variable from one
+type to another.
+First, when dividing two numbers, an integer divided by an integer will always return
+an integer, so the following statements will both be true:
+4/2 == 2
+3/2 == 1
+That second is the source of lots of errors. It’s easy to fix: if i is an integer, then i +
+0.0 is a floating-point number that matches the integer. Don’t forget parentheses as
+needed, but that solves your problem. If you have a constant, 2 is an integer and 2.0
+or even just 2. is floating point. Thus, all of these variants work:
+int two=2;
+3/(two+0.0) == 1.5
+3/(2+0.0) == 1.5
+3/2.0 == 1.5
+3/2. == 1.5
+Y ou can also use the casting form:
+3/(double)two == 1.5
+3/(double)2 == 1.5
+I’m partial to the add-zero form, for æsthetic reasons; you’re welcome to prefer the
+cast-to-double form. But make a habit of one or the other every time you reach for
+that / key, because this is the source of many, many errors (and not just in C; lots of
+other languages also like to insist that int / int → int—not that that makes it OK).
+Second, array indices have to be integers. It’s the law [C99 and C11 §6.5.2.1(1)], and
+compilers will thus complain if you send a floating-point index. So, you may have to
+cast to an integer, even if you know that in your situation you will always have an
+integer-valued expression.
+4/(double)2 == 2.0         //This is floating-point, not an int.
+mylist[4/(double)2]        //So, an error: floating-point index
+mylist[(int)(4/(double)2)] //Works. Take care with the parens.
+int index=4/(double)2      //This form also works, and is more legible. 
+mylist[index]
+Y ou can see that even for the few legitimate reasons to cast, you have options to avoid
+the casting syntax: adding 0.0 and declaring an integer variable for your array indices.
+Nor is this just a question of reducing clutter. Y our compiler checks types for you and
+throws warnings or errors accordingly, but an explicit cast is a way of saying to the
+146 | Chapter 7: Inessential C Syntax that Textbooks Spend a Lot of Time Covering
+
+compiler, leave me alone; I know what I’m doing. For example, consider this short pro‐
+gram, which tries to set list[7]=12, but twice commits the classic error of using a
+pointer instead of the pointed-to value:
+int main(){
+    double x = 7;
+    double *xp = &x;
+    int list[100];
+    int val2 = xp;       //Clang warns about using a pointer as an int.
+    list[val2] = 12;
+    
+    list[(int)xp] = 12;  //Clang gives no warning.
+}
+ 
+Enums and Strings
+Enums are a good idea that went bad.
+The benefit is clear enough: integers are not at all mnemonic, and so wherever you
+are about to put a short list of integers in your code, you are better off naming them.
+Here’s the even worse means of how we could do it without the enum keyword:
+#define NORTH 0
+#define SOUTH 1
+#define EAST 2
+#define WEST 3
+With enum, we can shrink that down to one line of source code, and our debugger is
+more likely to know what EAST means. Here’s the improvement over the sequence of
+#defines:
+enum directions {NORTH, SOUTH, EAST, WEST};
+But we now have five new symbols in our namespaces: directions, NORTH, SOUTH,
+EAST, and WEST.
+For an enum to be useful, it typically has to be global (i.e., declared in a header file
+intended to be included in many places all over a project). For example, you’ll often
+find enums typedefed in the public header file for a library. To minimize the chance
+of name clashes, library authors use names like G_CONVERT_ERROR_NOT_ABSO
+LUTE_PATH or the relatively brief CblasConjTrans.
+At that point, an innocuous and sensible idea has fallen apart. I don’t want to type
+these messes, and I use them so infrequently that I have to look them up every time
+(especially because many are infrequently used error values or input flags, so there’s
+typically a long gap between each use). Also, all-caps reads like yelling.
+Enums and Strings | 147
+
+My own habit is to use single characters, wherein I would mark transposition with
+'t'  and a path error with 'p' . I think this is enough to be mnemonic—in fact, I’m far
+more likely to remember how to spell 'p'  than how to spell that all-caps mess—and it
+requires no new entries in the namespace.
+I think usability considerations trump efficiency issues at this level, but even so, bear
+in mind that an enumeration is typically an integer, and char is C-speak for a single
+byte. So when comparing enums, you will likely need to compare the states of 16 bits
+or more, whereas with a char, you need compare only 8. So even if the speed argu‐
+ment were relevant, it would advocate against enums.
+We sometimes need to combine flags. When opening a file using the open system call,
+you might need to send O_RDWR|O_CREAT, which is the bitwise combination of the two
+enums. Y ou probably don’t use open directly all that often; you are probably making
+more use of fopen, which is more user friendly. Instead of using an enum, it uses a
+one- or two-letter string, like "r" or "r+", to indicate whether something is readable,
+writable, both, et cetera.
+In the context, you know "r" stands for read, and if you don’t have the convention
+memorized, you can confidently expect that you will after a few more uses of fopen,
+whereas I still have to check whether I need CblasTrans or CBLASTrans or Cblas
+Transpose every time.
+On the plus side of enums, you have a small, fixed set of symbols, so if you mistype
+one, the compiler stops and forces you to fix your typo. With strings, you won’t know
+you had a typo until runtime. Conversely, strings are not a small, fixed set of symbols,
+so you can more easily extend the set of enums. For example, I once ran into an error
+handler that offers itself for use by other systems—as long as the errors the new sys‐
+tem generates match the handful of errors in the original system’s enum. If the errors
+were short strings, extension by others would be trivial.
+There are reasons for using enums: sometimes you have an array that makes no sense
+as a struct but that nonetheless requires named elements, and when doing kernel-
+level work, giving names to bit patterns is essential. But in cases where enums are
+used to indicate a short list of options or a short list of error codes, a single character
+or a short string can serve the purpose without cluttering up the namespace or users’
+memory.
+Labels, gotos, switches, and breaks
+In the olden days, assembly code didn’t have the modern luxuries of while and for
+loops. Instead, there were only conditions, labels, and jumps. Where we would write
+while (a[i] < 100) i++;, our ancestors might have written:
+148 | Chapter 7: Inessential C Syntax that Textbooks Spend a Lot of Time Covering
+
+label 1
+if a[i] >= 100
+    go to label 2
+increment i
+go to label 1
+label 2
+If it took you a minute to follow what was going on in this block, imagine reading this
+in a real-world situation, where the loop would be interspersed, nested, or half-nested
+with other jumps. I can attest from my own sad and painful experience that following
+the flow of such code is basically impossible, which is why goto is considered harmful
+in the present day (Dijkstra, 1968).
+Y ou can see how welcome C’s while keyword would have been to somebody stuck
+writing in assembly code all day. However, there is a subset of C that is still built
+around labels and jumps, including the syntax for labels, goto, switch, case,
+default, break, and continue. I personally think of this as the portion of C that is
+transitional from how authors of assembly code wrote to the more modern style. This
+segment will present these forms as such, and suggest when they are still useful. How‐
+ever, this entire subset of the language is technically optional, in the sense that you
+can write equivalent code using the rest of the language.
+goto Considered
+ A line of C code can be labeled by providing a name with a colon after it. Y ou can
+then jump to that line via goto. Example 7-1 is a simple function that presents the
+basic idea, with a line labeled outro. It finds the sum of all the elements in two arrays,
+provided they are all not NaN (Not a Number; see “Marking Exceptional Numeric
+Values with NaNs” on page 158 ). If one of the elements is NaN, this is an error and we
+need to exit the function. But however we choose to exit, we will free both vectors as
+cleanup. We could place the cleanup code in the listing three times (once if vector
+has a NaN, once if vector2 has one, and once on OK exit), but it’s cleaner to have one
+exit segment and jump to it as needed.
+Example 7-1. Using goto for a clean getaway in case of errors
+/* Sum to the first NaN in the vector.
+  Sets error to zero on a clean summation, 1 if a NaN is hit.*/
+double sum_to_first_nan(double* vector, int vector_size,
+                     double* vector2, int vector2_size, int *error){
+    double sum=0;
+    *error=1;
+    for (int i=0; i< vector_size; i++){
+        if (isnan(vector[i])) goto outro;
+        sum += vector[i];
+    }
+Labels, gotos, switches, and breaks | 149
+
+    for (int i=0; i< vector2_size; i++){
+        if (isnan(vector2[i])) goto outro;
+        sum += vector2[i];
+    }
+    *error=0;
+    outro:
+    printf("The sum until the first NaN (if any) was %g\n", sum);
+    free(vector);
+    free(vector2);
+    return sum;
+}
+The goto will only work within one function. If you need to jump from one function
+to an entirely different one, have a look at longjmp in your C standard library docu‐
+mentation.
+A single jump by itself tends to be relatively easy to follow, and can clarify if used
+appropriately and in moderation. Even Linus Torvalds, the lead author of the Linux
+kernel, recommends the goto for limited uses like cutting out of a function when
+there’s an error or processing is otherwise finished early, as in the example. Also,
+when you get to working with OpenMP in Chapter 12, you’ll find that it doesn’t allow
+a return in the middle of a parallelized block. So to stop execution, you will need
+either a lot of if statements, or a goto jumping to the end of the block.
+So, to revise the common wisdom on goto, it is generally harmful but is a common
+present-day idiom for cleaning up in case of different kinds of errors, and it is often
+cleaner than the alternatives.
+A Keyword for the Morbid
+The goto is useful for executing a few cleanup operations on the way out of a single
+function when something goes wrong. On a global scale, you have the choice of three
+go-to-the-exit functions: exit, quick_exit, and _Exit, and you can use the the
+at_exit and at_quick_exit functions to register the cleanup operations. (C11
+§7.22.4).
+At an early point in your program, you can call at_exit(fn), to register fn to be
+called by exit before closing streams and shutting down. For example, if you have a
+database handle open, or need to close a network connection, or want your XML
+document to close all its open elements, you can put a function here to do so. It has to
+have the form void fn(void), so any information for the function has to be delivered
+via global variables. After the registered functions are called (in last-in first-out
+order), open streams and files are closed and the program terminates.
+150 | Chapter 7: Inessential C Syntax that Textbooks Spend a Lot of Time Covering
+
+Y ou can register an entirely separate set of functions via at_quick_exit. These func‐
+tions (and not the ones registered via at_exit) are called should your program call
+quick_exit. This form of exit does not close streams or flush buffers.
+Finally, the _Exit function leaves as quickly as possible: no registered functions are
+called, and no buffers flushed.
+Example 7-2  presents a simple example that prints different things depending on
+which nonreturning function you uncomment.
+Example 7-2. Abandon hope, all ye who enter a function marked with the
+_Noreturn function specifier. (noreturn.c)
+#include <stdio.h>
+#include <unistd.h> //sleep
+#include <stdlib.h> //exit, _Exit, et al.
+void wail(){
+    fprintf(stderr, "OOOOooooooo.\n");
+}
+void on_death(){
+    for (int i=0; i<4; i++)
+        fprintf(stderr, "I'm dead. \n");
+}
+_Noreturn void the_count(){   
+    for (int i=5; i --> 0;){
+        printf("%i\n", i); sleep(1);
+    }
+    //quick_exit(1);          
+    //_Exit(1);
+    exit(1);
+}
+int main(){
+    at_quick_exit(wail);
+    atexit(wail);
+    atexit(on_death);
+    the_count();
+}
+The _Noreturn keyword is advice to the compiler that there is no need to prepare
+return information for the function.
+Uncomment these to see what gets called by the other exit functions.
+Labels, gotos, switches, and breaks | 151
+
+
+switch
+Here is a snippet of code for the textbook norm for using the POSIX-standard getopt
+function to parse command-line arguments:
+char c;
+while ((c = getopt(...))){
+    switch(c){
+       case 'v' :
+            verbose++;
+            break;
+       case 'w' :
+            weighting_function();
+            break;
+       case 'f' :
+            fun_function();
+            break;
+    }
+}
+So when c == 'v' , the verbosity level is increased, when c == 'w' , the weighting
+function is called, et cetera.
+Note well the abundance of break statements (which cut to the end of the switch
+statement, not the while loop, which continues looping). The switch function just
+jumps to the appropriate label (recall that the colon indicates a label), and then the
+program flow continues along, as it would given any other jump to a label. Thus, if
+there were no break after verbose++, then the program would merrily continue on to
+execute weighting_function, and so on. This is called fall-through. There are reasons
+for when fall-through is actually desirable, but to me, it always seemed to be a
+lemonade-out-of-lemons artifact of how switch-case is a smoothed-over syntax for
+using labels, goto, and break. Peter van der Linden  surveyed a large code base and
+found that fall-through was appropriate for only 3% of cases.
+If the risk of inserting a subtle bug by forgetting a break or default seems great to
+you, there is a simple solution: don’t use switch.
+The alternative to the switch is a simple series of ifs and elses:
+char c;
+while ((c = getopt(...))){
+    if (c == 'v' )      verbose++;
+    else if (c == 'w' ) weighting_function();
+    else if (c == 'f' ) fun_function();
+}
+It’s redundant because of the repeated reference to c, but it’s shorter because we don’t
+need a break every three lines. Because it isn’t a thin wrapper around raw labels and
+jumps, it’s harder to get wrong.
+152 | Chapter 7: Inessential C Syntax that Textbooks Spend a Lot of Time Covering
+
+Deprecate Float
+  Floating-point math is challenging in surprising places. It’s easy to write down a rea‐
+sonable algorithm that introduces 0.01% error on every step, which over 1,000 itera‐
+tions turns the results into complete slop. Y ou can easily find volumes filled with
+advice about how to avoid such surprises. Much of it is still valid today, but much of it
+is easy to handle quickly: use double instead of float, and for intermediate values in
+calculations, it doesn’t hurt to use long double.
+For example, Writing Scientific Software advises users to avoid what the authors call
+the single-pass method of calculating variances ( Oliveira, 2006; p 24 ). They give an
+example that is ill-conditioned. As you may know, a floating-point number is so
+named because the decimal floats to the right position in an otherwise scale-
+independent number. For exposition, let’s pretend the computer works in decimal;
+then this sort of system can store 23,000,000 exactly as easily as it could store .23
+or .00023—just let the decimal point float. But 23,000,000.00023 is a challenge,
+because there are only so many digits available for expressing the prefloat value, as
+shown in Example 7-3.
+Example 7-3. A float can’t store this many significant digits (floatfail.c)
+#include <stdio.h>
+int main(){
+    printf("%f\n", (float)333334126.98);
+    printf("%f\n", (float)333334125.31);
+}
+The output from Example 7-3 on my netbook, with a 32-bit float:
+333334112.000000
+333334112.000000
+There went our precision. This is why computing books from times past worried so
+much about writing algorithms to minimize the sort of drift one could have with only
+seven reliable decimal digits.
+That’s for a 32-bit float, which is the minimum standard anymore. I even had to
+explicitly cast to float, because the system will otherwise store these numbers with a
+64-bit value.
+64 bits is enough to reliably store 15 significant digits: 100,000,000,000,001 is not a
+problem. (Try it! Hint: printf(%.20g, val) prints val to 20 significant decimal dig‐
+its).
+Example 7-4  presents the code to run Oliveira and Stewart’s example, including a
+single-pass calculation of mean and variance. Once again, this code is only useful as a
+Deprecate Float | 153
+
+demonstration, because the GSL already implements means and variance calculators.
+It does the example twice: once with the ill-conditioned version, which gave our
+authors from 2006 terrible results, and once after subtracting 34,120 from every num‐
+ber, which thus gives us something that even a plain float can handle with full preci‐
+sion. We can be confident that the results using the not-ill-conditioned numbers are
+accurate.
+Example 7-4. Ill-conditioned data: not such a big deal anymore (stddev.c)
+#include <math.h>
+#include <stdio.h> //size_t
+typedef struct meanvar {double mean, var;} meanvar;
+meanvar mean_and_var(const double *data){
+    long double avg = 0,                                  
+          avg2 = 0;
+    long double ratio;
+    size_t cnt= 0;
+    for(size_t i=0;  !isnan(data[i]); i++){
+        ratio = cnt/(cnt+1.0);
+        cnt   ++;
+        avg   *= ratio;
+        avg2  *= ratio;
+        avg   += data[i]/(cnt +0.0);
+        avg2  += pow(data[i], 2)/(cnt +0.0);
+    }
+    return (meanvar){.mean = avg,                         
+                    .var = avg2 - pow(avg, 2)}; //E[x^2] - E^2[x]
+}
+int main(){
+    double d[] = { 34124.75, 34124.48,
+                   34124.90, 34125.31,
+                   34125.05, 34124.98, NAN};
+    meanvar mv = mean_and_var(d);
+    printf("mean: %.10g var: %.10g\n", mv.mean, mv.var*6/5.);
+    double d2[] = { 4.75, 4.48,
+                    4.90, 5.31,
+                    5.05, 4.98, NAN};
+    mv = mean_and_var(d2);
+    mv.var *= 6./5;                                       
+    printf("mean: %.10g var: %.10g\n", mv.mean, mv.var);  
+}
+As a rule of thumb, using a higher level of precision for intermediate variables
+can avoid incremental roundoff problems. That is, if our output is double, then
+154 | Chapter 7: Inessential C Syntax that Textbooks Spend a Lot of Time Covering
+
+
+avg, avg2, and ratio should be long double. Do the results from the example
+change if we just use doubles? (Hint: no.)
+The function returns a struct generated via designated initializers. If this form is
+unfamiliar to you, you’ll meet it soon.
+The function above calculated the population variance; scale to produce the sam‐
+ple variance.
+I used %g as the format specifier in the printfs; that’s the general form, which
+accepts both floats and doubles.
+Here are the results:
+mean: 34124.91167 var: 0.07901676614
+mean: 4.911666667 var: 0.07901666667
+The means are off by 34,120, because we set up the calculations that way, but they are
+otherwise precisely identical (the .66666 would continue off the page if we let it), and
+the ill-conditioned variance is off by 0.000125%. The ill-conditioning had no appreci‐
+able effect.
+That, dear reader, is technological progress. All we had to do was throw twice as
+much space at the problem, and suddenly all sorts of considerations are basically
+irrelevant. You can still construct realistic cases where numeric drift can create prob‐
+lems, but it’s much harder to do so. Even if there is a perceptible speed difference
+between a program written with all doubles and one written with all floats, it’s
+worth extra microseconds to be able to ignore so many caveats.
+Should we use long ints everywhere integers are used? The case isn’t quite as open
+and shut. A double representation of π is more precise than a float representation of
+π, even though we’re in the ballpark of 3; both int and long int representations of
+numbers up to a few billion are precisely identical. The only issue is overflow. There
+was once a time when the limit was scandalously short, like around 32,000. It’s good
+to be living in the present, where the range of integers on a typical system might go
+up to about ±2.1 billion. But if you think there’s even a remote possibility that you
+have a variable that might multiply its way up to the billions (that’s just 200 × 200 ×
+100 × 500, for example), then you certainly need to use a long int or even a long
+long int, or else your answer won’t just be imprecise—it’ll be entirely wrong, as most
+implementations wrap around from +2.1 billion to -2.1 billion. Have a look at your
+copy of limits.h (typically in the usual locations like /include or /usr/include/) for
+details; on my netbook, for example, limits.h says that int and long int are identical.
+Deprecate Float | 155
+
+
+If you are doing some exceptionally serious counting, then #include <stdint.h>
+and use the intmax_t type, which is guaranteed to have a range at least up to 2 63-1 =
+9,223,372,036,854,775,807 [C99 §7.18.1 and C11 §7.20.1].
+If you do switch, remember that you’ll need to modify all your printfs to use %li as
+the format specifier for long int and %ji for intmax_t.
+Comparing Unsigned Integers
+ Example 7-5 shows a simple program that compares an int to a size_t, which is an
+unsigned integer sometimes used for representing array offsets (formally, it is the type
+returned by sizeof):
+Example 7-5. Comparing unsigned and signed integers (uint.c)
+#include <stdio.h>
+int main(){
+    int neg = -2;
+    size_t zero = 0;
+    if (neg < zero) printf("Yes, -2 is less than 0.\n");
+    else            printf("No, -2 is not less than 0.\n");
+}
+Y ou can run this and verify that it gets the wrong answer. This snippet demonstrates
+that in most comparisons between signed and an unsigned integers, C will force the
+signed type to unsigned (C99 & C11 §6.3.1.8(1)), which is the opposite of what we as
+humans expect. I will admit to having been caught by this a few times, and it is hard
+to spot the bug because the comparison looks so natural.
+C gives you a multitude of ways to represent a number, from unsigned short int up
+to long double . Having so many types was necessary back when even mainframe
+memory was measured in kilobytes. But in the present day, this section and the last
+advise against using the full range. Micromanaging types, using float for efficiency
+and breaking out double for special occasions, or using unsigned int because you
+are confident the variable will never store a negative number, opens the way to bugs
+caused by subtle numeric imprecision and C’s not-quite-intuitive arithmetic conver‐
+sions.
+Safely Parse Strings to Numbers
+  There are several functions available to parse the numeric value of a string of text.
+The most popular are atoi and atof (ASCII-to-int and ASCII-to-float). Their use is
+very simple, such as:
+156 | Chapter 7: Inessential C Syntax that Textbooks Spend a Lot of Time Covering
+
+char twelve[] = "12";
+int x = atoi(twelve);
+char million[] = "1e6";
+double m = atof(million);
+But there is no error-checking: if twelve is "XII", then atoi(twelve) evaluates to
+zero and the program continues.
+The safer alternative is using strtol and strtod. They have actually been around
+since C89 but often take a back seat because they do not appear in K&R, 1st ed., and
+take a little more work to use. Most of the authors I have surveyed (including myself
+in a prior book!) do not mention them or relegate them to an appendix.
+The strtod function takes a second argument, a pointer-to-pointer-to- char, which
+will point to the first character that the parser could not interpret as part of a number.
+This can be used to continue parsing the rest of the text, or to check for errors if you
+expect that the string should consist only of a number. If that variable is declared as
+char *end, then at the end of reading a string that could be read in its entirety as a
+number, end points to the '\0'  at the end of the string, so we can test for failure with
+a condition like if (*end) printf("read failure.").
+Example 7-6 gives a sample usage, in the form of a simple program to square a num‐
+ber given on the command line.
+Example 7-6. Using strtod to read in a number (strtod.c)
+#include "stopif.h"
+#include <stdlib.h> //strtod
+#include <math.h>   //pow
+int main(int argc, char **argv){
+    Stopif (argc < 2, return 1, "Give me a number on the command line to square.");
+    char *end;
+    double in = strtod(argv[1], &end);
+    Stopif(*end, return 2, "I couldn't parse '%s' to a number. "
+                "I had trouble with '%s'.", argv[1], end);
+    printf("The square of %s is %g\n", argv[1], pow(in, 2));
+}
+Since C99, there have also been strtof and strtold to convert to float and long dou‐
+ble. The integer versions, strtol or strtoll, to convert to a long int or a long long
+int, take three arguments: the string to convert, the pointer-to-end, and a base. The
+Safely Parse Strings to Numbers | 157
+
+traditional base is base 10, but you can set this to 2 to read binary numbers, 8 to read
+octal, 16 to read hexadecimal, and so on up to base 36.
+Marking Exceptional Numeric Values with NaNs
+Gonna make it through, gonna make it through. Divide by zero like a wrecking crew.
+—The Offspring, “Dividing by Zero”
+The IEEE floating-point standard gives precise rules for how floating-point numbers
+are represented, including special forms for infinity, negative infinity, and Not-a-
+Number—NaN, which indicates a math error like 0/0 or log(-1). IEEE 754/IEC 60559
+(as the standard is called, because the sort of people who deal with these things are
+fine with their standards having a number as a name) is distinct from the C or POSIX
+standards, but it is supported almost everywhere. If you are working on a Cray or
+some special-purpose embedded devices, you’ll have to ignore the details of this sec‐
+tion (but even AVR libc for Arduino and other microcontrollers defines NAN and
+INFINITY).
+As in Example 10-1, NaN can be useful as a marker to indicate the end of a list, pro‐
+vided we are confident that the main part of the list will have all not-NaN values.
+The other thing everybody needs to know about NaN is that testing for equality
+always fails—after setting x=NAN, even x==x will evaluate to false. Use isnan(x) to test
+whether x is NaN.
+Those of you elbow deep in numeric data may be interested in other ways we can use
+NaNs as markers.
+The IEEE standard has a lot of forms for NaN: the sign bit can be 0 or 1, then the
+exponent is all 1s, and the rest is nonzero, so you have a bunch of bits like this:
+S11111111MMMMMMMMMMMMMMMMMMMMMMM, where S is the sign
+and M the unspecified mantissa.
+A zero mantissa indicates ±infinity, depending on the sign bit, but we can otherwise
+specify those Ms to be anything we want. Once we have a way to control those free
+bits, we can add all kinds of distinct semaphores into a cell of a numeric array.
+The graceful way to generate a specific NAN is via the function nan(tagp) that returns
+a NAN “with content indicated through tagp. ” [C99 and C11 §7.12.11.2] The input
+should be a string representing a floating-point number—the nan function is a wrap‐
+per for strtod—which will be written to the mantissa of the NaN.
+158 | Chapter 7: Inessential C Syntax that Textbooks Spend a Lot of Time Covering
+
+The program in Example 7-7 generates and uses an NA (not available) marker, which
+is useful in contexts where we need to distinguish between data that is missing and
+math errors.
+Example 7-7. Make an NA marker to annotate your floating-point data (na.c)
+#include <stdio.h>
+#include <math.h> //NAN, isnan, nan
+double ref;
+double set_na(){
+    if (!ref) ref=nan("21");
+    return ref;
+}
+int is_na(double in){               
+    if (!ref) return 0;  //set_na was never called==>no NAs yet.
+    char *cc = (char *)(&in);
+    char *cr = (char *)(&ref);
+    for (int i=0; i< sizeof(double); i++)
+        if (cc[i] != cr[i]) return 0;
+    return 1;
+}
+int main(){
+    double x = set_na();
+    double y = x;
+    printf("Is x=set_na() NA? %i\n", is_na(x));
+    printf("Is x=set_na() NAN? %i\n", isnan(x));
+    printf("Is y=x NA? %i\n", is_na(y));
+    printf("Is 0/0 NA? %i\n", is_na(0/0.));
+    printf("Is 8 NA? %i\n", is_na(8));
+}
+The is_na function checks whether the bit pattern of the number we’re testing
+matches the special bit pattern that set_na made up. It does this by treating both
+inputs as character strings and doing character-by-character comparison.
+I produced a single semaphore to store in a numeric data point, using 21 as the hap‐
+hazardly chosen key. We can insert as many other distinct markers as desired directly
+into our data set using a minor modification of the preceding code to mark all sorts of
+different exceptions.
+In fact, some widely used systems (such as WebKit) go much further than just a
+semaphore and actually insert an entire pointer into the mantissa of their NaNs. This
+method, NaN boxing, is left as an exercise for the reader.
+Safely Parse Strings to Numbers | 159

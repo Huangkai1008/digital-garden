@@ -1,0 +1,638 @@
+CHAPTER 6
+Your Pal the Pointer
+He’s the one
+Who likes all our pretty songs
+And he likes to sing along
+And he likes to shoot his gun
+But he don’t know what it means.
+—Nirvana, “In Bloom”
+Like a song about music, or a movie about Hollywood, a pointer is data describing
+other data. It’s certainly easy to get overwhelmed: all at once, you have to deal with
+getting lost in references to references, aliases, memory management, and malloc.
+But our outrageous fortune breaks down into separate components. For example, we
+can use pointers as aliases without bothering with malloc, which doesn’t have to
+appear nearly as often as the textbooks from the ’90s told us it did. On the one hand,
+C’s syntax can be confusing with its use of stars; on the other hand, C’s syntax pro‐
+vides us with tools for dealing with especially complicated setups like pointers to
+functions.
+The topics in this chapter address common errors and common points of confusion.
+If you’ve been writing in C for a long time, these points will seem like second nature
+to you, and you might want to skip or quickly skim this chapter. It is intended for all
+those people (and their numbers are legion) who feel a little uneasy when working
+with pointers.
+Automatic, Static, and Manual Memory
+C provides three basic models of memory management, which is two more than most
+languages and two more than you really want to care about. And as a bonus for you,
+123
+
+1 C99 and C11 §6.2.4 refer to malloced memory as allocated memory, but I chose to use a term that better dis‐
+tinguishes this type of storage from storage allocated on the stack.
+the reader, I’ll even throw in two more memory models later on (thread-local in
+“Thread Local” on page 298  and mmaped in “Using mmap for Gigantic Data Sets”  on
+page 327).
+Automatic
+Y ou declare a variable on first use, and it is removed when it goes out of scope.
+Without the static keyword, any variable inside a function is automatic. Y our
+typical programming language has only automatic-type data.
+Static
+Static variables exist in the same place throughout the life of the program. Array
+sizes are fixed at startup, but values can change (so it’s not entirely static). Data is
+initialized before main starts, and thus any initializations have to be done with
+constants that require no calculations. Variables declared outside of functions (in
+file scope) and inside functions with the static keyword are static. If you forget
+to initialize a static variable, it is initialized to all zeros (or NULL).
+Manual
+The manual type involves malloc and free, and is where most of your segfaults
+happen.1 This memory model is why Jesus weeps when he has to code in C. Also,
+this is the only type of memory where arrays can be resized after declaration.
+Table 6-1 shows the differences in the three places you could put data. I discuss most
+of these points at length over the next few chapters.
+Table 6-1. Three types of memory; three bundles of features
+ Static Auto Manual
+Set to zero on startup ◊   
+Scope-limited ◊ ◊  
+Can set values on init ◊ ◊  
+Can set nonconstant values on init  ◊  
+sizeof measures array size ◊ ◊  
+Persists across function calls ◊  ◊
+Can be global ◊  ◊
+124 | Chapter 6: Your Pal the Pointer
+
+ Static Auto Manual
+Array size can be set at runtime  ◊ ◊
+Can be resized   ◊
+Jesus weeps   ◊
+Some of these are features that we are looking for in a variable, such as resizing or
+convenient initialization. Some of these things, such as whether you get to set values
+on initialization, are technical consequences of the memory system. So if you want a
+different feature, such as being able to resize at runtime, suddenly you have to care
+about malloc and the pointer heap. If we could bomb it all out and start over, we
+wouldn’t tie together three sets of features with three sets of technical annoyances.
+But here we are.
+The Stack and the Heap
+Any one function has a space in memory, a frame, holding information about the
+function, such as where to return to when finished and spaces for all of the automati‐
+cally allocated variables.
+When a function (such as main) calls another function, action in the first function’s
+frame halts, and a frame for the new function is added to the stack of frames. When a
+function completes, its frame is popped off the stack, and all variables in that frame
+disappear in the process.
+Unfortunately, the stack has arbitrary size limits that are much smaller than general
+memory, in the ballpark of maybe 2 or 3 megabytes (via Linux defaults as of this writ‐
+ing). That’s about enough to hold all of Shakespeare’s tragedies, so don’t worry about
+allocating an array of 10,000 integers. But it’s easy to find data sets much larger, and
+the current limits on the stack will require that we allocate space for them elsewhere,
+using malloc.
+Memory allocated via malloc is not on the stack, but is elsewhere in the system, in a
+space called the heap. The heap may or may not be size-restricted; on a typical PC, it
+is not unreasonable to assume that the size of the heap is roughly the size of all avail‐
+able memory.
+Here are some words that do not appear in the C11 standard:
+Transistor C++
+CPU Frame
+Automatic, Static, and Manual Memory | 125
+
+Joy Heap
+Love Stack
+Details of environment and implementation are typically left out of the standard, and
+the stack of frames is such an implementation detail. However, there has always been
+broad consensus in this form of implementation. The description of automatically
+allocated variables given by the C standard thus closely matches the functioning of
+variables allocated and destroyed in a stack of frames, and the description of what it
+calls allocated storage closely matches the behavior of memory taken from the heap.
+All of this is about where you put your data in memory. This is distinct from the vari‐
+ables themselves, which can make for another level of fun:
+1. If you declared your struct, char, int, double, or other variable either outside of
+a function or inside a function with the static keyword, then it’s static; other‐
+wise, it’s automatic.
+2. If you declared a pointer, the pointer itself has a memory type, probably auto or
+static as per rule 1. But the pointer could be pointing to any of the three types of
+data: static pointer to malloced data, automatic pointer to static data—all the
+combinations are possible.
+Rule 2 means that you can’t identify the memory model by the typography. On the
+one hand, it’s nice that we don’t have to deal with one notation for auto arrays and a
+different notation for manual arrays; on the other hand, you still have to be aware of
+which you have, so you don’t get tripped up resizing an automatic array or not freeing
+a manual array.
+The distinction between pointer-to-manual and pointer-to-automatic clarifies one of
+the famous points of confusion among C beginners: what is the difference between
+int an_array[] and int *a_pointer?
+When a program runs across this declaration in your code:
+int an_array[32];
+the program will:
+• set aside a space on the stack big enough for 32 integers,
+• declare that an_array is a pointer, and
+• bind that pointer to point to the newly allocated space.
+126 | Chapter 6: Your Pal the Pointer
+
+The space set aside is automatically allocated, meaning that you cannot resize the
+space or retain the space after it is automatically destroyed at the end of scope. As an
+additional restriction, you can not reassign an_array to point elsewhere. Because the
+variable an_array can not be divorced from the 32-integer space allocated for it, K&R
+and the C standard say that an_array is the array.
+Despite the restrictions, an_array is a pointer to a place in memory, and the usual
+rules of dereferencing a pointer (discussed in more detail below) apply to it.
+When a program runs across this declaration in your code:
+int *a_pointer;
+the program will only do one of the above steps:
+• declare that an_array is a pointer
+This pointer is not bound to any specific location in memory, and so is free to be
+assigned to point to anywhere. Valid uses include:
+//manually allocating a new block; pointing a_pointer to it:
+a_pointer = malloc(32*sizeof(int));
+//pointing the pointer to an_array, as declared above.
+a_pointer = an_array;
+So the distinction between writing int an_array[] and int *a_pointer in a decla‐
+ration has a real effect. But in other cases, such as in a typedef declaration (such as for
+a new struct) or a function call, there is less distinction to be made. For example,
+given a function declared via
+int f(int *a_pointer, int an_array[]);
+a_pointer and an_array behave identically. No memory is being allocated, so the
+pointer-to-manual versus pointer-to-automatic distinction is moot. A C function
+receives a copy of the input arguments, not the originals, and a copy of a pointer-to-
+automatic doesn’t have the binding restrictions that the original array has. So as an
+argument to a function, there is no distinction at all, and C99 §6.7.5.3(7) and C11
+§6.7.6.3(7) state that “ A declaration of a parameter as ‘array of type’ shall be adjusted
+to ‘qualified pointer to type’” (the qualifiers, const, restrict, volatile, or _Atomic,
+are retained in the conversion from array-of- type to pointer-to-type). The example
+above had no array size, but this pointer decay occurs even for a form like int g(int
+an_array[32]).
+I have grown the habit of always using the *a_pointer form in-function headers and
+typedefs, because it is one less thing to think about and preserves the rule of reading
+complex declarations from right to left (see “Noun-Adjective Form” on page 178 ).
+Automatic, Static, and Manual Memory | 127
+
+Y our Turn: Check back on some code you have and go through the typology: which
+data is static memory, auto, manual; which variables are auto pointers to manual
+memory, auto pointers to static values, et cetera. If you don’t have anything immedi‐
+ately on hand, try this exercise with Example 6-6.
+Persistent State Variables
+This chapter is mostly about the interaction of automatic memory, manual memory,
+and pointers, which leaves static variables somewhat out of the narrative. But it’s
+worth pausing to consider the good work static variables can do for us.
+Static variables can have local scope. That is, you can have variables that exist only in
+one function, but when the function exits, the variable retains its value. This is great
+for having an internal counter or a reusable scratch space. Because a static variable
+never moves, a pointer to a static variable will remain valid after a function exits.
+Example 6-1  presents a traditional textbook example: the Fibonacci sequence. We
+declare the first two elements to be 0 and 1, and each element after those is the sum of
+the two prior elements.
+Example 6-1. The Fibonacci sequence generated by a state machine (fibo.c)
+#include <stdio.h>
+long long int fibonacci(){
+    static long long int first = 0;
+    static long long int second = 1;
+    long long int out = first+second;
+    first=second;
+    second=out;
+    return out;
+}
+int main(){
+    for (int i=0; i< 50; i++)
+        printf("%lli\n", fibonacci());
+}
+Check out how insignificant main is. The fibonacci function is a little machine that
+runs itself; main just has to bump the function and it spits out another value. That is,
+the function is a simple state machine, and static variables are the key tool for imple‐
+menting state machines via C.
+128 | Chapter 6: Your Pal the Pointer
+
+ How can we use these static state machines in a world where every function has to be
+thread-safe? The ISO C committee saw us coming, and C11 includes a
+_Thread_local memory type. Just put that into your declarations:
+static _Thread_local int counter;
+and you’ve got a distinct counter for each thread. I discuss this in greater detail in
+“Thread Local” on page 298 .
+Declaring Static Variables
+Static variables, even those inside of a function, are initialized when the program
+starts, before main, so you can’t initialize them with a nonconstant value.
+//this fails: can't call gsl_vector_alloc() before main() starts
+static gsl_vector *scratch = gsl_vector_alloc(20);
+This is an annoyance, but easily solved with a macro to start at zero and allocate on
+first use:
+#define Staticdef(type, var, initialization) \
+    static type var = 0; \
+    if (!(var)) var = (initialization);
+//usage:
+Staticdef(gsl_vector*, scratch, gsl_vector_alloc(20));
+This works as long as we don’t ever expect initialization to be zero (or in pointer-
+speak, NULL). If it is, it’ll get reinitialized on the next go-round. Maybe that’s OK any‐
+way.
+Pointers Without malloc
+  When I tell my computer set A to B, I could mean one of two things:
+• Copy the value of B into A. When I increment A with A++, then B doesn’t change.
+• Let A be an alias for B. Then A++ also increments B.
+Every time your code says set A to B, you need to know whether you are making a
+copy or an alias. This is in no way C-specific.
+For C, you are always making a copy, but if you are copying the address of the data
+you care about, a copy of the pointer is a new alias for the data. That’s a fine imple‐
+mentation of aliasing.
+  Other languages have different customs: LISP family languages lean heavily on alias‐
+ing and have set commands to copy; Python generally copies scalars but aliases lists
+Pointers Without malloc | 129
+
+(unless you use copy or deepcopy). Again, knowing which to expect will clear up a
+whole lot of bugs all at once.
+The GNU Scientific Library includes vector and matrix objects, which both have a
+data element, which is itself an array of doubles. Let us say that we have some vector/
+matrix pairs, via a typedef, and an array of these pairs:
+typedef struct {
+    gsl_vector* vector;
+    gsl_matrix* matrix;
+} datapair;
+datapair your_data[100];
+Say we have been dealing with this structure for a while, and are frequently dealing
+with the first element of the first matrix:
+your_data[0].matrix->data[0]
+If you are familiar with how the blocks fit together, this is easy to follow, but is it ever
+annoying to type. Let’s alias it:
+double *elmt1 = your_data[0].matrix->data;
+Among the two types of assignment shown, the equals sign here is the aliasing type:
+only a pointer gets copied, and if we change *elmt1, then the data point buried in
+your_data gets modified as well.
+Aliasing is a malloc-free experience, and demonstrates that we can get mileage out of
+pointers without fretting about memory management.
+To give another example where malloc sometimes needlessly turns up, you may have
+a function that takes in a pointer as input:
+void increment(int *i){
+    (*i)++;
+}
+Users of the function who too closely associate pointers with malloc might think that
+this means that they have to allocate memory to pass in to the function:
+int *i = malloc(sizeof(int)); //so much effort, wasted
+*i = 12;
+increment(i);
+...
+free(i);
+Rather, the easiest use is to let automatic memory allocation do the work:
+int i=12;
+increment(&i);
+130 | Chapter 6: Your Pal the Pointer
+
+Y our Turn: I gave you that advice earlier that every time you have a line that says set A
+to B, you need to know whether you are asking for an alias or a copy. Grab some code
+you have on hand (in whatever language) and go through line by line and ask yourself
+which is which. Were there cases where you could sensibly replace a copy with an
+alias?
+Structures Get Copied, Arrays Get Aliased
+ As in Example 6-2, copying the contents of a structure is a one-line operation.
+Example 6-2. No, you don’t need to copy the elements of a struct element by element
+(copystructs.c)
+#include <assert.h>
+typedef struct{
+    int a, b;
+    double c, d;
+    int *efg;
+} demo_s;
+int main(){
+    demo_s d1 = {.b=1, .c=2, .d=3, .efg=(int[]){4,5,6}};
+    demo_s d2 = d1;
+    d1.b=14;            
+    d1.c=41;
+    d1.efg[0]=7;
+    assert(d2.a==0);    
+    assert(d2.b==1);
+    assert(d2.c==2);
+    assert(d2.d==3);
+    assert(d2.efg[0]==7);
+}
+Let’s change d1 and see if d2 changed.
+These assertions will all pass.
+As before, you should always know whether your assignment is a copy of the data or
+a new alias, so which is it here? We changed d1.b d1.b, and d1.c and d2 didn’t
+change, so this is a copy. But a copy of a pointer still points to the original data, so
+when we change d1.efg[0], the change also affects the copy of a pointer d2.efg. This
+advises that if you need a deep copy where pointer contents are copied, you will need a
+Pointers Without malloc | 131
+
+
+struct copying function, and if you don’t have any pointers to trace through, then a
+copy function is overkill and an equals sign will do.
+For arrays, the equals sign will copy an alias, not the data itself. In Example 6-3, let’s
+try the same test of making a copy, changing the original, and checking the copy’s
+value.
+Example 6-3. Structs get copied, but setting one array to the other creates an alias
+(copystructs2.c)
+#include <assert.h>
+int main(){
+    int abc[] = {0, 1, 2};
+    int *copy = abc;
+    copy[0] = 3;
+    assert(abc[0]==3); 
+}
+Passes: the original changed when the copy did.
+Example 6-4 is a slow buildup to a train wreck. It is mostly two functions that auto‐
+matically allocate two blocks: the first allocates a struct and the second allocates a
+short array. Being automatic memory, we know that at the end of each function, the
+respective blobs of memory will be freed.
+A function that ends in return x will return the value of x to the calling function
+[C99 and C11 §6.8.6.4(3)]. Seems simple enough, but that value has to be copied out
+to the calling function, whose frame is about to be destroyed. As previously, for a
+struct, a number, or even a pointer, the calling function will get a copy of the returned
+value; for an array, the calling function will get a pointer to the array, not a copy of the
+data in the array.
+That last one is a nasty trap, because the pointer returned may be pointing to an auto‐
+matically allocated array of data, which is destroyed on function exit. A pointer to a
+block of memory that has already been automatically freed is worse than useless.
+Example 6-4. You can return a struct from a function, but not an array (automem.c)
+#include <stdio.h>
+typedef struct powers {
+    double base, square, cube;
+} powers;
+powers get_power(double in){
+    powers out = {.base   = in,                                  
+132 | Chapter 6: Your Pal the Pointer
+
+
+                  .square = in*in,
+                  .cube   = in*in*in};
+    return out;                                                  
+}
+int *get_even(int count){
+    int out[count];
+    for (int i=0; i< count; i++)
+        out[i] = 2*i;
+    return out;   //bad.                                         
+}
+int main(){
+    powers threes = get_power(3);
+    int *evens = get_even(3);
+    printf("threes: %g\t%g\t%g\n", threes.base, threes.square, threes.cube);
+    printf("evens: %i\t%i\t%i\n", evens[0], evens[1], evens[2]); 
+}
+The initialization is via designated initializers. If you’ve never met them, hold
+tight for a few chapters.
+This is valid. On exit, a copy of the local, automatically allocated out is made,
+then the local copy is destroyed.
+This is invalid. Here, arrays really are treated like pointers, so on exit, a copy of
+the pointer to out gets made. But once the autoallocated memory is destroyed,
+the pointer is now pointing to bad data. If your compiler is on the ball, it will
+warn you of this.
+Back in the function that called get_even, evens is a valid pointer-to-int, but it is
+pointing to already freed data. This may segfault, print garbage, or get lucky and
+print the correct values (this time).
+If you need a copy of an array, you can still do it on one line, but we’re back to
+memory-twiddling syntax, as in Example 6-5.
+Example 6-5. Copying an array requires memmove—it’s antediluvian, but it works
+(memmove.c)
+#include <assert.h>
+#include <string.h> //memmove
+int main(){
+    int abc[] = {0, 1, 2};
+    int *copy1, copy2[3];
+    copy1 = abc;
+Pointers Without malloc | 133
+
+
+    memmove(copy2, abc, sizeof(int)*3);
+    abc[0] = 3;
+    assert(copy1[0]==3);
+    assert(copy2[0]==0);
+}
+malloc and Memory-Twiddling
+Now for the memory part, in which we deal with addresses in memory directly. These
+will often be allocated manually via malloc.
+The easiest way to avoid bugs related to malloc is not to use malloc. Historically (in
+the 1980s and 1990s), we needed malloc for all sorts of string manipulations; Chap‐
+ter 9 gives full coverage of strings without explicitly calling malloc once. We needed
+malloc to deal with arrays for which length had to be set at runtime, which is pretty
+common; as per “Set Array Size at Runtime” on page 144 , that is also largely obsolete.
+Here is my roughly comprehensive list of reasons left for using malloc:
+1. Resizing an already extant array requires realloc, which only makes sense on
+blocks of memory initially allocated via malloc.
+2. As explained earlier, you can’t return an array from a function.
+3. Some objects should persist long after their initialization function. Though,
+Chapter 11 will present several examples that wrap the memory management for
+such objects into new/copy/free functions so that they don’t sully our procedures.
+4. Automatic memory is allocated on the stack of function frames, which may be
+restricted to a few megabytes (or less). Therefore, large chunks of data (i.e., any‐
+thing measured in megabytes) should be allocated on the heap, not the stack.
+Again, you probably have a function to store your data in an object of some sort,
+so this will in practice be a call to an object_new function rather than to malloc
+itself.
+5. Now and then, you will find function forms that require that a pointer be
+returned. For example, in “Pthreads”  on page 308, the template requires that we
+write a function that returns a void * . We dodge that bullet by just returning
+NULL, but now and then, we hit a form where we’re stuck. Note also that “Return
+Multiple Items from a Function” on page 220 discusses returning structs from a
+function, so we can send back relatively complex return values without memory
+allocation, obviating another common use of allocations within a function.
+I wrote this list to show you that it’s not all that long—and item 5 is a rarity, and item
+4 is often a special case of item 3, because giant data sets tend to get put into object-
+like data structures. Production code tends to have few uses of malloc, typically
+134 | Chapter 6: Your Pal the Pointer
+
+wrapped in new/copy/free functions so the main code doesn’t have to deal further
+with memory management.
+The Fault Is in Our Stars
+ OK, so we’re clear that pointers and memory allocation are separate concepts, but
+dealing with pointers themselves can still be a problem, because, well, all those stars
+are just confusing.
+The ostensible rationale for the pointer declaration syntax is that the use and the dec‐
+laration look alike. What they mean by this is that when you declare:
+int *i;
+*i is an integer, so it’s only natural that we’ d declare that *i is an integer via int *i.
+So that’s all well and good, and if it helps you, great. I’m not sure that I could invent a
+less ambiguous way of doing it.
+Here’s a common design rule, espoused throughout The Design of Everyday Things,
+for example: things that have drastically different functions should not look similar
+(Norman, 2002 ). That book gives the example of airplane controls, where two
+identical-looking levers often do entirely different things. In a crisis situation, that’s
+an invitation for human error.
+Here, C syntax crashes and burns, because *i in a declaration and *i outside of a dec‐
+laration do very different things. For example:
+int *i = malloc(sizeof(int)); //right
+*i = 23;                      //right
+int *i = 23;                  //wrong
+I’ve thrown the rule that declaration looks like usage out of my brain. Here’s the rule I
+use, which has served me well: when used for a declaration, a star indicates a pointer;
+when not used as a declaration, a star indicates the value of the pointer.
+Here is a valid snippet:
+int i = 13;
+int *j = &i;
+int *k = j;
+*j = 12;
+Using the rule given, you can see that on the second line, the initialization is correct,
+because *j is a declaration, and so a pointer. On the third line, *k is also the declara‐
+tion of a pointer, so it makes sense to assign to it j, also a pointer. On the last line, *j
+is not in a declaration, so it indicates a plain integer, and so we can assign 12 to it (and
+i will change as a result).
+Pointers Without malloc | 135
+
+So there’s your first tip: bear in mind that when you see *i on a declaration line, it is a
+pointer to something; when you see *i on a nondeclaration line, it is the pointed-to
+value.
+After some pointer arithmetic, I’ll come back with another tip for dealing with weird
+pointer declaration syntax.
+All the Pointer Arithmetic You Need to Know
+An element of an array can be expressed as being at some offset from the base of the
+array. Y ou could declare a pointer double *p; then that’s your base, and you can use
+the offsets from that base as an array: at the base itself, you will find the contents of
+the first element, p[0]; go one step from the base and you have the contents of the
+second, p[1]; et cetera. So if you give me a pointer and the distance from one element
+to the next, I’ve got an array.
+Y ou could just write the base plus offset directly and literally, via a form like (p+1). As
+your textbooks will tell you, p[1] is exactly equivalent to *(p+1), which explains why
+the first element in an array is p[0] == *(p+0). K & R spend about six pages on this
+stuff [2nd ed., sections 5.4 and 5.5].
+The theory implies a few rules for notating arrays and their elements in practice:
+• Declare arrays either via the explicit pointer form, double *p or the static/auto‐
+matic form, double p[100].
+• In either case, the nth array item is p[n]. Don’t forget that the first item is zero,
+not one; it can be referred to with the special form p[0] == *p.
+• If you need the address of the nth element (not its actual value), use the amper‐
+sand: &p[n]. Of course, the zeroth pointer is just &p[0] == p.
+Example 6-6 shows some of these rules in use.
+Example 6-6. Some simple pointer arithmetic (arithmetic.c)
+#include <stdio.h>
+int main(){
+    int evens[5] = {0, 2, 4, 6, 8};
+    printf("The first even number is, of course, %i\n", *evens);         
+    int *positive_evens = &evens[1];                                     
+    printf("The first positive even number is %i\n", positive_evens[0]); 
+}
+Writing evens[0] using the special form *evens
+136 | Chapter 6: Your Pal the Pointer
+
+
+The address of element 1, assigned to a new pointer
+The usual way of referring to the first element of an array
+I’ll throw in one nice trick, based on the pointer arithmetic rule that p+1 is the
+address of the next point in an array (that is, &p[1]). With this rule, you don’t need an
+index for for loops that step through an array. Example 6-7 uses a spare pointer that
+starts at the head of a list, and then steps through the array with p++ until it hits the
+NULL marker at the end. The next pointer declaration tip will make this much more
+legible.
+Example 6-7. We can use the fact that p++ means “step to the next pointer” to streamline
+for loops (pointer_arithmetic1.c)
+#include <stdio.h>
+int main(){
+    char *list[] = {"first", "second", "third", NULL};
+    for (char **p=list; *p != NULL; p++){
+        printf("%s\n", p[0]);
+    }
+}
+Y our Turn: How would you implement this if you didn’t know about p++?
+Base-plus-offset thinking doesn’t give us much payoff in terms of cute syntactic tricks,
+but it does explain a lot about how C works. In fact, consider the struct. Given:
+typedef struct{
+    int a, b;
+    double c, d;
+} abcd_s;
+abcd_s list[3];
+As a mental model, you can think of list as our base, and list[0].b is just far
+enough past that to refer to b. That is, given that the location of list is the integer
+(size_t)&list, b might be located at (size_t)&list + sizeof(int) ; and so
+list[2].d would be at the position (size_t)&list + 6*sizeof(int) +
+5*sizeof(double). Under this thinking, a struct is much like an array, except the ele‐
+ments have names instead of numbers and are of different types and sizes.
+It’s not quite correct, because of alignment: the system may decide that the data needs
+to be in chunks of a certain size, so fields may have extra space at the end so that the
+next field begins at the right point, and the struct may have padding at its end so that
+Pointers Without malloc | 137
+
+
+a list of structs is appropriately aligned [C99 and C11 §6.7.2.1(15) and (17)]. The
+header stddef.h defines the offsetof macro, which makes the base-plus-offset think‐
+ing accurate again: list[2].d really is at (size_t)&list + 2*sizeof(abcd_s) +
+offsetof(abcd_s, d).
+By the way, there can’t be padding at the beginning of a struct, so list[2].a is at
+(size_t)&list+ 2*sizeof(abcd_s).
+Here is a silly function to recursively count the number of elements in a list until we
+hit a zero-valued element. Let us say (and this is a bad idea) that we’ d like to be able to
+use this function for any type of list where a zero value makes sense, so it will take in
+a void pointer.
+int f(void *in){
+    if (*(char*)in==0) return 1;
+    else return 1 + f(&(in[1]));  //This won't work.
+}
+The base-plus-offset rule explains why this won’t work. To refer to a_list[1], the
+compiler needs to know the exact length of a_list[0], so it knows how far to offset
+from the base. But without a type attached, it can’t calculate that size.
+Multidimensional Arrays
+One way to do a multidimensional array is via an array of arrays of arrays, like int
+an_array[2][3][7]. This is a subtly different type from int another_array[2][3]
+[6], and using it in practice creates more headaches than it solves, especially when
+writing functions that are expected to operate on both of these types. Textbook exam‐
+ples usually stick to arrays of universally fixed size (we can expect that there will
+always be 12 months) or never pass an array of arrays to a function.
+I say, forget it. It’s too much of a pain to write around the subtly different types.
+Everybody has a different view of the world of code, but I rarely see this form outside
+of textbooks, and see a base-plus-stride-offset form much more frequently.
+The more workable way to implement an N 1-by-N2-by-N3 multidimensional array
+of doubles:
+• Define a struct with a single data pointer (herein data) and a list of strides.
+• Define an alloc routine that sets up the pointer via data=malloc(sizeof(dou
+ble)*N1*N2*N3) and records the strides, S1=N1, S2=N2, S3=N3. Y ou will also need
+a free routine to free the allocated memory.
+• Define get/set routines: get(x, y, z)  would retrieve data[x + S1*y +
+S1*S2*z], and set would put a value in that same position. With these get/set
+functions, the first block of S 1 data points in data is of the form ( x, 0, 0). The
+138 | Chapter 6: Your Pal the Pointer
+
+next block of data points, from S 1+0 to S1+S1, is of the form (x, 1, 0). Repeating
+this row-by-row pattern covers every value of the form ( x, y, 0), and requires
+S1*S2 slots. The next slot will be position (0, 0, 1), and so on until all S 1*S2*S3
+cells are accounted for.
+We can check whether the inputs to the get/set routines are outside the bounds of
+the array, because we recorded the strides. We don’t need S3 to find any positions
+in the data grid, but it is worth recording in the struct to check bounds.
+The GNU Scientific Library has a fine implementation of this for two-dimensional
+arrays. Their implementation is slightly different, including a stride for the first
+dimension and an offset marker. It is trivial to get subsets like column/row vectors or
+submatrices simply by changing the starting point and strides. For arrays of three or
+more dimensions, your favorite Internet search engine will provide several options
+using a base-plus-stride-offset system like the one described here.
+Typedef as a teaching tool
+ Any time you find yourself putting together a complex type, which frequently means
+a pointer-to-pointer-to-pointer sort of situation, ask yourself whether a typedef could
+clarify things.
+For example, this popular definition:
+typedef char* string;
+reduces the visual clutter around arrays of strings and clarifies their intent. In the pre‐
+ceding pointer-arithmetic p++ example, did the declarations communicate to you that
+char *list[] is a list of strings, and that *p is a string? Example 6-8 shows a rewrite
+of the for loop of Example 6-7, replacing char * with string.
+Example 6-8. Adding a typedef makes awkward code a little more legible
+(pointer_arithmetic2.c)
+#include <stdio.h>
+typedef char* string;
+int main(){
+    string list[] = {"first", "second", "third", NULL};
+    for (string *p=list; *p != NULL; p++){
+        printf("%s\n", *p);
+    }
+}
+The declaration line for list is now as easy as C gets and clearly indicates that it is a
+list of strings, and the snippet string *p should indicate to you that p is a pointer-to-
+string, so *p is a string.
+Pointers Without malloc | 139
+
+In the end, you’ll still have to remember that a string is a pointer-to- char; for exam‐
+ple, NULL is a valid value.
+One could even take this further, such as declaring a 2D array of strings using the
+typedef above plus typedef stringlist string* . Sometimes this helps; sometimes
+it’s just more notation to memorize.
+Typedefs save the day when dealing with pointers to functions. If you have a function
+with a header like:
+double a_fn(int, int); //a declaration
+then just add a star (and parens to resolve precedence) to describe a pointer to this
+type of function:
+double (*a_fn_type)(int, int);   //a type: pointer-to-function
+Then put typedef in front of that to define a type:
+typedef double (*a_fn_type)(int, int); //a typedef for a pointer to function
+Now you can use it as a type like any other, such as to declare a function that takes
+another function as input:
+double apply_a_fn(a_fn_type f, int first_in, int second_in){
+    return f(first_in, second_in);
+}
+Being able to define specific pointer-to-function types takes writing functions that
+take other functions as inputs from being a daunting test of star placement to being
+kind of trivial.
+In the end, dealing with pointers can be much simpler than the textbooks make it out
+to be, because it really is just a location or an alias—it’s not about the different types
+of memory management at all. Complex constructs like pointers-to-pointers-to-
+strings are always confusing, because our hunter-gatherer ancestors never had a need
+to evolve skills to handle them. With the typedef, C at least gives us a tool to deal with
+them.
+140 | Chapter 6: Your Pal the Pointer
